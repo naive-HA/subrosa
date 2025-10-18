@@ -1,0 +1,222 @@
+* Version 2.9.0 (released 2025-09-08)
+ ** new:
+  - updated targetSdk to 36
+ ** core module:
+  - fixed a bug in formatting short APDUs
+ ** fido module:
+  - added support for CTAP2.2 features:
+    - new authenticatorGetInfo members
+    - persistentPinUvAuthToken
+  - added processing of CTAP2.2 extensions:
+    - hmac-secret-mc
+    - thirdPartyPayment
+  - added support for NFCCTAP_GETRESPONSE
+  - fixed credential list pre-flight
+ ** openpgp module:
+  - fixed implementation of verifyUserPin
+* Version 2.8.2 (released 2025-07-24)
+ ** core module:
+  - fixed SCP processing
+ ** oath module:
+  - fixed parsing OATH URI where issuer contains ampersand character
+ ** yubiotp module:
+  - fixed programming sequence update evaluation
+ ** fido modules:
+  - added support for using SCP over CCID
+  - fixed largeBlob extension authenticator inputs naming
+ ** test modules:
+  - added support for test device serial number allow list
+ ** build system:
+  - migrated publishing to ossrh-staging-api service
+* Version 2.8.1 (released 2025-05-28)
+ ** core module:
+   - added support for Version Qualifier
+   - added support for using SmartCardConnection only with short APDUs
+ ** fido module:
+  - fixed handling of allowList without existing credentials
+ ** general:
+  - improved support of legacy Yubico devices
+  - the FUNCTION_NOT_SUPPORTED is now treated as ApplicationNotAvailableException
+* Version 2.8.0 (released 2025-01-30)
+ ** new
+  - updated targetSdk to 35
+  - added experimental desktop platforms support
+ ** fido module:
+  - added updateUserInformation subcommand in credential management
+  - added extensible support for FIDO extensions
+  - added processing of defined FIDO extensions:
+    - credBlob
+    - credProps
+    - credProtect
+    - hmac-secret / prf
+    - largeBlob
+    - minPinLength
+ ** general:
+  - integrated spotless plugin for java source code formatting
+  - improved integration tests to run on older YubiKeys
+  - improved javadoc
+  - updated build dependencies and libraries
+* Version 2.7.0 (released 2024-08-30)
+ ** new
+  - support for communication over SCP03 and SCP11 protocols
+  - support for managing SCP03 and SCP11 keys through Security Domain session
+ ** support module:
+  - fixed missing property values for DeviceInfo in DeviceUtil.readInfo()
+ ** general updates:
+  - improved integration tests with support to run over SCP
+  - updated build dependencies and libraries
+* Version 2.6.0 (released 2024-06-18)
+ ** piv module:
+  - support for RSA3072 and RSA4096 (keys with FW 5.7+)
+  - support for Ed25519 and X25519 (keys with FW 5.7+)
+  - support for move/delete private key (keys with FW 5.7+)
+  - support for metadata and verify extensions (Bio multi-protocol keys)
+  - new verification policies PIN_OR_MATCH_ONCE/ALWAYS (Bio multi-protocol keys)
+ ** general updates:
+  - updated build dependencies and libraries
+* Version 2.5.0 (released 2024-03-25)
+ ** fido module:
+  - added support for authenticatorBioEnrollment
+  - fixed setMinPinLength implementation
+  - fixed handling of UserVerificationRequirement.DISCOURAGED
+ ** management module:
+  - deprecated constructors of DeviceInfo
+  - added DeviceInfo.Builder which replaces deprecated constructors
+  - added support for reading all pages of YubiKey configuration
+  - added support for device wide reset
+ ** general updates:
+  - updated build dependencies and libraries
+* Version 2.4.0 (released 2023-11-21)
+ ** fido module (new):
+  - support for WebAuthn Level 2
+  - support for CTAP2.1 features: Credential Management, Client PIN, Config, Enterprise Attestation
+ ** openpgp module (new):
+  - PIN operations: (un)verification, user and admin password management
+  - key operations: import/generate, sign/verify, encrypt/decrypt
+ ** android module:
+  - targetSdk is now 34 (Android 14)
+ ** core module:
+  - added support for Le in APDU
+  - added PublicKeyValues and PrivateKeyValues classes for unified handling of asymmetric keys
+ ** PIV module:
+  - deprecated classes: InvalidPinException, Padding
+  - deprecated methods: SlotMetadata.getPublicKey(), PivSession.generateKey(), PivSession.putKey()
+
+* Version 2.4.0-beta01 (released 2023-09-01)
+ ** core module:
+  - added support for Le in APDU
+  - added PublicKeyValues and PrivateKeyValues classes for unified handling of asymmetric keys
+ ** PIV module:
+  - deprecated classes: InvalidPinException, Padding
+  - deprecated methods: SlotMetadata.getPublicKey(), PivSession.generateKey(), PivSession.putKey()
+ ** fido module (new):
+  - added initial support for WebAuthn and CTAP2
+
+* Version 2.3.0 (released 2023-05-29)
+ ** core module:
+  - deprecated `com.yubico.yubikit.core.Logger`
+  - added `YubiKeyDevice.openConnection()` to public API
+ ** android module:
+  - updated code to support Android 14 behavior changes
+ ** PIV module:
+  - implemented support for compressed certificates
+ ** general updates:
+  - adapted for use with slf4j logging system
+  - added support for building with Java 17
+  - updated build dependencies and libraries
+
+* Version 2.2.0 (released 2023-01-17)
+ ** core module:
+  - Added a public class containing YubiKey smartcard application ids (core.smartcard.AppId)
+ ** android module:
+  - Added SmartCardConnection.getAtr() and USB and NFC implementations for getting ATR and ATS
+  - Updated dependency versions, compile and build with latest SDKs
+  - Bug fixes related to Android 13
+  - Bug fixes related to communication over NFC
+  - All library resources are now prefixed with 'yubikit_' prefix (thanks to @ajarl for contribution)
+  - Library resources which are available to override by clients are explicitly marked as public
+ ** support module:
+  - Added a helper method NfcYubiKeyDevice.isYubiKey() for probing NFC devices
+  - Updated DeviceUtil.getName() to supports additional hardware security keys by Yubico
+ ** AndroidDemo module:
+  - bug fixes and improvements
+
+* Version 2.1.0 (released 2022-07-25)
+ ** Added a new support module with utility functions for getting device information/metadata.
+ ** PIV:
+  - Added a JCA Provider implementation.
+  - Added Slot getStringAlias and fromStringAlias methods.
+ ** OATH:
+  - Fixed OathSession.calculateCodes so that it never triggers touch.
+ ** Management:
+  - DeviceInfo now provides isFips and isSky properties.
+ ** Deprecations (will be removed in 3.0.0):
+  - PivSession.sign has been deprecated in favor of using the JCA Provider.
+  - OathSession.hasAccessKey has been deprecated and replaced with OathSession.isAccessKeySet.
+  - UsbInterface in the management module has been deprecated, replaced with UsbInterface in
+    the core module.
+ ** Added testing-android module which can run tests on physical devices
+  - currently Piv and Piv Jca tests are implemented
+ ** Bug fixes and improvements
+
+* Version 2.1.0-alpha.1 (released 2022-06-01)
+ ** Public preview of 2.1.0
+
+* Version 2.0.0 (released 2021-04-01)
+ ** BACKWARDS INCOMPATIBLE: Major structural overhaul from 1.0.
+ ** The yubikit module is replaced by the core and android modules.
+ ** The otp module had been renamed to yubiotp.
+ ** Several classes have been renamed and/or moved.
+ ** Connection handling is now asynchronous.
+
+* Version 2.0.0-beta02 (released 2021-02-24)
+ ** Connection handling is now asynchronous.
+ ** YubiKitManager listeners have been replaced with more generic Callbacks.
+ ** Release artifacts are compiled to run on Java 8.
+
+* Version 2.0.0-beta01 (released 2020-12-07)
+ ** Public preview of 2.0.0, a major restructuring of modules.
+
+* Version 1.0.0 (released 2020-06-10)
+ ** Documentation improvements.
+ ** Removal of unused code and properties.
+ ** Dependencies updated.
+ ** yubikit: ATR is read upon opening an Iso7816Connection (USB).
+ ** otp: The KeyListener interface is no longer public.
+
+* Version 1.0.0-beta06 (released 2020-05-08)
+ ** Various naming changes to classes and methods to better represent what they do.
+ ** Various additional refactorings and minor changes to improve readability and consistency.
+ ** Make the NFC backend extensible so that it can be customized to provide better compatibility.
+ ** Restructure Exception classes to be more consistent.
+ ** OATH module improvements.
+ ** OTP module improvements.
+ ** QR code functionality moved to the demo application.
+ ** FIDO2 module removed.
+ ** 'Smartcard demo' removed.
+
+* Version 1.0.0-beta05 (released 2020-03-31)
+ ** yubikit: Provides callback to users on whether permissions (for USB plug-in device) from user were accepted or denied.
+ ** yubikit: Provides configurations mechanism for NFC discovery (e.g. play sound, read NDEF tag, etc.).
+ ** otp: Provides API to parse YubiOTP from URI.
+ ** otp: Supports other keyboard layouts for YubiOTP data (static passwords).
+ ** oath: Fixing parsing issues of OATH credentials (for accounts that have empty issuer or contain “/” or “:”).
+ ** piv: Fixing PIV signing (issue with RSA PKCS1.15 padding).
+ ** fido: Allow launching of FIDO intents from fragment as well as from activity.
+
+* Version 1.0.0-beta04 (released 2020-02-06)
+ ** Added YubiKey configuration capabilities, programming OTP slots.
+ ** HMAC-SHA1 challenge-response.
+
+* Version 1.0.0-beta03 (released 2019-10-15)
+ ** Making QR/play-services-vision dependency optional for OATH module.
+
+* Version 1.0.0-beta02 (released 2019-10-04)
+ ** Smart Card functionality based on the Personal Identity Verification (PIV) interface.
+ ** Management API to enable/disable interfaces on YubiKey.
+
+* Version 1.0.0-beta01 (released 2019-08-06)
+ ** Supports raw APDU communication with YubiKey over NFC and USB.
+ ** Provides high level API for OATH applet.
+ ** Provide FIDO2 wrappers and end-to-end demo.
+ ** Yubico OTP.

@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="@dimen/card_view_margin"
+    tools:context=".ui.yubiotp.StaticPwdFragment">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/card_view_margin"
+        android:textAppearance="@android:style/TextAppearance.Large"
+        android:text="Program" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/activity_margin"
+        android:text="@string/otp_yubistatic_desc" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/text_layout_staticpwd_id"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/otp_yubistatic_id"
+        android:textColorHint="#090909"
+        app:endIconContentDescription="@string/randomize"
+        app:endIconDrawable="@drawable/ic_content_paste_24dp"
+        app:endIconMode="custom">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/edit_text_staticpwd_id"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:focusedByDefault="true"
+            android:imeActionId="6"
+            android:inputType="textPassword"
+            android:maxLength="38"
+            tools:text="Type or paste from clipboard">
+
+            <requestFocus />
+        </com.google.android.material.textfield.TextInputEditText>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <CheckBox
+        android:id="@+id/checkbox_show_pwd_id"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/otp_yubistatic_show_pwd_desc" />
+
+    <TextView
+        android:id="@+id/yubi_keyboard_id"
+        android:layout_marginTop="@dimen/activity_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/opt_keyboard_selection_desc" />
+
+    <RadioGroup
+        android:id="@+id/keyboard_radio"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <RadioButton
+            android:id="@+id/keyoard_us"
+            android:checked="true"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:text="@string/otp_keyboard_us_desc" />
+
+        <RadioButton
+            android:id="@+id/keyoard_uk"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:text="@string/otp_keyboard_uk_desc" />
+
+        <RadioButton
+            android:id="@+id/keyoard_de"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:text="@string/otp_keyboard_de_desc" />
+
+        <RadioButton
+            android:id="@+id/keyoard_fr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:text="@string/otp_keyboard_fr_desc" />
+
+        <RadioButton
+            android:id="@+id/keyoard_it"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:text="@string/otp_keyboard_it_desc" />
+
+        <RadioButton
+            android:id="@+id/keyoard_modhex"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/otp_keyboard_modhex_desc" />
+    </RadioGroup>
+
+    <TextView
+        android:id="@+id/yubi_extras_id"
+        android:layout_marginTop="@dimen/activity_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/otp_extras_desc" />
+
+    <RadioGroup
+        android:id="@+id/extras_radio"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <CheckBox
+        android:id="@+id/extras_tab_front"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/opt_extras_tab1_desc" />
+
+        <CheckBox
+            android:id="@+id/extras_tab_end"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/opt_extras_tab2_desc" />
+
+        <CheckBox
+            android:id="@+id/extras_cr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/otp_extras_cr_desc" />
+    </RadioGroup>
+
+    <TextView
+        android:id="@+id/yubi_slot_id"
+        android:layout_marginTop="@dimen/activity_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/otp_yubistatic_slot_desc" />
+
+    <RadioGroup
+        android:id="@+id/slot_radio"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <RadioButton
+            android:id="@+id/radio_slot_1"
+            android:checked="true"
+            android:layout_marginEnd="10dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/otp_slot_1" />
+
+        <RadioButton
+            android:id="@+id/radio_slot_2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/otp_slot_2" />
+    </RadioGroup>
+
+    <Button
+        android:id="@+id/btn_save_staticpwd"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="@dimen/activity_margin"
+        android:text="@string/save" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginVertical="@dimen/activity_margin"
+        android:background="@android:color/darker_gray" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/card_view_margin"
+        android:textAppearance="@android:style/TextAppearance.Large"
+        android:text="@string/otp_use" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/activity_margin"
+        android:text="@string/otp_yubistatic_read_desc" />
+
+    <Button
+        android:id="@+id/btn_request_staticpwd"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/otp_yubistatic_read" />
+
+</LinearLayout>

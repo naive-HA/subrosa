@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <bytecodeTargetLevel target="17">
+      <module name="yubikit-android-main.Charon" target="21" />
+    </bytecodeTargetLevel>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="yubikit-android-main.DesktopDemo.main" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.DesktopDemo.test" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.core" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.core.main" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.core.test" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.desktop.main" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.desktop.test" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.fido" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.fido.main" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.fido.test" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.management" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.management.main" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.management.test" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.oath" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.oath.main" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.oath.test" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.openpgp" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.openpgp.main" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.openpgp.test" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.piv" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.piv.main" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.piv.test" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.support" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.support.main" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.support.test" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.testing" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.testing-desktop.integrationTest" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.testing-desktop.main" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.testing-desktop.test" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.testing.main" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.testing.test" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.yubiotp" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.yubiotp.main" options="-Xlint:deprecation -Xlint:unchecked" />
+      <module name="yubikit-android-main.yubiotp.test" options="-Xlint:deprecation -Xlint:unchecked" />
+    </option>
+  </component>
+</project>
