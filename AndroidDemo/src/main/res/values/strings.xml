@@ -61,7 +61,7 @@
     <string name="otp_yubistatic">Static Password</string>
     <string name="otp_yubistatic_desc">Program a Yubico static password.\nWARNING: Overwriting a slot can NOT be undone!</string>
     <string name="otp_clipboard_paste">Paste from clipboard</string>
-    <string name="otp_yubistatic_id">Static password</string>
+    <string name="otp_yubistatic_id">Type or paste from clipboard</string>
     <string name="otp_illegal_char_desc">Error: Illegal character for selected keyboard</string>
     <string name="otp_extras_desc">Extras</string>
     <string name="otp_extras_cr_desc">Append \'enter\'</string>

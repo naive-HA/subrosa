@@ -26,23 +26,19 @@ allprojects {
         google()
     }
 
-    gradle.projectsEvaluated {
-        tasks.withType(JavaCompile).configureEach {
-            options.compilerArgs.addAll(['-Xlint:deprecation', '-Xlint:unchecked'])
-        }
+    tasks.withType(JavaCompile).configureEach {
+        options.compilerArgs.addAll(['-Xlint:deprecation', '-Xlint:unchecked'])
     }
 
     group = 'com.yubico.yubikit'
 }
 
 subprojects {
-    version = '1.0.0'
+    version = '1.0.1'
     ext.pomName = "Yubico YubiKit ${project.name.capitalize()}"
 
 
-    tasks.withType(Javadoc).tap {
-        configureEach {
-            options.addStringOption('Xdoclint:all,-missing', '-quiet')
-        }
+    tasks.withType(Javadoc).configureEach {
+        options.addStringOption('Xdoclint:all,-missing', '-quiet')
     }
 }

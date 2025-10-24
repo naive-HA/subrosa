@@ -10,32 +10,26 @@ android {
     compileSdkVersion 36
 
     defaultConfig {
-        minSdkVersion 31
-        targetSdkVersion 36
-        versionName version
-        versionCode 1
+        minSdkVersion = 31
+        targetSdkVersion = 36
+        versionName = version
+        versionCode = 1
 
-        multiDexEnabled true
+        multiDexEnabled = true
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-    
-    applicationVariants.all { variant ->
-        variant.outputs.all {
-            outputFileName = "subrosa.apk"
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles(getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro')
         }
     }
 
     compileOptions {
-        coreLibraryDesugaringEnabled true
+        coreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -45,11 +39,19 @@ android {
     }
 
     buildFeatures {
-        viewBinding true
-        buildConfig true
+        viewBinding = true
+        buildConfig = true
     }
 
     namespace = 'acab.naiveha.subrosa'
+}
+
+androidComponents {
+    onVariants(selector().all(), { variant ->
+        variant.outputs.each { output ->
+            output.outputFileName.set("subrosa " + project.version + ".apk")
+        }
+    })
 }
 
 dependencies {
@@ -75,7 +77,6 @@ dependencies {
 
     // Lifecycle
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.3"
-    implementation "androidx.lifecycle:lifecycle-extensions:2.2.0"
 
     // Navigation
     def nav_version = '2.9.3'
@@ -93,12 +94,3 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
 
 }
-
-task wrapper(type: Wrapper){
-   gradleVersion = '8.4'
-}
-
-task prepareKotlinBuildScriptModel {
-
-}
-

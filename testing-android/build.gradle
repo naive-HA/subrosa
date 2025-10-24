@@ -8,29 +8,29 @@ android {
     compileSdk 36
 
     defaultConfig {
-        minSdkVersion 19
-        targetSdkVersion 36
+        minSdkVersion = 19
+        targetSdkVersion = 36
 
-        testApplicationId 'com.yubico.yubikit.testing'
-        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
-        testHandleProfiling true
-        testFunctionalTest true
+        testApplicationId = 'com.yubico.yubikit.testing'
+        testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
+        testHandleProfiling = true
+        testFunctionalTest = true
 
-        multiDexEnabled true
+        multiDexEnabled = true
 
     }
 
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            minifyEnabled = false
+            proguardFiles(getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro')
         }
     }
     compileOptions {
-        coreLibraryDesugaringEnabled true
+        coreLibraryDesugaringEnabled = true
 
-        sourceCompatibility = 1.8
-        targetCompatibility = 1.8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     namespace = 'com.yubico.yubikit.testing'

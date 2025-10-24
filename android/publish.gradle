@@ -24,11 +24,6 @@ android {
                 archiveClassifier.set('sources')
                 from android.sourceSets.main.java.srcDirs
             }
-
-            artifacts {
-                archives javadocJar
-                archives sourcesJar
-            }
         }
     }
 }
@@ -46,14 +41,33 @@ afterEvaluate {
                 artifactId = project.name
                 version = project.version
 
-                apply from: rootProject.file('pom.gradle')
-                pom(pomData)
+                pom.withXml {
+                    def root = asNode()
+                    root.appendNode('name', project.ext.pomName)
+                    root.appendNode('description', project.description)
+                    root.appendNode('url', 'https://github.com/Yubico/yubikit-android')
+                    root.appendNode('licenses').appendNode('license').with {
+                        appendNode('name', 'The Apache Software License, Version 2.0')
+                        appendNode('url', 'https://www.apache.org/licenses/LICENSE-2.0.txt')
+                        appendNode('distribution', 'repo')
+                    }
+                    root.appendNode('developers').appendNode('developer').with {
+                        appendNode('id', 'yubico')
+                        appendNode('name', 'Yubico')
+                        appendNode('email', 'dev@yubico.com')
+                    }
+                    root.appendNode('scm').with {
+                        appendNode('connection', 'scm:git:git://github.com/Yubico/yubikit-android.git')
+                        appendNode('developerConnection', 'scm:git:ssh://github.com/Yubico/yubikit-android.git')
+                        appendNode('url', 'https://github.com/Yubico/yubikit-android')
+                    }
+                }
             }
         }
         repositories {
             maven {
-                name 'sonatype'
-                url "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
+                name = 'sonatype'
+                url = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
                 credentials {
                     username = findProperty("sonatype.username")
                     password = findProperty("sonatype.password")
