@@ -246,14 +246,7 @@ class StaticPwdFragment : Fragment() {
 
         binding.btnSaveStaticpwd.setOnClickListener {
             try {
-                var staticpwd = binding.editTextStaticpwdId.text.toString()
-                if (staticpwd.length > 38){
-                    throw IllegalStateException("Static password cannot exceed 38 characters")
-                } else if (staticpwd.length == 0){
-                    staticpwd += '\n'
-                }
-
-                val keyboard = when (binding.keyboardRadio.checkedRadioButtonId) {
+                var keyboard = when (binding.keyboardRadio.checkedRadioButtonId) {
                     R.id.keyoard_us -> "en_US"
                     R.id.keyoard_uk -> "en_UK"
                     R.id.keyoard_de -> "de_DE"
@@ -261,6 +254,14 @@ class StaticPwdFragment : Fragment() {
                     R.id.keyoard_it -> "it_IT"
                     R.id.keyoard_modhex -> "en_MODHEX"
                     else -> "en_US"
+                }
+
+                var staticpwd = binding.editTextStaticpwdId.text.toString()
+                if (staticpwd.length > 38){
+                    throw IllegalStateException("Static password cannot exceed 38 characters")
+                } else if (staticpwd.length == 0){
+                    staticpwd += "Hello kitty"
+                    keyboard = "en_US"
                 }
 
                 if (binding.extrasTabFront.isChecked()){
