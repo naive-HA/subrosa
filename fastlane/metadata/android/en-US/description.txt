@@ -1,0 +1,1 @@
+*sub rosa* programs the static password of a YubiKey over USB or NFC.

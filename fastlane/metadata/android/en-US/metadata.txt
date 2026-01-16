@@ -1,0 +1,33 @@
+* [X] The app complies with the [inclusion criteria](https://f-droid.org/wiki/page/Inclusion_Policy)
+* [X] The app is not already listed in the repo or issue tracker.
+* [X] The original app author has been notified (and does not oppose the inclusion).
+* [X] [Donated](https://f-droid.org/donate/) to support the maintenance of this app in F-Droid.
+
+---------------------
+
+### Link to the source code:
+https://github.com/naive-HA/subrosa.git
+
+### Link to app in another app store:
+
+### License used:
+Apache License 2.0
+
+### Category:
+Security
+
+### Summary:
+*sub rosa* programs the static password of a YubiKey over USB or NFC.
+
+### Description:
+sub rosa by naiveHA
+*sub rosa* is an Android app built on top of YubiKit library provided by Yubico
+*sub rosa* programs the static password of a YubiKey over USB or NFC.
+*Keyboards*
+The various keyboards accept the following characters:
+*US*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'`()*+-=,./:;<>?@[\]^_{}|~
+*UK*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@£$%&'`()*+-=,./:;<>?"[#]^_{}~¬
+*DE*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+-=,./:;<>?^_`§´ÄÖÜßäöü
+*FR*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"$%&'()*+-=,./:;<_£§°²µàçèéù
+*IT*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-./:;<=>?@\^_`|£§°çèéàìòù
+*MODHEX*: bcdefghijklnrtuvBCDEFGHIJKLNRTUV
