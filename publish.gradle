@@ -8,50 +8,50 @@ java {
     withSourcesJar()
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            from components.java
-
-            pom.withXml {
-                def root = asNode()
-                root.appendNode('name', project.ext.pomName)
-                root.appendNode('description', project.description)
-                root.appendNode('url', "https://github.com/Yubico/yubikit-android/tree/main/${project.name}")
-                root.appendNode('licenses').appendNode('license').with {
-                    appendNode('name', 'The Apache License, Version 2.0')
-                    appendNode('url', 'http://www.apache.org/licenses/LICENSE-2.0.txt')
-                }
-                root.appendNode('developers').appendNode('developer').with {
-                    appendNode('id', 'dainnilsson')
-                    appendNode('name', 'Dain Nilsson')
-                    appendNode('email', 'dain@yubico.com')
-                }
-                root.appendNode('scm').with {
-                    appendNode('connection', 'scm:git:https://github.com/Yubico/yubikit-android.git')
-                    appendNode('developerConnection', 'scm:git:ssh://github.com/Yubico/yubikit-android.git')
-                    appendNode('url', 'https://github.com/Yubico/yubikit-android')
-                }
-            }
-        }
-    }
-    tasks.withType(Sign).configureEach {
-        onlyIf { isReleaseVersion && System.getenv("NO_GPG_SIGN") != "true" }
-    }
-
-    signing {
-        useGpgCmd()
-        sign publishing.publications.maven
-    }
-
-    repositories {
-        maven {
-            name = 'sonatype'
-            url = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
-            credentials {
-                username = findProperty("sonatype.username")
-                password = findProperty("sonatype.password")
-            }
-        }
-    }
-}
+//publishing {
+//    publications {
+//        maven(MavenPublication) {
+//            from components.java
+//
+//            pom.withXml {
+//                def root = asNode()
+//                root.appendNode('name', project.ext.pomName)
+//                root.appendNode('description', project.description)
+//                root.appendNode('url', "https://github.com/Yubico/yubikit-android/tree/main/${project.name}")
+//                root.appendNode('licenses').appendNode('license').with {
+//                    appendNode('name', 'The Apache License, Version 2.0')
+//                    appendNode('url', 'http://www.apache.org/licenses/LICENSE-2.0.txt')
+//                }
+//                root.appendNode('developers').appendNode('developer').with {
+//                    appendNode('id', 'dainnilsson')
+//                    appendNode('name', 'Dain Nilsson')
+//                    appendNode('email', 'dain@yubico.com')
+//                }
+//                root.appendNode('scm').with {
+//                    appendNode('connection', 'scm:git:https://github.com/Yubico/yubikit-android.git')
+//                    appendNode('developerConnection', 'scm:git:ssh://github.com/Yubico/yubikit-android.git')
+//                    appendNode('url', 'https://github.com/Yubico/yubikit-android')
+//                }
+//            }
+//        }
+//    }
+//    tasks.withType(Sign).configureEach {
+//        onlyIf { isReleaseVersion && System.getenv("NO_GPG_SIGN") != "true" }
+//    }
+//
+//    signing {
+//        useGpgCmd()
+//        sign publishing.publications.maven
+//    }
+//
+//    repositories {
+//        maven {
+//            name = 'sonatype'
+//            url = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
+//            credentials {
+//                username = findProperty("sonatype.username")
+//                password = findProperty("sonatype.password")
+//            }
+//        }
+//    }
+//}

@@ -82,7 +82,7 @@ dependencies {
     def nav_version = '2.9.3'
     implementation "androidx.navigation:navigation-fragment-ktx:$nav_version"
     implementation "androidx.navigation:navigation-ui-ktx:$nav_version"
-    implementation "androidx.navigation:navigation-dynamic-features-fragment:$nav_version"
+    //implementation "androidx.navigation:navigation-dynamic-features-fragment:$nav_version"
 
     implementation 'org.bouncycastle:bcpkix-jdk15to18:1.81'
 
