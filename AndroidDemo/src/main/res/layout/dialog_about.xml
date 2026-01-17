@@ -45,7 +45,7 @@
             android:id="@+id/version"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            tools:text="Version 1.0.0" />
+            tools:text="Version 1.0.2" />
 
         <TextView
             android:id="@+id/about_description"
