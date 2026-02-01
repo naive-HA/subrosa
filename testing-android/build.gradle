@@ -8,8 +8,7 @@ android {
     compileSdk 36
 
     defaultConfig {
-        minSdkVersion = 19
-        targetSdkVersion = 36
+        minSdkVersion 19
 
         testApplicationId = 'com.yubico.yubikit.testing'
         testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
@@ -34,6 +33,12 @@ android {
     }
 
     namespace = 'com.yubico.yubikit.testing'
+    lint {
+        targetSdk 36
+    }
+    testOptions {
+        targetSdk 36
+    }
 }
 
 dependencies {

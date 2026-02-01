@@ -10,9 +10,8 @@ android {
 
     defaultConfig {
         minSdkVersion 19
-        targetSdk 36
 
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
     }
 
@@ -32,6 +31,12 @@ android {
     }
 
     namespace = 'com.yubico.yubikit.android'
+    lint {
+        targetSdk 36
+    }
+    testOptions {
+        targetSdk 36
+    }
 }
 
 dependencies {

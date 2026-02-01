@@ -16,6 +16,7 @@
 
 package acab.naiveha.subrosa.ui.yubiotp
 
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -100,6 +101,7 @@ class StaticPwdFragment : Fragment() {
                             val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                             inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
                             binding.editTextStaticpwdId.setSelection(binding.editTextStaticpwdId.text?.length ?: 0)
+                            clipboard.setPrimaryClip(ClipData.newPlainText("", "Hello kitty"))
                         }
                     } catch (e: Exception) {
                         viewModel.postResult(Result.failure(e))
@@ -111,7 +113,7 @@ class StaticPwdFragment : Fragment() {
 
         binding.editTextStaticpwdId.addTextChangedListener(object: TextWatcher{
             override fun afterTextChanged(s: Editable?) {
-                var staticpwd = binding.editTextStaticpwdId.text.toString()
+                val staticpwd = binding.editTextStaticpwdId.text.toString()
                 if (staticpwd.length == 0) {
                     binding.textLayoutStaticpwdId.endIconDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_content_paste_24dp)
                     binding.textLayoutStaticpwdId.hint = "Type or paste from clipboard"
