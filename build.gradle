@@ -34,7 +34,7 @@ allprojects {
 }
 
 subprojects {
-    version = '1.0.3'
+    version = '1.0.4'
     ext.pomName = "Yubico YubiKit ${project.name.capitalize()}"
 
 

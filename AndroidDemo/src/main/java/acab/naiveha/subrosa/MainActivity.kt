@@ -129,7 +129,7 @@ class MainActivity : AppCompatActivity() {
                         .setView(binding.root)
                         .create().apply {
                             setOnShowListener { 
-                                binding.version.text = "Version 1.0.2" //String.format(Locale.getDefault(), getString(R.string.version), BuildConfig.VERSION_NAME)
+                                binding.version.text = getString(R.string.version, BuildConfig.VERSION_NAME)
                                 binding.aboutDescription.setOnClickListener {
                                     val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     val clip = ClipData.newPlainText("BTC address", "1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh")

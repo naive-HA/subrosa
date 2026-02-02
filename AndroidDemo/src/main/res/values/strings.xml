@@ -110,9 +110,7 @@
         1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh
     </string>
     <string name="yubico">Yubico</string>
-<!--    <string name="version">Version %s</string>-->
-<!--    <string name="copyright">Copyright © 2019–2020 Yubico.</string>-->
-    <string name="version"> </string>
+    <string name="version">Version %s</string>
     <string name="copyright"> </string>
     <string name="copied_to_clipboard">BTC address copied to clipboard! </string>
 
