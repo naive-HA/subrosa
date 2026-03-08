@@ -1,25 +1,3 @@
-* [X] The app complies with the [inclusion criteria](https://f-droid.org/wiki/page/Inclusion_Policy)
-* [X] The app is not already listed in the repo or issue tracker.
-* [X] The original app author has been notified (and does not oppose the inclusion).
-* [X] [Donated](https://f-droid.org/donate/) to support the maintenance of this app in F-Droid.
-
----------------------
-
-### Link to the source code:
-https://github.com/naive-HA/subrosa.git
-
-### Link to app in another app store:
-
-### License used:
-Apache License 2.0
-
-### Category:
-Security
-
-### Summary:
-"Type" your long and complicated passwords securely with the touch of a finger
-
-### Description:
 == sub rosa by naiveHA
 Uncomplicated simple: "type" your long and complicated passwords securely stored in your favourite password manager on your Android phone with the touch of a finger. *sub rosa* is an Android app, built on top of YubiKit library provided by Yubico, which programs the static password of a YubiKey over USB or NFC. Once your done "typing" your long and complicated password, remember to wipe clean your yubikey... Is not much security if anyone can "type" your password by touching the yubikey!
 

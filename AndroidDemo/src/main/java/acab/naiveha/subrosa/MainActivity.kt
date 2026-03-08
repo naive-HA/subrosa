@@ -134,7 +134,7 @@ class MainActivity : AppCompatActivity() {
                                     val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     val clip = ClipData.newPlainText("BTC address", "1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh")
                                     clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(this@MainActivity, "1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(this@MainActivity, "Copied to clipboard: 1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }.show()

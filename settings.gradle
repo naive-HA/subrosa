@@ -1,3 +1,6 @@
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
 include ':core', ':oath', ':yubiotp', ':management', ':piv', ':openpgp', ':support', ':fido'
 include ':testing'
 include ':android', ':AndroidDemo', ':testing-android'
