@@ -1,7 +1,11 @@
 == sub rosa by naiveHA
-*sub rosa* is an Android app built on top of YubiKit library provided by Yubico
+Uncomplicated simple: if you manage your long, complicated and secure passwords in a password manager app (like KeePassDroid) on your Android device, you can now "type" them easily on any other device, be it a phone, tablet, or PC running Windows, Linux, or MacOS.
 
-*sub rosa* programs the static password of a YubiKey over USB or NFC.
+*sub rosa* allows you to program (over USB or NFC) the static password of your YubiKey which then can be used to "type" the password with the touch of a finger.
+
+Once you are done "typing" your long, complicated and secure password, remember to wipe clean your YubiKey... Is not much security if anyone can "type" your password by touching the YubiKey!
+
+*sub rosa* is an Android app, built on top of YubiKit library provided by Yubico,
 
 *Keyboards*
 

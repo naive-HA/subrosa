@@ -1,13 +1,18 @@
-== sub rosa by naiveHA
-Uncomplicated simple: "type" your long and complicated passwords securely stored in your favourite password manager on your Android phone with the touch of a finger. *sub rosa* is an Android app, built on top of YubiKit library provided by Yubico, which programs the static password of a YubiKey over USB or NFC. Once your done "typing" your long and complicated password, remember to wipe clean your yubikey... Is not much security if anyone can "type" your password by touching the yubikey!
+Uncomplicated simple: if you manage your long, complicated and secure passwords in a password manager app (like KeePassDroid) on your Android device, you can now "type" them easily on any other device, be it a phone, tablet, or PC running Windows, Linux, or MacOS.
 
-*Keyboards*
+*sub rosa* allows you to program (over USB or NFC) the static password of your YubiKey which then can be used to "type" the password with the touch of a finger.
+
+Once you are done "typing" your long, complicated and secure password, remember to wipe clean your YubiKey... Is not much security if anyone can "type" your password by touching the YubiKey!
+
+*sub rosa* is an Android app, built on top of YubiKit library provided by Yubico,
+
+<b>Keyboards</b>
+
 The various keyboards accept the following characters:
-*US*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'`()*+-=,./:;<>?@[\]^_{}|~
-*UK*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@£$%&'`()*+-=,./:;<>?"[#]^_{}~¬
-*DE*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+-=,./:;<>?^_`§´ÄÖÜßäöü
-*FR*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"$%&'()*+-=,./:;<_£§°²µàçèéù
-*IT*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-./:;<=>?@\^_`|£§°çèéàìòù
-*MODHEX*: bcdefghijklnrtuvBCDEFGHIJKLNRTUV
 
-Enjoy!
+* *US*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'`()*+-=,./:;<>?@[\]^_{}|~
+* *UK*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@£$%&'`()*+-=,./:;<>?"[#]^_{}~¬
+* *DE*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+-=,./:;<>?^_`§´ÄÖÜßäöü
+* *FR*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"$%&'()*+-=,./:;<_£§°²µàçèéù
+* *IT*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-./:;<=>?@\^_`|£§°çèéàìòù
+* *MODHEX*: bcdefghijklnrtuvBCDEFGHIJKLNRTUV

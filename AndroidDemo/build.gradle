@@ -13,7 +13,7 @@ android {
         minSdkVersion 31
         targetSdkVersion 36
         versionName = version
-        versionCode = 2
+        versionCode = 3
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -52,7 +52,7 @@ android {
 androidComponents {
     onVariants(selector().all(), { variant ->
         variant.outputs.each { output ->
-            output.outputFileName.set("subrosa " + project.version + ".apk")
+            output.outputFileName.set("subrosa." + project.version + ".apk")
         }
     })
 }
