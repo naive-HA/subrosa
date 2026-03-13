@@ -105,7 +105,7 @@
 
     <string name="about">About</string>
     <string name="about_app">"sub rosa" is an app built on top of YubiKit library provided by Yubico.\n\n
-        sub rosa programs the static password of a YubiKey over USB or NFC. More info about the allow characters for each keyboard can be found at:\nhttps://github.com./naive-HA/subrosa\n\n
+        sub rosa programs the static password of a YubiKey over USB or NFC. More info about the allowed characters for each keyboard can be found at:\nhttps://github.com./naive-HA/subrosa\n\n
         If you like it, remember to donate some satoshi/BTC to:\n\n
         1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh
     </string>
