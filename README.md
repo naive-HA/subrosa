@@ -25,9 +25,12 @@ The various keyboards accept the following characters:
 
 * *MODHEX*: bcdefghijklnrtuvBCDEFGHIJKLNRTUV
 
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/subrosa-about.png" alt="subrosa-staticpwd" height="400">  
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/subrosa-staticpwd.png" alt="subrosa-staticpwd" height="400">
+
 <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/subrosa-menu.png" alt="subrosa-menu" height="400">  
+
 <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/subrosa-config.png" alt="subrosa-config" height="400">  
+
 <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/subrosa-about.png" alt="subrosa-about" height="400">  
 
 Coffee tips can be sent to: 1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh
