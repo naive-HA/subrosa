@@ -1,35 +1,30 @@
-* [X] The app complies with the [inclusion criteria](https://f-droid.org/wiki/page/Inclusion_Policy)
-* [X] The app is not already listed in the repo or issue tracker.
-* [X] The original app author has been notified (and does not oppose the inclusion).
-* [X] [Donated](https://f-droid.org/donate/) to support the maintenance of this app in F-Droid.
+Categories:
+  - Security
+License: Apache-2.0
+AuthorName: naiveHA
+WebSite: https://mastodon.social/@h1dden
+SourceCode: https://github.com/naive-HA/subrosa
+IssueTracker: https://github.com/naive-HA/subrosa/issues
 
----------------------
+AutoName: sub rosa
 
-### Link to the source code:
-https://github.com/naive-HA/subrosa.git
+RepoType: git
+Repo: https://github.com/naive-HA/subrosa.git
+Binaries: https://github.com/naive-HA/subrosa/releases/download/%v/subrosa.%v.apk
 
-### Link to app in another app store:
+Builds:
+  - versionName: 1.0.9
+    versionCode: 6
+    commit: 8212d65cf44618360dc35fcbd598fddee137fe1c
+    subdir: AndroidDemo
+    gradle:
+      - yes
+    rm:
+      - AndroidDemo/gradle
 
-### License used:
-Apache License 2.0
+AllowedAPKSigningKeys: 512ccef51ab8ba405c22f193ea1205629f7888be8be069b67bea768bc0e536ac
 
-### Category:
-Security
-
-### Summary:
-"Type" your long and complicated passwords securely with the touch of a finger
-
-### Description:
-== sub rosa by naiveHA
-Uncomplicated simple: "type" your long and complicated passwords securely stored in your favourite password manager on your Android phone with the touch of a finger. *sub rosa* is an Android app, built on top of YubiKit library provided by Yubico, which programs the static password of a YubiKey over USB or NFC. Once your done "typing" your long and complicated password, remember to wipe clean your yubikey... Is not much security if anyone can "type" your password by touching the yubikey!
-
-*Keyboards*
-The various keyboards accept the following characters:
-*US*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'`()*+-=,./:;<>?@[\]^_{}|~
-*UK*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@£$%&'`()*+-=,./:;<>?"[#]^_{}~¬
-*DE*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+-=,./:;<>?^_`§´ÄÖÜßäöü
-*FR*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"$%&'()*+-=,./:;<_£§°²µàçèéù
-*IT*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-./:;<=>?@\^_`|£§°çèéàìòù
-*MODHEX*: bcdefghijklnrtuvBCDEFGHIJKLNRTUV
-
-Enjoy!
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 1.0.9
+CurrentVersionCode: 6
