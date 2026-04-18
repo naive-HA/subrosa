@@ -16,3 +16,7 @@ The various keyboards accept the following characters:
 • <i>FR</i>: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"$%&'()*+-=,./:;<_£§°²µàçèéù
 • <i>IT</i>: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-./:;<=>?@\^_`|£§°çèéàìòù
 • <i>MODHEX</i>: bcdefghijklnrtuvBCDEFGHIJKLNRTUV
+
+Version 1.0.10
+ - preparing for F-Droid
+ - preparing to add Nitrokey 3 support
