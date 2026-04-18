@@ -11,10 +11,11 @@
     <string name="menu_web">WebView</string>
     <string name="menu_oath">OATH</string>
 
-    <string name="need_yubikey">Plug in you YubiKey or tap over NFC reader</string>
+    <string name="need_key">Plug in your security key (YubiKey or Nitrokey) or tap over NFC</string>
+    <string name="insert_key">Insert Security Key</string>
     <string name="hold_key">Hold your key flat until operation is completed</string>
-    <string name="remove_key">Remove YubiKey now</string>
-    <string name="app_missing">Application missing or disabled</string>
+    <string name="remove_key">Remove your key now</string>
+    <string name="app_missing">Application not available on this device</string>
 
     <string name="pin">PIN</string>
     <string name="enter_pin">Enter PIN</string>

@@ -172,15 +172,34 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
           protocol.select(AppId.OTP);
           return true;
         } catch (ApplicationNotAvailableException otpNotAvailable) {
-          // ignored
+          // neither app present — not a YubiKey
         }
       }
-    } catch (IOException ioException) {
-      // ignored
+    } catch (Exception e) {   // ← widen from IOException to catch CtapException etc.
+      // tag not responsive or wrong protocol
     }
-
     return false;
   }
+//  public boolean isYubiKey() {
+//    try (SmartCardConnection connection = openConnection(SmartCardConnection.class)) {
+//      SmartCardProtocol protocol = new SmartCardProtocol(connection);
+//      try {
+//        protocol.select(AppId.MANAGEMENT);
+//        return true;
+//      } catch (ApplicationNotAvailableException managementNotAvailable) {
+//        try {
+//          protocol.select(AppId.OTP);
+//          return true;
+//        } catch (ApplicationNotAvailableException otpNotAvailable) {
+//          // ignored
+//        }
+//      }
+//    } catch (IOException ioException) {
+//      // ignored
+//    }
+//
+//    return false;
+//  }
 
   @Override
   public String toString() {

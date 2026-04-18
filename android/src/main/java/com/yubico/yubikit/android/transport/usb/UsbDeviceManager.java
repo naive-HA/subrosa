@@ -26,6 +26,8 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
 import com.yubico.yubikit.core.internal.Logger;
+
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
@@ -34,10 +36,11 @@ import java.util.WeakHashMap;
 import javax.annotation.Nullable;
 import org.slf4j.LoggerFactory;
 
-final class UsbDeviceManager {
+public final class UsbDeviceManager {
 
   private static final String ACTION_USB_PERMISSION = "com.yubico.yubikey.USB_PERMISSION";
   public static final int YUBICO_VENDOR_ID = 0x1050;
+  public static final int NITROKEY_VENDOR_ID = 0x20A0;
 
   @Nullable private static UsbDeviceManager instance;
 
@@ -69,6 +72,8 @@ final class UsbDeviceManager {
   private final WeakHashMap<UsbDevice, Set<PermissionResultListener>> contexts =
       new WeakHashMap<>();
   private final Set<UsbDevice> awaitingPermissions = new HashSet<>();
+  static final Set<Integer> ACCEPTED_VENDOR_IDS =
+      new HashSet<>(Arrays.asList(YUBICO_VENDOR_ID, NITROKEY_VENDOR_ID));
 
   private synchronized void addUsbListener(Context context, UsbDeviceListener listener) {
     if (deviceListeners.isEmpty()) {
@@ -78,7 +83,10 @@ final class UsbDeviceManager {
       intentFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
       context.registerReceiver(broadcastReceiver, intentFilter);
       for (UsbDevice usbDevice : usbDevices) {
-        if (usbDevice.getVendorId() == YUBICO_VENDOR_ID) {
+//        if (usbDevice.getVendorId() == YUBICO_VENDOR_ID) {
+//          onDeviceAttach(usbDevice);
+//        }
+        if (ACCEPTED_VENDOR_IDS.contains(usbDevice.getVendorId())) {
           onDeviceAttach(usbDevice);
         }
       }
@@ -182,10 +190,12 @@ final class UsbDeviceManager {
     public void onReceive(Context context, Intent intent) {
       String action = intent.getAction();
       UsbDevice usbDevice = getUsbManagerExtraDevice(intent);
-      if (usbDevice == null || usbDevice.getVendorId() != YUBICO_VENDOR_ID) {
+//      if (usbDevice == null || usbDevice.getVendorId() != YUBICO_VENDOR_ID) {
+//        return;
+//      }
+      if (usbDevice == null || !ACCEPTED_VENDOR_IDS.contains(usbDevice.getVendorId())) {
         return;
       }
-
       if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) {
         onDeviceAttach(usbDevice);
       } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {

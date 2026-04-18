@@ -23,7 +23,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_margin="@dimen/card_view_margin"
-                android:text="@string/need_yubikey"
+                android:text="@string/need_key"
                 android:visibility="invisible" />
 
             <TextView

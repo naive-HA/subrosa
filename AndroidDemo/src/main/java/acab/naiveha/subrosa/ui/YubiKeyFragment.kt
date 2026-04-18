@@ -55,8 +55,8 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
         emptyText.visibility = View.VISIBLE
 
         yubiKeyPrompt = AlertDialog.Builder(context)
-                .setTitle("Insert YubiKey")
-                .setMessage(R.string.need_yubikey)
+                .setTitle(getString(R.string.insert_key))
+                .setMessage(R.string.need_key)
                 .setOnCancelListener { viewModel.pendingAction.value = null }
                 .create()
 
@@ -64,7 +64,7 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
             if (it != null) {
                 onYubiKey(it)
             } else {
-                emptyText.setText(R.string.need_yubikey)
+                emptyText.setText(R.string.need_key)
             }
         }
 

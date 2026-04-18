@@ -16,6 +16,8 @@
 
 package com.yubico.yubikit.core;
 
+import javax.annotation.Nullable;
+
 public enum UsbPid {
   YKS_OTP(0x0010, YubiKeyType.YKS, UsbInterface.OTP),
   NEO_OTP(0x0110, YubiKeyType.NEO, UsbInterface.OTP),
@@ -35,7 +37,8 @@ public enum UsbPid {
   YK4_FIDO_CCID(0x0406, YubiKeyType.YK4, UsbInterface.FIDO | UsbInterface.CCID),
   YK4_OTP_FIDO_CCID(
       0x0407, YubiKeyType.YK4, UsbInterface.OTP | UsbInterface.FIDO | UsbInterface.CCID),
-  YKP_OTP_FIDO(0x0410, YubiKeyType.YKP, UsbInterface.OTP | UsbInterface.FIDO);
+  YKP_OTP_FIDO(0x0410, YubiKeyType.YKP, UsbInterface.OTP | UsbInterface.FIDO),
+  NK3_FIDO_CCID(0x42B2, YubiKeyType.NK3, UsbInterface.FIDO | UsbInterface.CCID);
 
   public final int value;
   public final YubiKeyType type;
@@ -55,5 +58,13 @@ public enum UsbPid {
     }
 
     throw new IllegalArgumentException("invalid pid value");
+  }
+  @Nullable
+  public static UsbPid fromValueOrNull(int value) {
+    for (UsbPid pid : UsbPid.values()) {
+      if (pid.value == value) return pid;
+    }
+//    throw new IllegalArgumentException("invalid pid value");
+    return null;  // unknown but tolerated (e.g. future devices)
   }
 }

@@ -21,7 +21,8 @@ public enum YubiKeyType {
   NEO("YubiKey NEO"),
   SKY("Security Key by Yubico"),
   YKP("YubiKey Plus"),
-  YK4("YubiKey");
+  YK4("YubiKey"),
+  NK3("Nitrokey 3");       // covers 3A NFC, 3C NFC, 3 Mini
 
   public final String name;
 

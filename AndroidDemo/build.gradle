@@ -13,7 +13,7 @@ android {
         minSdkVersion 31
         targetSdkVersion 36
         versionName = version
-        versionCode = 6
+        versionCode = 7
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -63,6 +63,7 @@ dependencies {
 
     implementation project(':android')
     implementation project(':management')
+    implementation project(':fido')
     implementation project(':yubiotp')
     implementation project(':oath')
     implementation project(':piv')

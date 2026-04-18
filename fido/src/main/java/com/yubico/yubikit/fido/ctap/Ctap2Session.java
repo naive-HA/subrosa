@@ -747,7 +747,7 @@ public class Ctap2Session extends ApplicationSession<Ctap2Session> {
     private final int maxSerializedLargeBlobArray;
     private final boolean forcePinChange;
     private final int minPinLength;
-    @Nullable private final Integer firmwareVersion;
+    @Nullable public final Integer firmwareVersion;
     private final int maxCredBlobLength;
     private final int maxRPIDsForSetMinPinLength;
     @Nullable private final Integer preferredPlatformUvAttempts;

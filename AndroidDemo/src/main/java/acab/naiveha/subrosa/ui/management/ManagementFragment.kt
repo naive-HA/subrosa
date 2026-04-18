@@ -65,63 +65,75 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
     @SuppressLint("SetTextI18n")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         binding.applicationTable.visibility = View.GONE
-        binding.save.visibility = View.GONE
+        binding.save.visibility             = View.GONE
 
         viewModel.errorInfo.observe(viewLifecycleOwner) { errorString ->
-            errorString?.let {
-                binding.info.text = "Error:\n$it"
-            }
+            errorString?.let { binding.info.text = "Error:\n$it" }
         }
 
-        viewModel.deviceInfo.observe(viewLifecycleOwner) {
-            if (it != null) {
-                val info = it.deviceInfo
-                val keyType = it.type
-                binding.info.text = "Device: ${DeviceUtil.getName(info, keyType)}\n" +
-                        "Device form factor: ${info.formFactor.name}\n" +
-                        "Firmware: ${info.version}\n" +
-                        "Serial: ${info.serialNumber}\n" +
-                        "FIPS: ${info.isFips}\n" +
-                        "SKY: ${info.isSky}\n" +
-                        "Locked: ${info.isLocked}\n" +
-                        "Auto eject timeout: ${info.config.autoEjectTimeout}\n" +
-                        "Challenge response timeout: ${info.config.challengeResponseTimeout}\n" +
-                        "ATR: ${it.atr}"
-                checkboxIds.forEach { (transport, capability), id ->
-                    view.findViewById<CheckBox>(id).let { checkbox ->
-                        if (info.getSupportedCapabilities(transport) and capability.bit != 0) {
-                            checkbox.isChecked = (info.config.getEnabledCapabilities(transport)
-                                ?: 0) and capability.bit != 0
-//                            checkbox.visibility = View.VISIBLE
+        viewModel.deviceInfo.observe(viewLifecycleOwner) { connected ->
+            if (connected == null) {
+                binding.emptyView.visibility        = View.VISIBLE
+                binding.applicationTable.visibility = View.GONE
+                binding.save.visibility             = View.GONE
+                return@observe
+            }
+
+            binding.emptyView.visibility = View.GONE
+
+            val yubikeyInfo = connected.deviceInfo
+            if (yubikeyInfo != null) {
+                // ── Yubico path: full DeviceInfo available ──────────────────
+                binding.info.text =
+                    "Device: ${DeviceUtil.getName(yubikeyInfo, connected.type)}\n" +
+                            "Form factor: ${yubikeyInfo.formFactor.name}\n" +
+                            "Firmware: ${yubikeyInfo.version}\n" +
+                            "Serial: ${yubikeyInfo.serialNumber}\n" +
+                            "FIPS: ${yubikeyInfo.isFips}\n" +
+                            "SKY: ${yubikeyInfo.isSky}\n" +
+                            "Locked: ${yubikeyInfo.isLocked}\n" +
+                            "Auto eject timeout: ${yubikeyInfo.config.autoEjectTimeout}\n" +
+                            "Challenge response timeout: ${yubikeyInfo.config.challengeResponseTimeout}\n" +
+                            "ATR: ${connected.atr}"
+
+                checkboxIds.forEach { (transportCapability, id) ->
+                    val (transport, capability) = transportCapability
+                    view.findViewById<CheckBox>(id)?.let { cb ->
+                        if (yubikeyInfo.getSupportedCapabilities(transport) and capability.bit != 0) {
+                            cb.isChecked = (yubikeyInfo.config.getEnabledCapabilities(transport) ?: 0) and capability.bit != 0
                         } else {
-                            checkbox.visibility = View.GONE
+                            cb.visibility = View.GONE
                         }
                     }
                 }
-//                binding.applicationTable.visibility = View.VISIBLE
-//                binding.save.visibility = View.VISIBLE
-                binding.emptyView.visibility = View.GONE
             } else {
-                binding.emptyView.visibility = View.VISIBLE
-                binding.applicationTable.visibility = View.GONE
-                binding.save.visibility = View.GONE
+                // ── Nitrokey path: only FIDO2 getInfo data available ────────
+                // Hide capability checkboxes (Nitrokey management protocol is different)
+                checkboxIds.values.forEach { id ->
+                    view.findViewById<CheckBox>(id)?.visibility = View.GONE
+                }
+                binding.info.text =
+                    "Device: ${connected.type?.name ?: "Unknown"}\n" +
+                            connected.atr +
+                            "\n\n(Management app not available on this device.\n" +
+                            "Use nitropy or Nitrokey App 2 for full configuration.)"
             }
         }
 
         binding.save.setOnClickListener {
+            // Nitrokey doesn't support the Yubico management write protocol;
+            // only show the save button when a Yubico DeviceInfo was loaded.
+            viewModel.deviceInfo.value?.deviceInfo ?: return@setOnClickListener
             viewModel.pendingAction.value = {
                 updateDeviceConfig(DeviceConfig.Builder().apply {
                     Transport.values().forEach { transport ->
-                        enabledCapabilities(transport, checkboxIds.filter {
-                            it.key.first == transport && view.findViewById<CheckBox>(it.value).isChecked
-                        }.map {
-                            it.key.second.bit  // Capability bit
-                        }.sum())
+                        enabledCapabilities(transport, checkboxIds.filter { entry ->
+                            entry.key.first == transport &&
+                                    view.findViewById<CheckBox>(entry.value).isChecked
+                        }.map { it.key.second.bit }.sum())
                     }
                 }.build(), true, null, null)
-
                 "Configuration updated"
             }
         }
