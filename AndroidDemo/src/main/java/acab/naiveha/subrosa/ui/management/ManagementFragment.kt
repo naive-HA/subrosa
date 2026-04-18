@@ -108,8 +108,6 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                     }
                 }
             } else {
-                // ── Nitrokey path: only FIDO2 getInfo data available ────────
-                // Hide capability checkboxes (Nitrokey management protocol is different)
                 checkboxIds.values.forEach { id ->
                     view.findViewById<CheckBox>(id)?.visibility = View.GONE
                 }
@@ -122,8 +120,6 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         }
 
         binding.save.setOnClickListener {
-            // Nitrokey doesn't support the Yubico management write protocol;
-            // only show the save button when a Yubico DeviceInfo was loaded.
             viewModel.deviceInfo.value?.deviceInfo ?: return@setOnClickListener
             viewModel.pendingAction.value = {
                 updateDeviceConfig(DeviceConfig.Builder().apply {

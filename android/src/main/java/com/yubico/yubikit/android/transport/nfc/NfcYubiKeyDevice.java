@@ -180,26 +180,6 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
     }
     return false;
   }
-//  public boolean isYubiKey() {
-//    try (SmartCardConnection connection = openConnection(SmartCardConnection.class)) {
-//      SmartCardProtocol protocol = new SmartCardProtocol(connection);
-//      try {
-//        protocol.select(AppId.MANAGEMENT);
-//        return true;
-//      } catch (ApplicationNotAvailableException managementNotAvailable) {
-//        try {
-//          protocol.select(AppId.OTP);
-//          return true;
-//        } catch (ApplicationNotAvailableException otpNotAvailable) {
-//          // ignored
-//        }
-//      }
-//    } catch (IOException ioException) {
-//      // ignored
-//    }
-//
-//    return false;
-//  }
 
   @Override
   public String toString() {

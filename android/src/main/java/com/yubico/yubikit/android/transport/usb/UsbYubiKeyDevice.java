@@ -16,6 +16,7 @@
 
 package com.yubico.yubikit.android.transport.usb;
 
+import static com.yubico.yubikit.android.transport.usb.UsbDeviceManager.ACCEPTED_VENDOR_IDS;
 import static com.yubico.yubikit.android.transport.usb.UsbDeviceManager.YUBICO_VENDOR_ID;
 
 import android.hardware.usb.UsbDevice;
@@ -62,11 +63,11 @@ public class UsbYubiKeyDevice implements YubiKeyDevice, Closeable {
   public UsbYubiKeyDevice(UsbManager usbManager, UsbDevice usbDevice)
       throws IllegalArgumentException {
 
-    if (usbDevice.getVendorId() != YUBICO_VENDOR_ID) {
-      throw new IllegalArgumentException("Invalid vendor id");
+    if (!ACCEPTED_VENDOR_IDS.contains(usbDevice.getVendorId())) {
+      throw new IllegalArgumentException("Unsupported vendor id: " + usbDevice.getVendorId());
     }
 
-    this.usbPid = UsbPid.fromValue(usbDevice.getProductId());
+    this.usbPid = UsbPid.fromValueOrNull(usbDevice.getProductId());
 
     this.connectionManager = new ConnectionManager(usbManager, usbDevice);
     this.usbDevice = usbDevice;

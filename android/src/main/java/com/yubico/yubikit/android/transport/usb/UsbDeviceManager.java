@@ -83,9 +83,6 @@ public final class UsbDeviceManager {
       intentFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
       context.registerReceiver(broadcastReceiver, intentFilter);
       for (UsbDevice usbDevice : usbDevices) {
-//        if (usbDevice.getVendorId() == YUBICO_VENDOR_ID) {
-//          onDeviceAttach(usbDevice);
-//        }
         if (ACCEPTED_VENDOR_IDS.contains(usbDevice.getVendorId())) {
           onDeviceAttach(usbDevice);
         }
