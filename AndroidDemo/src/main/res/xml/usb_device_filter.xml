@@ -1,6 +1,6 @@
 <resources>
-    <!-- YubiKey (all models, VID 0x1050) -->
+    <!-- YubiKey — all models (VID 0x1050 = 4176) -->
     <usb-device vendor-id="4176" />
-    <!-- Nitrokey 3 / 3C NFC / 3A NFC (VID 0x20A0, PID 0x42B2) -->
-    <usb-device vendor-id="8352" product-id="17074" />
+    <!-- Nitrokey — all models (VID 0x20A0 = 8352) -->
+    <usb-device vendor-id="8352" />
 </resources>

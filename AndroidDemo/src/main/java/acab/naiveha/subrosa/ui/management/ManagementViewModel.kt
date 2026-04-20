@@ -20,6 +20,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 
 import acab.naiveha.subrosa.ui.YubiKeyViewModel
+import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
+import com.yubico.yubikit.android.transport.usb.UsbDeviceManager
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.core.UsbPid
 import com.yubico.yubikit.core.YubiKeyConnection
@@ -30,12 +32,10 @@ import com.yubico.yubikit.core.fido.FidoConnection
 import com.yubico.yubikit.core.otp.OtpConnection
 import com.yubico.yubikit.core.smartcard.SmartCardConnection
 import com.yubico.yubikit.core.util.StringUtils
+import com.yubico.yubikit.fido.ctap.Ctap2Session
 import com.yubico.yubikit.management.DeviceInfo
 import com.yubico.yubikit.management.ManagementSession
 import com.yubico.yubikit.support.DeviceUtil
-import com.yubico.yubikit.android.transport.usb.UsbDeviceManager
-import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
-import com.yubico.yubikit.fido.ctap.Ctap2Session
 
 import org.slf4j.LoggerFactory
 
@@ -48,7 +48,6 @@ data class ConnectedDeviceInfo(
 )
 
 class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
-    private var lastDeviceWasNitrokey = false
 
     private val logger = LoggerFactory.getLogger(ManagementViewModel::class.java)
 
@@ -58,36 +57,69 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
     private val _errorInfo = MutableLiveData<String?>()
     val errorInfo: LiveData<String?> = _errorInfo
 
-    // NOTE: readDeviceInfo is always called from singleDispatcher (background thread).
-    // isYubiKey() is a blocking NFC I/O call and must never run on the main thread.
-    private fun readDeviceInfo(device: YubiKeyDevice) {
+    override fun getSession(
+        device: YubiKeyDevice,
+        onError: (Throwable) -> Unit,
+        callback: (ManagementSession) -> Unit
+    ) {
+        val isNitrokey = try {
+            readDeviceInfo(device)
+        } catch (ignored: ApplicationNotAvailableException) {
+            false
+        }
 
+        if (isNitrokey) return
+
+        ManagementSession.create(device) {
+            try {
+                callback(it.value)
+            } catch (e: ApplicationNotAvailableException) {
+                onError(e)
+            } catch (e: IOException) {
+                onError(e)
+            }
+        }
+    }
+
+    override fun ManagementSession.updateState() {
+        // Nothing to refresh automatically on the management screen.
+    }
+
+    private fun readDeviceInfo(device: YubiKeyDevice): Boolean {
+
+        // ── USB: identify by vendor / product ID ─────────────────────────────
         val usbPid: UsbPid? = (device as? UsbYubiKeyDevice)?.pid
-        val isNitrokey = usbPid?.type == YubiKeyType.NK3
+
+        val isUsbNitrokey = usbPid?.type == YubiKeyType.NK3
                 || (device as? UsbYubiKeyDevice)
             ?.usbDevice?.vendorId == UsbDeviceManager.NITROKEY_VENDOR_ID
 
-        if (isNitrokey) {
-            lastDeviceWasNitrokey = true
+        if (isUsbNitrokey) {
             readNitrokeyInfoUsb(device)
-            return
+            return true
         }
 
         if (device is NfcYubiKeyDevice && !device.isYubiKey()) {
-            lastDeviceWasNitrokey = true
             readNitrokeyInfoNfc(device)
-            return
+            return true
         }
-        lastDeviceWasNitrokey = false
 
-        val usbPidForYubico = usbPid
-        val readInfo: (YubiKeyConnection) -> Unit = {
+        readYubicoInfo(device, usbPid)
+        return false
+    }
+
+    private fun readYubicoInfo(device: YubiKeyDevice, usbPid: UsbPid?) {
+        val readInfo: (YubiKeyConnection) -> Unit = { conn ->
             try {
                 val atr = StringUtils.bytesToHex(
-                    (it as? SmartCardConnection)?.atr ?: byteArrayOf()
+                    (conn as? SmartCardConnection)?.atr ?: byteArrayOf()
                 )
                 _deviceInfo.postValue(
-                    ConnectedDeviceInfo(DeviceUtil.readInfo(it, usbPidForYubico), usbPidForYubico?.type, atr)
+                    ConnectedDeviceInfo(
+                        deviceInfo = DeviceUtil.readInfo(conn, usbPid),
+                        type       = usbPid?.type,
+                        atr        = atr
+                    )
                 )
             } catch (e: IllegalArgumentException) {
                 _errorInfo.postValue("Failed to identify device. Is it a supported security key?")
@@ -107,7 +139,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                         logger.debug("readInfo on SmartCardConnection")
                         readInfo(it.value)
                     } else {
-                        logger.debug("cannot readInfo on SmartCardConnection because requesting connection failed")
+                        logger.debug("SmartCardConnection request failed")
                     }
                 }
             }
@@ -117,7 +149,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                         logger.debug("readInfo on OtpConnection")
                         readInfo(it.value)
                     } else {
-                        logger.debug("cannot readInfo on OtpConnection because requesting connection failed")
+                        logger.debug("OtpConnection request failed")
                     }
                 }
             }
@@ -127,7 +159,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                         logger.debug("readInfo on FidoConnection")
                         readInfo(it.value)
                     } else {
-                        logger.debug("cannot readInfo on FidoConnection because requesting connection failed")
+                        logger.debug("FidoConnection request failed")
                     }
                 }
             }
@@ -135,6 +167,14 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
         }
     }
 
+    // ── Nitrokey info readers ─────────────────────────────────────────────────
+
+    /**
+     * Reads Nitrokey 3 info over USB via CTAPHID → authenticatorGetInfo.
+     *
+     * [Ctap2Session] wraps [FidoConnection] with a [FidoProtocol] and sends
+     * the CTAP2 getInfo command (0x04) via CTAPHID CBOR (0x90).
+     */
     private fun readNitrokeyInfoUsb(device: YubiKeyDevice) {
         device.requestConnection(FidoConnection::class.java) { result ->
             if (!result.isSuccess) {
@@ -143,21 +183,9 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                 return@requestConnection
             }
             try {
-                // Ctap2Session(FidoConnection) sends authenticatorGetInfo via CTAPHID 0x90
-                val session   = Ctap2Session(result.value)
-                val info      = session.cachedInfo
-                val aaguid    = StringUtils.bytesToHex(info.getAaguid())
-                val fwVersion = info.firmwareVersion?.let { fw ->
-                    // Nitrokey encodes firmware as a packed integer: MAJOR<<16|MINOR<<8|PATCH
-                    "%d.%d.%d".format((fw shr 16) and 0xFF, (fw shr 8) and 0xFF, fw and 0xFF)
-                } ?: "unknown"
-
+                val session = Ctap2Session(result.value)
                 _deviceInfo.postValue(
-                    ConnectedDeviceInfo(
-                        deviceInfo = null,   // no Yubico management app on Nitrokey
-                        type       = YubiKeyType.NK3,
-                        atr        = "USB HID/FIDO2 – Nitrokey 3\nAAGUID: $aaguid\nFirmware: $fwVersion"
-                    )
+                    buildNitrokeyInfo(session.cachedInfo, transport = "USB HID/FIDO2")
                 )
             } catch (e: Exception) {
                 _errorInfo.postValue("Nitrokey USB info failed: ${e.message}")
@@ -166,6 +194,12 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
         }
     }
 
+    /**
+     * Reads Nitrokey 3 info over NFC via ISO-DEP → FIDO2 AID → authenticatorGetInfo.
+     *
+     * [Ctap2Session] selects AID A0000006472F0001 and sends the CTAP2 getInfo
+     * command wrapped as APDU 80 10 00 00 01 04 00.
+     */
     private fun readNitrokeyInfoNfc(device: YubiKeyDevice) {
         device.requestConnection(SmartCardConnection::class.java) { result ->
             if (!result.isSuccess) {
@@ -174,28 +208,9 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                 return@requestConnection
             }
             try {
-                val session   = Ctap2Session(result.value)   // selects FIDO AID, calls getInfo
-                val info      = session.cachedInfo
-                val aaguid    = StringUtils.bytesToHex(info.aaguid)
-                val fwVersion = info.firmwareVersion?.let { fw ->
-                    // NK3 packs as (major<<22)|(minor<<6)|patch
-                    val major = (fw ushr 22) and 0x3FF
-                    val minor = (fw ushr 6)  and 0xFFFF
-                    val patch =  fw           and 0x3F
-                    "$major.$minor.$patch (raw: 0x${fw.toString(16)})"
-                } ?: "unknown"
-
-                val fidoVersions = info.getVersions().joinToString(", ")
-
+                val session = Ctap2Session(result.value)
                 _deviceInfo.postValue(
-                    ConnectedDeviceInfo(
-                        deviceInfo = null,
-                        type       = YubiKeyType.NK3,
-                        atr        = "USB HID/FIDO2 – Nitrokey 3\n" +
-                                     "AAGUID: $aaguid\n" +
-                                     "Firmware: $fwVersion\n" +
-                                     "FIDO versions: $fidoVersions"
-                    )
+                    buildNitrokeyInfo(session.cachedInfo, transport = "NFC/ISO-DEP/FIDO2")
                 )
             } catch (e: Exception) {
                 _errorInfo.postValue("Nitrokey NFC info failed: ${e.message}")
@@ -204,37 +219,46 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
         }
     }
 
-    override fun getSession(
-        device: YubiKeyDevice,
-        onError: (Throwable) -> Unit,
-        callback: (ManagementSession) -> Unit
-    ) {
-        if (lastDeviceWasNitrokey) return
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
-        try {
-            readDeviceInfo(device)
-        } catch (ignored: ApplicationNotAvailableException) {
-            // cannot read the device info
-        }
+    /**
+     * Builds a [ConnectedDeviceInfo] from a CTAP2 [Ctap2Session.InfoData].
+     * Used for both USB and NFC Nitrokey paths; [transport] differentiates them
+     * in the displayed text.
+     */
+    private fun buildNitrokeyInfo(
+        info: Ctap2Session.InfoData,
+        transport: String
+    ): ConnectedDeviceInfo {
+        val aaguid    = StringUtils.bytesToHex(info.getAaguid())
+        val fwVersion = info.firmwareVersion?.let { decodeFirmwareVersion(it) } ?: "unknown"
+        val fido      = info.getVersions().joinToString(", ")
 
-        val usbPid: UsbPid? = (device as? UsbYubiKeyDevice)?.pid
-        val isNitrokey = usbPid?.type == YubiKeyType.NK3
-                || (device as? UsbYubiKeyDevice)?.usbDevice?.vendorId == UsbDeviceManager.NITROKEY_VENDOR_ID
-                || (device is NfcYubiKeyDevice && !device.isYubiKey())
-        if (isNitrokey) return   // readNitrokeyInfo already posted the info; no session needed
-
-        ManagementSession.create(device) {
-            try {
-                callback(it.value)
-            } catch (e: ApplicationNotAvailableException) {
-                onError(e)
-            } catch (e: IOException) {
-                onError(e)
-            }
-        }
+        return ConnectedDeviceInfo(
+            deviceInfo = null,   // Nitrokey does not expose the Yubico Management application
+            type       = YubiKeyType.NK3,
+            atr        = "$transport – Nitrokey 3\n" +
+                    "AAGUID: $aaguid\n" +
+                    "Firmware: $fwVersion\n" +
+                    "FIDO: $fido"
+        )
     }
 
-    override fun ManagementSession.updateState() {
-
+    /**
+     * Decodes the packed firmware version integer reported by Nitrokey 3 in
+     * the CTAP2 authenticatorGetInfo response (field 0x0E).
+     *
+     * Nitrokey 3 encodes the version as:
+     *   major * 1_000_000 + minor * 1_000 + patch
+     * e.g. firmware 1.7.2 → 1_007_002
+     *
+     * The raw hex value is included so the display stays correct if a future
+     * firmware revision changes the encoding.
+     */
+    private fun decodeFirmwareVersion(fw: Int): String {
+        val major = fw / 1_000_000
+        val minor = (fw % 1_000_000) / 1_000
+        val patch = fw % 1_000
+        return "$major.$minor.$patch (raw 0x${fw.toString(16).uppercase()})"
     }
 }
