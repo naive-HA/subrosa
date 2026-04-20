@@ -1,6 +1,10 @@
-[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png" height="80" alt="Get it at IzzyOnDroid">](https://apt.izzysoft.de/packages/acab.naiveha.subrosa)
+<a href="https://apt.izzysoft.de/packages/acab.naiveha.subrosa">
+    <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png" height="80" alt="Get it at IzzyOnDroid">
+</a>
 
-[<img src="https://f-droid.org/badge/get-it-on.png" height="80" alt="Get it on F-Droid">](https://f-droid.org/packages/acab.naiveha.subrosa)
+<a href="https://f-droid.org/packages/acab.naiveha.subrosa">
+    <img src="https://f-droid.org/badge/get-it-on.png" height="80" alt="Get it on F-Droid">
+</a>
 
 # sub rosa by naiveHA
 Uncomplicated simple: if you manage your long, complicated and secure passwords in a password manager app (like KeePassDroid) on your Android device, you can now "type" them easily on any other device, be it a phone, tablet, or PC running Windows, Linux, or MacOS.
