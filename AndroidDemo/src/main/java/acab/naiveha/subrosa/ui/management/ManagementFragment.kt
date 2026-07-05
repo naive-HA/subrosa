@@ -17,16 +17,23 @@
 package acab.naiveha.subrosa.ui.management
 
 import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.graphics.Typeface
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
+import android.widget.Toast
 import androidx.fragment.app.activityViewModels
 import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.databinding.FragmentManagementBinding
 import acab.naiveha.subrosa.ui.YubiKeyFragment
+import acab.naiveha.subrosa.ui.openpgp.toDisplayText
 import com.yubico.yubikit.core.Transport
+import com.yubico.yubikit.core.YubiKeyType
 import com.yubico.yubikit.management.Capability
 import com.yubico.yubikit.management.DeviceConfig
 import com.yubico.yubikit.management.ManagementSession
@@ -67,6 +74,8 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         super.onViewCreated(view, savedInstanceState)
         binding.applicationTable.visibility = View.GONE
         binding.save.visibility             = View.GONE
+        binding.pgpInfo.visibility          = View.GONE
+        binding.pgpInfo.typeface            = Typeface.MONOSPACE
 
         viewModel.errorInfo.observe(viewLifecycleOwner) { errorString ->
             errorString?.let { binding.info.text = "Error:\n$it" }
@@ -77,6 +86,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 binding.emptyView.visibility        = View.VISIBLE
                 binding.applicationTable.visibility = View.GONE
                 binding.save.visibility             = View.GONE
+                binding.pgpInfo.visibility          = View.GONE
                 return@observe
             }
 
@@ -111,11 +121,24 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 checkboxIds.values.forEach { id ->
                     view.findViewById<CheckBox>(id)?.visibility = View.GONE
                 }
-                binding.info.text =
-                    "Device: ${connected.type?.name ?: "Unknown"}\n" +
-                            connected.atr +
-                            "\n\n(Management app not available on this device.\n" +
-                            "Use nitropy or Nitrokey App 2 for full configuration.)"
+                if (connected.type == YubiKeyType.NK3) {
+                    binding.info.text = connected.atr
+                } else {
+                    binding.info.text =
+                        "Device: ${connected.type?.name ?: "Unknown"}\n" +
+                                connected.atr +
+                                "\n\n(Management app not available on this device.\n" +
+                                "Use nitropy or Nitrokey App 2 for full configuration.)"
+                }
+            }
+        }
+
+        viewModel.pgpCardInfo.observe(viewLifecycleOwner) { info ->
+            if (info == null) {
+                binding.pgpInfo.visibility = View.GONE
+            } else {
+                binding.pgpInfo.text = "── OpenPGP\n${info.toDisplayText()}"
+                binding.pgpInfo.visibility = View.VISIBLE
             }
         }
 
@@ -123,7 +146,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             viewModel.deviceInfo.value?.deviceInfo ?: return@setOnClickListener
             viewModel.pendingAction.value = {
                 updateDeviceConfig(DeviceConfig.Builder().apply {
-                    Transport.values().forEach { transport ->
+                    Transport.entries.forEach { transport ->
                         enabledCapabilities(transport, checkboxIds.filter { entry ->
                             entry.key.first == transport &&
                                     view.findViewById<CheckBox>(entry.value).isChecked
@@ -132,6 +155,14 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 }.build(), true, null, null)
                 "Configuration updated"
             }
+        }
+
+        binding.coffeeTipsContainer.setOnClickListener {
+            val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val btcAddress = getString(R.string.btc_address)
+            val clip = ClipData.newPlainText("BTC address", btcAddress)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(requireContext(), getString(R.string.copied_to_clipboard_msg, btcAddress), Toast.LENGTH_SHORT).show()
         }
     }
 }

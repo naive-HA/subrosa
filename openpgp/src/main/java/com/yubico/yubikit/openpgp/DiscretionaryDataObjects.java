@@ -151,8 +151,8 @@ public class DiscretionaryDataObjects {
     KeyRef[] refs = KeyRef.values();
     Map<KeyRef, byte[]> fingerprints = new HashMap<>();
     ByteBuffer buf = ByteBuffer.wrap(encoded);
-    byte[] fingerprint = new byte[20];
     for (int i = 0; buf.remaining() > 0; i++) {
+      byte[] fingerprint = new byte[20];
       buf.get(fingerprint);
       fingerprints.put(refs[i], fingerprint);
     }

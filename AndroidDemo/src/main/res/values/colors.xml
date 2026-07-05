@@ -2,5 +2,17 @@
 <resources>
     <color name="colorPrimary">#3C3C3C</color>
     <color name="colorLightGreen">#3C3C3C</color>
-    <color name="colorDarkGreen">#3C3C3C</color>
+    <color name="colorDarkGreen">#2B2B2B</color>
+    <color name="light_grey">#595959</color>
+
+    <color name="background_light">#F5F5F5</color>
+    <color name="background_dark">#3C3C3C</color>
+    <color name="surface_dark">#3C3C3C</color>
+    <color name="armor_preview_background">#FFFFFF</color>
+    <color name="key_info_background">#FFFFFF</color>
+    <color name="nav_item_selected_background">#1A000000</color>
+    <color name="nav_item_text_selected">#FF000000</color>
+    <color name="nav_item_text_unselected">#80000000</color>
+    <color name="hyperlink">#2196F3</color>
+    <color name="pin_input_text_color">#3C3C3C</color>
 </resources>

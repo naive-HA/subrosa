@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="colorPrimary">#3C3C3C</color>
-    <color name="colorLightGreen">#FFFFFF</color>
-    <color name="colorDarkGreen">#FFFFFF</color>
+    <color name="colorLightGreen">#3C3C3C</color>
+    <color name="colorDarkGreen">#2B2B2B</color>
+
+    <color name="background_dark">#3C3C3C</color>
+    <color name="surface_dark">#3C3C3C</color>
+    <color name="armor_preview_background">#494949</color>
+    <color name="key_info_background">#383838</color>
+    <color name="nav_item_selected_background">#4DFFFFFF</color>
+    <color name="nav_item_text_selected">#FFFFFFFF</color>
+    <color name="nav_item_text_unselected">#B3FFFFFF</color>
+    <color name="hyperlink">#64B5F6</color>
+    <color name="pin_input_text_color">#FFFFFF</color>
 </resources>

@@ -39,6 +39,10 @@
             android:id="@+id/tab_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="?android:attr/windowBackground"
+            app:tabTextColor="?attr/colorOnSurface"
+            app:tabSelectedTextColor="?attr/colorOnSurface"
+            app:tabIndicatorColor="?attr/colorOnSurface"
             app:tabMode="fixed">
 
         </com.google.android.material.tabs.TabLayout>

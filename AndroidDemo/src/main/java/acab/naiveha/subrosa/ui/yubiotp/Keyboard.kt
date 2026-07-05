@@ -1,7 +1,5 @@
 package acab.naiveha.subrosa.ui.yubiotp
 
-import android.util.Log
-
 class Keyboard {
     val SHIFT = 0x80
     val US = mapOf(
@@ -555,7 +553,7 @@ class Keyboard {
         var scancodes = byteArrayOf()
         val keyboardMap = keyboards[keyboard] ?: throw IllegalStateException("Unknown keyboard $keyboard")
         password.forEachIndexed { index, char ->
-            scancodes += (keyboardMap[char]?: throw IllegalStateException("Illegal character $char selected keyboard")).toByte()
+            scancodes += (keyboardMap[char]?: throw IllegalStateException("Illegal character $char for selected keyboard")).toByte()
         }
         return scancodes
     }

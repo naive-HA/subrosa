@@ -2,30 +2,20 @@ apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
 ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
-android {
-    libraryVariants.configureEach { variant ->
-        if (variant.name == 'release') {
-            tasks.register('javadoc', Javadoc) {
-                source = android.sourceSets.main.java.srcDirs
-                classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
-                owner.classpath += variant.javaCompileProvider.get().classpath
-                exclude '**/R.html', '**/R.*.html', '**/index.html'
-            }
+tasks.withType(Javadoc).configureEach {
+    exclude '**/R.html', '**/R.*.html', '**/index.html'
+}
 
-            // build a jar with javadoc
-            tasks.register('javadocJar', Jar) {
-                dependsOn javadoc
-                archiveClassifier.set('javadoc')
-                from javadoc.destinationDir
-            }
+tasks.register('javadoc') {
+    dependsOn 'javaDocReleaseGeneration'
+}
 
-            // build a jar with source
-            tasks.register('sourcesJar', Jar) {
-                archiveClassifier.set('sources')
-                from android.sourceSets.main.java.srcDirs
-            }
-        }
-    }
+tasks.register('javadocJar') {
+    dependsOn 'javaDocReleaseJar'
+}
+
+tasks.register('sourcesJar') {
+    dependsOn 'sourceReleaseJar'
 }
 
 

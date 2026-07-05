@@ -58,6 +58,11 @@ public class Result<T, E extends Throwable> {
     return error != null;
   }
 
+  @Nullable
+  public E getError() {
+    return error;
+  }
+
   /**
    * Constructs a Result for a value (success).
    *

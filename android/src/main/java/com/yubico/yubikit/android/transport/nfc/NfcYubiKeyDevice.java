@@ -67,8 +67,8 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
       throw new IOException("the tag does not support ISO-DEP");
     }
     card.setTimeout(timeout);
-    card.connect();
-    return new NfcSmartCardConnection(card);
+      card.connect();
+      return new NfcSmartCardConnection(card);
   }
 
   @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
@@ -96,6 +96,10 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
    */
   public void remove(Runnable onRemoved) {
     removed.set(true);
+    if (executorService.isShutdown()) {
+      onRemoved.run();
+      return;
+    }
     executorService.submit(
         () -> {
           try {
@@ -106,7 +110,6 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
               Thread.sleep(250);
             }
           } catch (SecurityException | InterruptedException | IOException e) {
-            // Ignore
           }
           onRemoved.run();
         });
@@ -119,7 +122,7 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
 
   @Override
   public boolean supportsConnection(Class<? extends YubiKeyConnection> connectionType) {
-    return connectionType.isAssignableFrom(NfcSmartCardConnection.class);
+      return connectionType.isAssignableFrom(NfcSmartCardConnection.class);
   }
 
   public <T extends YubiKeyConnection> T openConnection(Class<T> connectionType)
@@ -133,10 +136,13 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
   @Override
   public <T extends YubiKeyConnection> void requestConnection(
       Class<T> connectionType, Callback<Result<T, IOException>> callback) {
-    if (removed.get()) {
+    boolean isRemoved = removed.get();
+    if (isRemoved) {
       callback.invoke(
           Result.failure(new IOException("Can't requestConnection after calling remove()")));
-    } else
+    } else if (executorService.isShutdown()) {
+      callback.invoke(Result.failure(new IOException("Device has been closed")));
+    } else {
       executorService.submit(
           () -> {
             try (T connection = openConnection(connectionType)) {
@@ -154,6 +160,7 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
                           exception)));
             }
           });
+    }
   }
 
   /**
@@ -175,7 +182,7 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
           // neither app present — not a YubiKey
         }
       }
-    } catch (Exception e) {   // ← widen from IOException to catch CtapException etc.
+    } catch (Exception e) {
       // tag not responsive or wrong protocol
     }
     return false;
@@ -183,6 +190,15 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
 
   @Override
   public String toString() {
-    return "NfcYubiKeyDevice{" + "tag=" + tag + ", timeout=" + timeout + '}';
+    return "NfcYubiKeyDevice{tagId=" + bytesToHex(tag.getId()) + ", timeout=" + timeout + '}';
+  }
+
+  private static String bytesToHex(byte[] bytes) {
+    if (bytes == null) return "null";
+    StringBuilder sb = new StringBuilder(bytes.length * 2);
+    for (byte b : bytes) {
+      sb.append(String.format("%02X", b));
+    }
+    return sb.toString();
   }
 }

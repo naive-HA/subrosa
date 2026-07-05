@@ -11,12 +11,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/pin"
-        app:passwordToggleEnabled="true">
+        android:textColorHint="@color/pin_input_text_color"
+        app:hintTextColor="@color/pin_input_text_color"
+        app:passwordToggleEnabled="true"
+        app:startIconDrawable="@drawable/ic_content_paste_24dp"
+        app:startIconContentDescription="@string/otp_clipboard_paste">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/dialog_pin_edittext"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="textPassword" />
+            android:inputType="textPassword"
+            android:textColor="@color/pin_input_text_color" />
     </com.google.android.material.textfield.TextInputLayout>
 </LinearLayout>

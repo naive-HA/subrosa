@@ -47,10 +47,9 @@ class YubiOtpFragment : Fragment() {
 
     private val requestOtp = registerForActivityResult(OtpContract()) {
         activityViewModel.setYubiKeyListenerEnabled(true)
-        viewModel.postResult(Result.success(when (it) {
-            null -> "Cancelled by user"
-            else -> "Read OTP: $it"
-        }))
+        if (it != null) {
+            viewModel.postResult(Result.success("Read OTP: $it"))
+        }
     }
 
     private val activityViewModel: MainViewModel by activityViewModels()

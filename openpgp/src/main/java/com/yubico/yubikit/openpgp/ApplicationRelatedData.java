@@ -70,7 +70,12 @@ public class ApplicationRelatedData {
 
   static ApplicationRelatedData parse(byte[] encoded) {
     try {
-      byte[] outer = Tlvs.unpackValue(Do.APPLICATION_RELATED_DATA, encoded);
+      byte[] outer;
+      try {
+        outer = Tlvs.unpackValue(Do.APPLICATION_RELATED_DATA, encoded);
+      } catch (BadResponseException | IllegalArgumentException e) {
+        outer = encoded;
+      }
       Map<Integer, byte[]> data = Tlvs.decodeMap(outer);
       EnumSet<GeneralFeatureManagement> generalFeatureManagement = null;
       if (data.containsKey(Do.GENERAL_FEATURE_MANAGEMENT)) {

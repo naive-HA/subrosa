@@ -10,7 +10,7 @@
             android:title="@string/menu_mgmt" />
         <item
             android:id="@+id/nav_yubiotp"
-            android:icon="@drawable/ic_baseline_security_24"
+            android:icon="@drawable/passkey_24px"
             android:title="@string/menu_otp" />
         <item
             android:id="@+id/nav_piv"
@@ -22,5 +22,13 @@
             android:icon="@drawable/ic_baseline_timelapse_24"
             android:title="@string/menu_oath"
             android:visible="false" />
+        <item
+            android:id="@+id/nav_openpgp"
+            android:icon="@drawable/enhanced_encryption_24px"
+            android:title="@string/menu_openpgp" />
+        <item
+            android:id="@+id/nav_licenses"
+            android:icon="@drawable/copyright_24px"
+            android:title="@string/menu_licenses" />
     </group>
 </menu>

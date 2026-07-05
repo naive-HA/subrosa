@@ -18,19 +18,39 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:layout_margin="@dimen/activity_margin">
+    android:layout_margin="@dimen/activity_margin"
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="16dp"
+            android:adjustViewBounds="true"
+            android:src="@drawable/big_logo"
+            tools:ignore="ContentDescription" />
+
         <TextView
             android:id="@+id/info"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:scrollbars="vertical"
-            tools:text="Device: Yubikey\n Device form factor: USB_A_KEYCHAIN\n Firmware: 5.2.1\n Serial: 123456\n FIPS: false\n SKY: false\n Locked: false\n Auto eject timeout: 1\n Challenge response timeout: 15"/>
+            tools:text="Device: YubiKey 5 NFC\nFirmware: 5.4.3\nSerial: 12345678" />
+
+        <TextView
+            android:id="@+id/pgp_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="monospace"
+            android:textSize="11.5sp"
+            android:visibility="gone"
+            tools:text="── OpenPGP\nFirmware    5.4.3\nName        Shaggy Rogers\n\n── SIG  ✓  RSA-4096\n   2026-06-07\n   B4BE A28B …" />
 
         <TextView
             android:layout_marginTop="@dimen/card_view_margin"
@@ -159,8 +179,8 @@
         <TextView
             android:id="@+id/empty_view"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:text="@string/need_key"
+            android:layout_height="wrap_content"
+            android:text="@string/need_key_generic"
             android:visibility="gone" />
 
         <Button
@@ -170,6 +190,39 @@
             android:text="@string/save"
             tools:visibility="gone" />
 
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <LinearLayout
+            android:id="@+id/coffee_tips_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="8dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/coffee_tips"
+                android:textAlignment="center"
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorSecondary" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/btc_address"
+                android:textAlignment="center"
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorSecondary" />
+        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>

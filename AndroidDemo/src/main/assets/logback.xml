@@ -24,8 +24,8 @@
         </encoder>
     </appender>
 
-    <!-- Write TRACE (and higher-level) messages to logcat -->
-    <root level="TRACE">
+    <!-- Restricted logging for RELEASE builds -->
+    <root level="ERROR">
         <appender-ref ref="logcat" />
     </root>
 </configuration>

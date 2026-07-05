@@ -1,19 +1,3 @@
-/*
- * Copyright (C) 2022 Yubico.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package acab.naiveha.subrosa.ui.yubiotp
 
 import android.content.ClipData
@@ -30,6 +14,7 @@ import android.text.method.PasswordTransformationMethod
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.launch
 import androidx.fragment.app.Fragment
@@ -40,38 +25,62 @@ import acab.naiveha.subrosa.databinding.FragmentStaticpwdBinding
 import com.yubico.yubikit.android.ui.OtpActivity
 import com.yubico.yubikit.yubiotp.Slot
 import com.yubico.yubikit.yubiotp.StaticPasswordSlotConfiguration
-import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
 import android.os.VibratorManager
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 class StaticPwdFragment : Fragment() {
     class OtpContract : ActivityResultContract<Unit, String?>() {
         override fun createIntent(context: Context, input: Unit): Intent = Intent(context, OtpActivity::class.java)
-
         override fun parseResult(resultCode: Int, intent: Intent?): String? {
             return intent?.getStringExtra(OtpActivity.EXTRA_OTP)
         }
     }
-
     private val requestOtp = registerForActivityResult(OtpContract()) {
+        if (!isAdded) return@registerForActivityResult
         activityViewModel.setYubiKeyListenerEnabled(true)
-        viewModel.postResult(Result.success(when (it) {
-            null -> "Cancelled by user"
-            else -> "Read OTP: $it"
-        }))
+        if (it != null) {
+            showStaticPasswordDialog(it)
+            viewModel.postReadStatus("Read complete")
+        }
     }
-
     private val activityViewModel: MainViewModel by activityViewModels()
     private val viewModel: OtpViewModel by activityViewModels()
     private lateinit var binding: FragmentStaticpwdBinding
+
+    private var saveStatusClearJob: Job? = null
+    private var readStatusClearJob: Job? = null
+    private var deleteStatusClearJob: Job? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         binding = FragmentStaticpwdBinding.inflate(inflater, container, false)
         return binding.root
     }
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.btnSaveStaticpwd.isEnabled = false
+
+        viewModel.clearUiTrigger.observe(viewLifecycleOwner) { shouldClear ->
+            if (shouldClear) {
+                binding.editTextStaticpwdId.setText("")
+                binding.btnSaveStaticpwd.isEnabled = false
+                binding.extrasTabFront.isChecked = false
+                binding.extrasTabEnd.isChecked = false
+                binding.extrasCr.isChecked = false
+                binding.checkboxShowPwdId.isChecked = false
+                binding.keyboardRadio.check(R.id.keyoard_us)
+                binding.slotRadio.check(R.id.radio_slot_1)
+                binding.slotRadioReset.check(R.id.reset_slot_1)
+            }
+        }
+
         binding.checkboxShowPwdId.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 binding.editTextStaticpwdId.transformationMethod = HideReturnsTransformationMethod.getInstance()
@@ -81,14 +90,12 @@ class StaticPwdFragment : Fragment() {
                 binding.editTextStaticpwdId.setSelection(binding.editTextStaticpwdId.text?.length ?: 0)
             }
         }
-
         binding.textLayoutStaticpwdId.setEndIconOnClickListener {
-            if (binding.editTextStaticpwdId.text.toString().length > 0){
+            if (binding.editTextStaticpwdId.text.toString().isNotEmpty()){
                 binding.textLayoutStaticpwdId.endIconDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_content_paste_24dp)
                 binding.editTextStaticpwdId.setText("")
                 binding.editTextStaticpwdId.requestFocus()
-                val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                inputMethodManager.showSoftInput(binding.editTextStaticpwdId, InputMethodManager.SHOW_IMPLICIT)
+                WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).show(WindowInsetsCompat.Type.ime())
             } else {
                 val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.primaryClip?.getItemAt(0)?.text?.let {
@@ -98,26 +105,24 @@ class StaticPwdFragment : Fragment() {
                         } else {
                             binding.textLayoutStaticpwdId.endIconDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_cancel_24dp)
                             binding.editTextStaticpwdId.append(it)
-                            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+                            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
                             binding.editTextStaticpwdId.setSelection(binding.editTextStaticpwdId.text?.length ?: 0)
                             clipboard.setPrimaryClip(ClipData.newPlainText("", "Hello kitty"))
                         }
                     } catch (e: Exception) {
                         viewModel.postResult(Result.failure(e))
-                        getVibrator().vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
                     }
                 }
             }
         }
-
         binding.editTextStaticpwdId.addTextChangedListener(object: TextWatcher{
             override fun afterTextChanged(s: Editable?) {
-                val staticpwd = binding.editTextStaticpwdId.text.toString()
-                if (staticpwd.length == 0) {
+                val staticpwd = s?.toString() ?: ""
+                binding.btnSaveStaticpwd.isEnabled = staticpwd.isNotEmpty()
+                if (staticpwd.isEmpty()) {
                     binding.textLayoutStaticpwdId.endIconDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_content_paste_24dp)
                     binding.textLayoutStaticpwdId.hint = "Type or paste from clipboard"
-                } else if (staticpwd.length > 0){
+                } else {
                     binding.textLayoutStaticpwdId.endIconDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_cancel_24dp)
                     binding.textLayoutStaticpwdId.hint = "Static password"
                 }
@@ -130,8 +135,7 @@ class StaticPwdFragment : Fragment() {
             }
         })
         binding.keyoardUs.setOnClickListener {
-            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
         }
         binding.keyoardUs.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
@@ -143,10 +147,8 @@ class StaticPwdFragment : Fragment() {
                 binding.extrasCr.isEnabled = true
             }
         }
-
         binding.keyoardUk.setOnClickListener {
-            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
         }
         binding.keyoardUk.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
@@ -158,10 +160,8 @@ class StaticPwdFragment : Fragment() {
                 binding.extrasCr.isEnabled = true
             }
         }
-
         binding.keyoardDe.setOnClickListener {
-            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
         }
         binding.keyoardDe.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
@@ -173,10 +173,8 @@ class StaticPwdFragment : Fragment() {
                 binding.extrasCr.isEnabled = true
             }
         }
-
         binding.keyoardFr.setOnClickListener {
-            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
         }
         binding.keyoardFr.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
@@ -188,10 +186,8 @@ class StaticPwdFragment : Fragment() {
                 binding.extrasCr.isEnabled = true
             }
         }
-
         binding.keyoardIt.setOnClickListener {
-            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
         }
         binding.keyoardIt.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
@@ -203,14 +199,11 @@ class StaticPwdFragment : Fragment() {
                 binding.extrasCr.isEnabled = true
             }
         }
-
         binding.keyoardModhex.setOnClickListener {
-            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
         }
         binding.keyoardModhex.setOnCheckedChangeListener { _, isChecked ->
-            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
             if (isChecked) {
                 binding.extrasTabFront.isChecked = false
                 binding.extrasTabFront.isEnabled = false
@@ -220,35 +213,66 @@ class StaticPwdFragment : Fragment() {
                 binding.extrasCr.isEnabled = false
             }
         }
-
         binding.extrasTabFront.setOnClickListener {
-            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
         }
-
         binding.extrasTabEnd.setOnClickListener {
-            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
         }
-
         binding.extrasCr.setOnClickListener {
-            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
         }
-
         binding.radioSlot1.setOnClickListener {
-            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
+        }
+        binding.radioSlot2.setOnClickListener {
+            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
         }
 
-        binding.radioSlot2.setOnClickListener {
-            val inputMethodManager = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+        viewModel.saveStatus.observe(viewLifecycleOwner) { message ->
+            saveStatusClearJob?.cancel()
+            binding.saveStatus.text = message
+            if (message.isNotEmpty()) {
+                binding.editTextStaticpwdId.setText("")
+                saveStatusClearJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(2000.milliseconds)
+                    viewModel.postSaveStatus("")
+                }
+            }
+        }
+
+        viewModel.readStatus.observe(viewLifecycleOwner) { message ->
+            readStatusClearJob?.cancel()
+            binding.readStatus.text = message
+            if (message.isNotEmpty()) {
+                readStatusClearJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(2000.milliseconds)
+                    viewModel.postReadStatus("")
+                }
+            }
+        }
+
+        viewModel.deleteStatus.observe(viewLifecycleOwner) { message ->
+            deleteStatusClearJob?.cancel()
+            binding.deleteStatus.text = message
+            if (message.isNotEmpty()) {
+                deleteStatusClearJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(2000.milliseconds)
+                    viewModel.postDeleteStatus("")
+                }
+            }
+        }
+
+        viewModel.result.observe(viewLifecycleOwner) { result ->
+            if (result.isFailure) {
+                getVibrator().vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+            }
         }
 
         binding.btnSaveStaticpwd.setOnClickListener {
+            if (rejectIfNitrokeyConnected()) return@setOnClickListener
             try {
-                var keyboard = when (binding.keyboardRadio.checkedRadioButtonId) {
+                val keyboard = when (binding.keyboardRadio.checkedRadioButtonId) {
                     R.id.keyoard_us -> "en_US"
                     R.id.keyoard_uk -> "en_UK"
                     R.id.keyoard_de -> "de_DE"
@@ -257,61 +281,101 @@ class StaticPwdFragment : Fragment() {
                     R.id.keyoard_modhex -> "en_MODHEX"
                     else -> "en_US"
                 }
-
                 var staticpwd = binding.editTextStaticpwdId.text.toString()
                 if (staticpwd.length > 38){
                     throw IllegalStateException("Static password cannot exceed 38 characters")
-                } else if (staticpwd.length == 0){
-                    staticpwd += "Hello kitty"
-                    keyboard = "en_US"
                 }
-
-                if (binding.extrasTabFront.isChecked()){
+                if (binding.extrasTabFront.isChecked){
                     staticpwd = '\t' + staticpwd
                 }
-
-                if (binding.extrasTabEnd.isChecked()){
+                if (binding.extrasTabEnd.isChecked){
                     staticpwd += '\t'
                 }
-
                 val scancodes = Keyboard().encode(staticpwd, keyboard)
                 val configuration = StaticPasswordSlotConfiguration(scancodes)
-
-                if (binding.extrasCr.isChecked()){
+                if (binding.extrasCr.isChecked){
                     configuration.appendCr(true)
                 } else {
                     configuration.appendCr(false)
                 }
-
                 val slot = when (binding.slotRadio.checkedRadioButtonId) {
                     R.id.radio_slot_1 -> Slot.ONE
                     R.id.radio_slot_2 -> Slot.TWO
                     else -> Slot.ONE
                 }
-
                 viewModel.pendingAction.value = {
                     putConfiguration(slot, configuration, null, null)
-                    "Slot $slot programmed"
+                    viewModel.postSaveStatus("Slot $slot programmed")
+                    null
                 }
-
-                binding.extrasTabFront.setChecked(false)
-                binding.extrasTabEnd.setChecked(false)
-                binding.extrasCr.setChecked(false)
-                binding.editTextStaticpwdId.setText("")
             } catch (e: Exception) {
                 viewModel.postResult(Result.failure(e))
-                getVibrator().vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
             }
         }
-
         binding.btnRequestStaticpwd.setOnClickListener {
+            if (rejectIfNitrokeyConnected()) return@setOnClickListener
             activityViewModel.setYubiKeyListenerEnabled(false)
             requestOtp.launch()
         }
-
+        binding.btnDeleteStaticpwd.setOnClickListener {
+            if (rejectIfNitrokeyConnected()) return@setOnClickListener
+            try {
+                val staticpwd = "Hello kitty"
+                val keyboard = "en_US"
+                val scancodes = Keyboard().encode(staticpwd, keyboard)
+                val configuration = StaticPasswordSlotConfiguration(scancodes)
+                val slot = when (binding.slotRadioReset.checkedRadioButtonId) {
+                    R.id.reset_slot_1 -> Slot.ONE
+                    R.id.reset_slot_2 -> Slot.TWO
+                    else -> Slot.ONE
+                }
+                viewModel.pendingAction.value = {
+                    putConfiguration(slot, configuration, null, null)
+                    viewModel.postDeleteStatus("Slot $slot reset")
+                    null
+                }
+            } catch (e: Exception) {
+                viewModel.postResult(Result.failure(e))
+            }
+        }
     }
     private fun getVibrator(): Vibrator {
         val vibratorManager = requireContext().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
         return vibratorManager.defaultVibrator
+    }
+
+    private fun showStaticPasswordDialog(password: String) {
+        val context = context ?: return
+
+        val cleanedPassword = password.replace("\u0000", "")
+
+        val text = buildString {
+            appendLine(cleanedPassword)
+        }
+
+        val builder = MaterialAlertDialogBuilder(context)
+        val themedContext = builder.context
+        val view = LayoutInflater.from(themedContext).inflate(R.layout.dialog_static_password, null)
+        
+        val tv = view.findViewById<TextView>(R.id.text_static_password)
+        val focusCatcher = view.findViewById<View>(R.id.focus_catcher)
+        
+        tv.text = text
+
+        builder.setTitle(R.string.otp_yubistatic)
+            .setView(view)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+            .apply {
+                focusCatcher.requestFocus()
+            }
+    }
+
+    private fun rejectIfNitrokeyConnected(): Boolean {
+        if (OtpViewModel.isUsbNitrokey(activityViewModel.yubiKey.value)) {
+            viewModel.postResult(Result.failure(Exception(OtpViewModel.NITROKEY_NOT_SUPPORTED_MESSAGE)))
+            return true
+        }
+        return false
     }
 }

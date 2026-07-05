@@ -16,6 +16,7 @@
 
 package com.yubico.yubikit.openpgp;
 
+import com.yubico.yubikit.core.util.Tlv;
 import com.yubico.yubikit.core.util.Tlvs;
 import java.util.Arrays;
 import java.util.Map;
@@ -44,8 +45,14 @@ public class CardholderRelatedData {
   }
 
   static CardholderRelatedData parse(byte[] encoded) {
-    Map<Integer, byte[]> data = Tlvs.decodeMap(encoded);
+    byte[] value = Tlv.parse(encoded).getValue();
+    Map<Integer, byte[]> data = Tlvs.decodeMap(value);
+    byte[] name = data.get(Do.NAME);
+    byte[] language = data.get(Do.LANGUAGE);
+    byte[] sex = data.get(Do.SEX);
     return new CardholderRelatedData(
-        data.get(Do.NAME), data.get(Do.LANGUAGE), 0xff & data.get(Do.SEX)[0]);
+        name != null ? name : new byte[0],
+        language != null ? language : new byte[0],
+        sex != null && sex.length > 0 ? (0xff & sex[0]) : 0);
   }
 }

@@ -2,7 +2,7 @@
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    app:startDestination="@+id/nav_yubiotp">
+    app:startDestination="@+id/nav_management">
 
     <fragment
         android:id="@+id/nav_management"
@@ -27,4 +27,28 @@
         android:name="acab.naiveha.subrosa.ui.oath.OathFragment"
         android:label="@string/menu_oath"
         tools:layout="@layout/fragment_oath" />
+
+    <fragment
+        android:id="@+id/nav_openpgp"
+        android:name="acab.naiveha.subrosa.ui.openpgp.YubiPgpFragment"
+        android:label="@string/menu_openpgp"
+        tools:layout="@layout/fragment_yubipgp" />
+
+    <fragment
+        android:id="@+id/nav_licenses"
+        android:name="acab.naiveha.subrosa.ui.licenses.LicensesFragment"
+        android:label="@string/menu_licenses"
+        tools:layout="@layout/fragment_licenses" />
+
+    <fragment
+        android:id="@+id/passwordOcrFragment"
+        android:name="acab.naiveha.subrosa.ui.openpgp.PasswordOcrFragment"
+        android:label="Extract Password"
+        tools:layout="@layout/fragment_password_ocr">
+        <argument
+            android:name="imageUri"
+            app:argType="android.net.Uri"
+            app:nullable="true"
+            android:defaultValue="@null" />
+    </fragment>
 </navigation>

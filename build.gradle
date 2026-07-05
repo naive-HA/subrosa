@@ -9,14 +9,14 @@ buildscript {
         google()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:9.1.1'
+        classpath 'com.android.tools.build:gradle:9.2.1'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
 plugins {
     id 'maven-publish'
-    id 'com.diffplug.spotless' version "7.2.1" apply false
+    id 'com.diffplug.spotless' version "8.8.0" apply false
     id 'project-convention-publishing'
 }
 
@@ -24,6 +24,7 @@ allprojects {
     repositories {
         mavenCentral()
         google()
+        maven {url = uri("https://jitpack.io") }
     }
 
     tasks.withType(JavaCompile).configureEach {
@@ -34,7 +35,7 @@ allprojects {
 }
 
 subprojects {
-    version = '1.0.10'
+    version = '2.0.0'
     ext.pomName = "Yubico YubiKit ${project.name.capitalize()}"
 
 

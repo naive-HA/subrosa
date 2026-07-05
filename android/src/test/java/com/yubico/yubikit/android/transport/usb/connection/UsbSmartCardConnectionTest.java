@@ -133,4 +133,55 @@ public class UsbSmartCardConnectionTest {
             + "900010203040506070809000102030405060708");
     assertSent(""); // An empty packet must be sent when the last packet ends on a boundary
   }
+
+  @Test
+  public void testReceiveCcidChainedResponse() throws IOException {
+    UsbSmartCardConnection connection = getConnection();
+
+    String firstChunk =
+        "80360000000001000001"
+            + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    String secondChunk = "80060000000002000000" + "bbbbbbbb9000";
+
+    packetsIn.add(firstChunk);
+    packetsIn.add("");
+    packetsIn.add(secondChunk);
+
+    byte[] response = connection.sendAndReceive(Codec.fromHex("00ca006e00"));
+
+    assertSent("6f05000000000100000000ca006e00");
+
+    assertSent("6f000000000002001000");
+
+    byte[] expected = Codec.fromHex(
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            + "bbbbbbbb9000");
+    Assert.assertArrayEquals(expected, response);
+  }
+
+  @Test
+  public void testReceiveCcidChainedResponseNk3ThreeChunks() throws IOException {
+    UsbSmartCardConnection connection = getConnection();
+
+    String chunk1 = "80360000000001000001" + "aa".repeat(54);
+    String chunk2 = "80360000000002000003" + "bb".repeat(54);
+    String chunk3 = "800c00000000030000" + "02" + "cc".repeat(10) + "9000";
+
+    packetsIn.add(chunk1);
+    packetsIn.add("");
+    packetsIn.add(chunk2);
+    packetsIn.add("");
+    packetsIn.add(chunk3);
+
+    byte[] response = connection.sendAndReceive(Codec.fromHex("00ca006e00"));
+
+    assertSent("6f05000000000100000000ca006e00");
+    assertSent("6f000000000002001000");
+    assertSent("6f000000000003001000");
+
+    byte[] expected = Codec.fromHex(
+        "aa".repeat(54) + "bb".repeat(54) + "cc".repeat(10) + "9000");
+    Assert.assertArrayEquals(expected, response);
+  }
 }

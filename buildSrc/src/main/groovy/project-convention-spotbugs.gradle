@@ -23,17 +23,19 @@ spotbugs {
     excludeFilter = file("../spotbugs/excludeFilter.xml")
 }
 
-tasks.withType(SpotBugsTask) {
-    enabled = name.toLowerCase().contains('main') || name.toLowerCase().contains('release')
+afterEvaluate {
+    tasks.withType(SpotBugsTask).configureEach {
+        enabled = name.toLowerCase().contains('main') || name.toLowerCase().contains('release')
 
-    reports {
-        html {
-            required = true
-            outputLocation = file("${project.rootDir}/build/spotbugs-html/spotbugs-${project.name}.html")
-        }
-        sarif {
-            required = true
-            outputLocation = file("${project.rootDir}/build/spotbugs/spotbugs-${project.name}.sarif")
+        reports {
+            html {
+                required = true
+                outputLocation = file("${project.rootDir}/build/spotbugs-html/spotbugs-${project.name}.html")
+            }
+            sarif {
+                required = true
+                outputLocation = file("${project.rootDir}/build/spotbugs/spotbugs-${project.name}.sarif")
+            }
         }
     }
 }

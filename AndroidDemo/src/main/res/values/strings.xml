@@ -10,11 +10,15 @@
     <string name="menu_piv">PIV</string>
     <string name="menu_web">WebView</string>
     <string name="menu_oath">OATH</string>
+    <string name="menu_openpgp">OpenPGP</string>
+    <string name="menu_licenses">Licenses</string>
+    <string name="openpgp_header">OpenPGP Configuration</string>
 
-    <string name="need_key">Plug in your security key (YubiKey or Nitrokey) or tap over NFC</string>
+    <string name="need_key_generic">Plug in your security key or tap over NFC</string>
+    <string name="need_key">Plug in your security key or tap over NFC</string>
     <string name="insert_key">Insert Security Key</string>
-    <string name="hold_key">Hold your key flat until operation is completed</string>
-    <string name="remove_key">Remove your key now</string>
+    <string name="hold_key">Hold your device flat until operation is completed</string>
+    <string name="remove_key">Remove your device now</string>
     <string name="app_missing">Application not available on this device</string>
 
     <string name="pin">PIN</string>
@@ -23,6 +27,7 @@
     <string name="enter_password">Enter Password</string>
     <string name="placeholder_text">Lorem ipsum dolor sit amet</string>
     <string name="save">Save</string>
+    <string name="openpgp_btn_write">WRITE TO DEVICE</string>
     <string name="randomize">randomize</string>
 
     <string name="transport_usb">USB</string>
@@ -60,7 +65,7 @@
 
     <string name="otp_yubiotp">Yubico OTP</string>
     <string name="otp_yubistatic">Static Password</string>
-    <string name="otp_yubistatic_desc">Program a Yubico static password.\nWARNING: Overwriting a slot can NOT be undone!</string>
+    <string name="otp_yubistatic_desc">Program a Yubico static password.\nWARNING: Operation can NOT be undone!</string>
     <string name="otp_clipboard_paste">Paste from clipboard</string>
     <string name="otp_yubistatic_id">Type or paste from clipboard</string>
     <string name="otp_illegal_char_desc">Error: Illegal character for selected keyboard</string>
@@ -77,9 +82,10 @@
     <string name="otp_keyboard_it_desc">IT</string>
     <string name="otp_keyboard_modhex_desc">MODHEX</string>
     <string name="otp_yubistatic_slot_desc">Slot selection</string>
-    <string name="otp_yubistatic_read">Read Yubico static password</string>
-    <string name="otp_yubistatic_read_desc">Read the Yubico static password over USB or NFC</string>
+    <string name="otp_yubistatic_read">Read static password</string>
+    <string name="otp_yubistatic_read_desc">Test the static password</string>
     <string name="otp_yubistatic_show_pwd_desc">Show password</string>
+    <string name="otp_btn_write_static">WRITE STATIC PASSWORD</string>
 
     <string name="otp_chalresp">Challenge\nResponse</string>
     <string name="otp_public_id">Public ID (modhex)</string>
@@ -114,6 +120,68 @@
     <string name="version">Version %s</string>
     <string name="copyright"> </string>
     <string name="copied_to_clipboard">BTC address copied to clipboard! </string>
+    <string name="github_url">https://github.com/naive-HA/subrosa</string>
+    <string name="footer_title_version">sub rosa by naiveHA %s</string>
+    <string name="coffee_tips">Coffee tips go to:</string>
+    <string name="btc_address">1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh</string>
+    <string name="copied_to_clipboard_msg">Copied to clipboard: %s</string>
+    <string name="openpgp_desc">Program an OpenPGP private key.\nWARNING: Operation can NOT be undone!</string>
 
+    <string name="openpgp_tap_to_paste">Tap to import from file\nLong tap to import from clipboard\nOr, import from OpenKeychain via \"Share backup\"</string>
+
+    <string name="openpgp_admin_pin_title">Admin PIN</string>
+    <string name="openpgp_admin_pin_message">Enter the YubiKey Admin PIN to program the key.\n\nDefault: 12345678</string>
+    <string name="openpgp_admin_pin_hint">Admin PIN</string>
+    <string name="openpgp_program">Program</string>
+
+    <string name="enter_admin_pin">Enter Admin PIN</string>
+    <string name="enter_key_passphrase">Protected OpenPGP key</string>
+    <string name="enter_file_passphrase">Decrypt OpenPGP key backup</string>
+
+    <string name="openpgp_key_user_id">User ID</string>
+    <string name="openpgp_key_algorithm">Algorithm</string>
+    <string name="openpgp_key_created">Created</string>
+    <string name="openpgp_key_expires">Expires</string>
+    <string name="openpgp_key_no_expiry">No expiry</string>
+    <string name="openpgp_key_fingerprint">Fingerprint</string>
+    <string name="openpgp_key_subkeys">Keys</string>
+
+    <string name="openpgp_btn_read">READ DEVICE</string>
+    <string name="openpgp_btn_reset">WIPE DEVICE</string>
+    <string name="openpgp_reset_title">Reset OpenPGP Application</string>
+    <string name="openpgp_reset_message">This will permanently delete all keys, certificates, and data stored in the OpenPGP application.\n\nThis cannot be undone.</string>
+    <string name="openpgp_reset_confirm">Reset</string>
+    <string name="openpgp_reset_success">OpenPGP application reset successfully</string>
+
+    <string name="openpgp_file_wrong_passphrase">Wrong file passphrase — please try again</string>
+    <string name="openpgp_file_read_error">Could not read the file</string>
+    <string name="openpgp_key_invalid">Clipboard does not contain an OpenPGP private key.</string>
+    <string name="openpgp_no_key_loaded">No key loaded — paste a key first</string>
+    <string name="openpgp_wrong_passphrase">Wrong passphrase — please try again</string>
+    <string name="openpgp_key_prepare_failed">Failed to read key material</string>
+    <string name="openpgp_admin_pin_too_short">Admin PIN must be at least 8 characters long</string>
+
+    <string name="openpgp_import_file">Import .pgp File…</string>
+    <string name="openpgp_subkey_meta">Created: %1$s | Expires: %2$s</string>
+
+    <string name="openpgp_card_details_title">OpenPGP Card Details</string>
+
+    <string name="yubikit_prompt_activity_title">Connect device</string>
+    <string name="yubikit_otp_activity_title">Connect device</string>
+    <string name="yubikit_prompt_plug_in">Connect your device.</string>
+    <string name="yubikit_prompt_plug_in_or_tap">Hold your device flat against the back of your phone, or connect it via USB.</string>
+    <string name="yubikit_prompt_remove">Remove your device.</string>
+    <string name="yubikit_otp_touch">Touch the sensor on your device.</string>
+
+    <string name="licenses_details">sub rosa by naiveHA is licensed under Apache-2.0\nSource code is found at: https://github.com/naive-HA/subrosa, while the license is found at: https://github.com/naive-HA/subrosa/blob/master/LICENSE\n\nThis software project is based on yubikit-android published by Yubico and found at: https://github.com/Yubico/yubikit-android and licensed under Apache-2.0 (https://github.com/Yubico/yubikit-android/blob/main/LICENSE)\n\nYubiKey and the Yubico logo are trademarks of the Yubico AB. This project is not affiliated with, endorsed by, or sponsored by the Yubico AB. All references to YubiKey are for descriptive and interoperability purposes only. No copyright or trademark claims are made to Yubikey or any related Yubico AB intellectual property.\n\nNitrokey is a trademark of Nitrokey GmbH. This project is not affiliated with, endorsed by, or sponsored by Nitrokey GmbH. All references to Nitrokey are for descriptive and interoperability purposes only. No copyright or trademark claims are made to Nitrokey or any related Nitrokey GmbH intellectual property.</string>
+    <string name="wipe_the_openpgp_key">Wipe the OpenPGP key\nWARNING: Operation can NOT be undone!</string>
+    <string name="test_the_openpgp_card">Test the OpenPGP card</string>
+    <string name="reset_yubikey_static_password">Reset YubiKey static password\nWARNING: Operation can NOT be undone!</string>
+    <string name="reset_static_password">Reset Static Password</string>
+    <string name="usage">Usage</string>
+    <string name="dash">—</string>
+    <string name="algorithm">Algorithm</string>
+    <string name="fingerprint">Fingerprint</string>
+    <string name="meta_info">Meta info</string>
 
 </resources>

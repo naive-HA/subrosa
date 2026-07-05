@@ -53,7 +53,7 @@ public class OpenPgpAid {
    * @return OpenPGP card manufacturer ID.
    */
   public short getManufacturer() {
-    return ByteBuffer.wrap(bytes).getShort(6);
+    return ByteBuffer.wrap(bytes).getShort(8);
   }
 
   /**

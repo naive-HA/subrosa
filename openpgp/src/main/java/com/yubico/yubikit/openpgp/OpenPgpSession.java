@@ -185,18 +185,28 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
     }
 
     Logger.debug(logger, "Getting version number");
-    byte[] versionBcd = protocol.sendAndReceive(new Apdu(0, INS_GET_VERSION, 0, 0, null));
-    byte[] versionBytes = new byte[3];
-    for (int i = 0; i < 3; i++) {
-      versionBytes[i] = decodeBcd(versionBcd[i]);
+    Version parsedVersion;
+    try {
+      byte[] versionBcd = protocol.sendAndReceive(new Apdu(0, INS_GET_VERSION, 0, 0, null));
+      byte[] versionBytes = new byte[3];
+      for (int i = 0; i < 3; i++) {
+        versionBytes[i] = decodeBcd(versionBcd[i]);
+      }
+      parsedVersion = Version.fromBytes(versionBytes);
+      Logger.debug(logger, "Version read via INS_GET_VERSION: {}", parsedVersion);
+    } catch (ApduException e) {
+      if (e.getSw() == SW.INVALID_INSTRUCTION) {
+        Logger.warn(logger,
+            "INS_GET_VERSION (0xF1) not supported (SW=0x6D00) — "
+            + "non-YubiKey device (e.g. Nitrokey 3); defaulting to version 0.0.0");
+        parsedVersion = new Version(0, 0, 0);
+      } else {
+        throw e;
+      }
     }
-    version = overrideOf(Version.fromBytes(versionBytes));
+    version = overrideOf(parsedVersion);
     protocol.configure(version);
-
-    // Note: This value is cached!
-    // Do not rely on contained information that can change!
     appData = getApplicationRelatedData();
-
     Logger.debug(logger, "OpenPGP session initialized (version={})", version);
   }
 
@@ -206,11 +216,44 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
     if (cause instanceof ApduException) {
       short sw = ((ApduException) cause).getSw();
       if (sw == SW.NO_INPUT_DATA || sw == SW.CONDITIONS_NOT_SATISFIED) {
-        // Not activated, activate
         Logger.warn(logger, "Application not active, sending ACTIVATE");
-        protocol.sendAndReceive(new Apdu(0, INS_ACTIVATE, 0, 0, null));
-        protocol.select(AppId.OPENPGP);
-        return;
+        try {
+          protocol.sendAndReceive(new Apdu(0, INS_ACTIVATE, 0, 0, null));
+        } catch (ApduException activateEx) {
+          if (activateEx.getSw() == SW.CONDITIONS_NOT_SATISFIED) {
+            Logger.warn(logger, "ACTIVATE returned 0x6985 — card may already be operational; attempting SELECT");
+          } else {
+            throw activateEx;
+          }
+        }
+        try {
+          protocol.select(AppId.OPENPGP);
+          return;
+        } catch (IOException firstRetryEx) {
+          Throwable frc = firstRetryEx.getCause();
+          if (!(frc instanceof ApduException)
+              || ((ApduException) frc).getSw() != SW.CONDITIONS_NOT_SATISFIED) {
+            throw firstRetryEx;
+          }
+          Logger.warn(logger, "SELECT also returned 0x6985 — sending SELECT MF to reset card context");
+        }
+        try {
+          protocol.sendAndReceive(new Apdu(0, 0xA4, 0x00, 0x00, null));
+          Logger.debug(logger, "SELECT MF succeeded");
+        } catch (ApduException mfEx) {
+          Logger.warn(logger, "SELECT MF returned SW=0x{} — ignoring", String.format("%04X", mfEx.getSw() & 0xFFFF));
+        }
+        try {
+          protocol.select(AppId.OPENPGP);
+          return;
+        } catch (IOException finalEx) {
+          Throwable fc = finalEx.getCause();
+          if (fc instanceof ApduException && ((ApduException) fc).getSw() == SW.CONDITIONS_NOT_SATISFIED) {
+            Logger.error(logger, "OpenPGP applet still not accessible after SELECT MF. Remove the key from the reader and tap again.");
+            throw new IOException("OpenPGP applet not accessible. Remove the Nitrokey from the NFC reader and tap again.", finalEx);
+          }
+          throw finalEx;
+        }
       }
     }
     throw e;
@@ -261,6 +304,14 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
    */
   public ApplicationRelatedData getApplicationRelatedData() throws ApduException, IOException {
     return ApplicationRelatedData.parse(getData(Do.APPLICATION_RELATED_DATA));
+  }
+
+  public ApplicationRelatedData getCachedApplicationRelatedData() {
+    return appData;
+  }
+
+  public CardholderRelatedData getCardholderRelatedData() throws ApduException, IOException {
+    return CardholderRelatedData.parse(getData(Do.CARDHOLDER_RELATED_DATA));
   }
 
   /**
@@ -1117,6 +1168,26 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
       setGenerationTime(keyRef, 0);
     }
     Logger.info(logger, "Private key imported for {}", keyRef);
+  }
+
+  public void terminateAndActivate() throws ApduException, IOException {
+    Logger.debug(logger, "Sending TERMINATE (Admin PIN already verified), then ACTIVATE");
+    protocol.sendAndReceive(new Apdu(0, INS_TERMINATE, 0, 0, null));
+    protocol.sendAndReceive(new Apdu(0, INS_ACTIVATE, 0, 0, null));
+    Logger.info(logger, "OpenPGP application factory-reset; PINs now at device defaults");
+  }
+
+  public void reselect() throws IOException, ApplicationNotAvailableException {
+    Logger.debug(logger, "Re-selecting OpenPGP application after factory reset");
+    protocol.select(AppId.OPENPGP);
+    Logger.info(logger, "OpenPGP application re-selected");
+  }
+
+  public void putRawKeyTemplate(byte[] extendedHeaderListTlv) throws ApduException, IOException {
+    Logger.debug(
+        logger, "Importing raw Extended Header List ({} bytes)", extendedHeaderListTlv.length);
+    protocol.sendAndReceive(new Apdu(0, INS_PUT_DATA_ODD, 0x3f, 0xff, extendedHeaderListTlv));
+    Logger.info(logger, "Raw Extended Header List written");
   }
 
   /**

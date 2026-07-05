@@ -22,7 +22,7 @@ public enum YubiKeyType {
   SKY("Security Key by Yubico"),
   YKP("YubiKey Plus"),
   YK4("YubiKey"),
-  NK3("Nitrokey 3");       // covers 3A NFC, 3C NFC, 3 Mini
+  NK3("Nitrokey 3");
 
   public final String name;
 

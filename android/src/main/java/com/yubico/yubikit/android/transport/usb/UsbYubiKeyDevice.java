@@ -17,7 +17,6 @@
 package com.yubico.yubikit.android.transport.usb;
 
 import static com.yubico.yubikit.android.transport.usb.UsbDeviceManager.ACCEPTED_VENDOR_IDS;
-import static com.yubico.yubikit.android.transport.usb.UsbDeviceManager.YUBICO_VENDOR_ID;
 
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
@@ -35,6 +34,7 @@ import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.LoggerFactory;
@@ -48,8 +48,9 @@ public class UsbYubiKeyDevice implements YubiKeyDevice, Closeable {
   private final UsbPid usbPid;
 
   @Nullable private CachedOtpConnection otpConnection = null;
-
   @Nullable private Runnable onClosed = null;
+
+  private final AtomicBoolean closed = new AtomicBoolean(false);
 
   private static final org.slf4j.Logger logger = LoggerFactory.getLogger(UsbYubiKeyDevice.class);
 
@@ -68,7 +69,6 @@ public class UsbYubiKeyDevice implements YubiKeyDevice, Closeable {
     }
 
     this.usbPid = UsbPid.fromValueOrNull(usbDevice.getProductId());
-
     this.connectionManager = new ConnectionManager(usbManager, usbDevice);
     this.usbDevice = usbDevice;
     this.usbManager = usbManager;
@@ -119,6 +119,10 @@ public class UsbYubiKeyDevice implements YubiKeyDevice, Closeable {
       Callback<Result<OtpConnection, IOException>> otpCallback =
           value -> callback.invoke((Result<T, IOException>) value);
       if (otpConnection == null) {
+        if (executorService.isShutdown()) {
+          otpCallback.invoke(Result.failure(new IOException("Device has been closed")));
+          return;
+        }
         otpConnection = new CachedOtpConnection(otpCallback);
       } else {
         otpConnection.queue.offer(otpCallback);
@@ -128,6 +132,12 @@ public class UsbYubiKeyDevice implements YubiKeyDevice, Closeable {
         otpConnection.close();
         otpConnection = null;
       }
+
+      if (executorService.isShutdown()) {
+        callback.invoke(Result.failure(new IOException("Device has been closed")));
+        return;
+      }
+
       executorService.submit(
           () -> {
             try (T connection = connectionManager.openConnection(connectionType)) {
@@ -152,7 +162,6 @@ public class UsbYubiKeyDevice implements YubiKeyDevice, Closeable {
   public <T extends YubiKeyConnection> T openConnection(Class<T> connectionType)
       throws IOException {
     verifyAccess(connectionType);
-
     return connectionManager.openConnection(connectionType);
   }
 
@@ -166,6 +175,10 @@ public class UsbYubiKeyDevice implements YubiKeyDevice, Closeable {
 
   @Override
   public void close() {
+    if (!closed.compareAndSet(false, true)) {
+      Logger.debug(logger, "close() called again on already-closed device — ignoring");
+      return;
+    }
     Logger.debug(logger, "Closing YubiKey device");
     if (otpConnection != null) {
       otpConnection.close();
@@ -241,6 +254,10 @@ public class UsbYubiKeyDevice implements YubiKeyDevice, Closeable {
   @Nonnull
   @Override
   public String toString() {
-    return "UsbYubiKeyDevice{" + "usbDevice=" + usbDevice + ", usbPid=" + usbPid + '}';
+    return "UsbYubiKeyDevice{"
+        + "vendorId=0x" + Integer.toHexString(usbDevice.getVendorId()).toUpperCase()
+        + " productId=0x" + Integer.toHexString(usbDevice.getProductId()).toUpperCase()
+        + " usbPid=" + usbPid
+        + '}';
   }
 }

@@ -16,6 +16,7 @@
 
 package acab.naiveha.subrosa
 
+import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -34,4 +35,15 @@ class MainViewModel : ViewModel() {
     }
 
     val yubiKey = MutableLiveData<YubiKeyDevice?>()
+
+    private val _pendingOcrUri = MutableLiveData<Uri?>(null)
+    val pendingOcrUri: LiveData<Uri?> = _pendingOcrUri
+
+    fun onOcrIntent(uri: Uri) {
+        _pendingOcrUri.value = uri
+    }
+
+    fun consumeOcrUri() {
+        _pendingOcrUri.value = null
+    }
 }

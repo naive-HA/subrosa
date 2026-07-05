@@ -155,8 +155,12 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
    * @throws IOException in case if there is communication error occurs or received data is invalid
    */
   private byte[] transceive(byte type, byte[] data) throws IOException {
+    return transceive(type, data, (short) 0);
+  }
+
+  private byte[] transceive(byte type, byte[] data, short levelParameter) throws IOException {
     // 1. prepare data for sending
-    MessageHeader prefix = new MessageHeader(type, data.length, sequence++);
+    MessageHeader prefix = new MessageHeader(type, data.length, sequence++, levelParameter);
     ByteBuffer byteBuffer =
         ByteBuffer.allocate(prefix.size() + data.length)
             .order(ByteOrder.LITTLE_ENDIAN)
@@ -188,7 +192,10 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
       }
     }
 
-    // 3. read data from device until we receive non-full packet/blob
+    return receiveResponse();
+  }
+
+  private byte[] receiveResponse() throws IOException {
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
     int bytesRead;
     MessageHeader messageHeader = null;
@@ -208,13 +215,10 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
         if (receivedExpectedPrefix) {
           stream.write(bufferRead, 0, bytesRead);
         } else {
-          // 4. parse received data and make sure it's proper format
           messageHeader = new MessageHeader(bufferRead);
           responseRequiresTimeExtension =
               (messageHeader.status & STATUS_TIME_EXTENSION) == STATUS_TIME_EXTENSION;
           if (messageHeader.verify((byte) (sequence - 1))) {
-            // if we received expected prefix we can save the rest of received data without
-            // verification
             receivedExpectedPrefix = true;
             stream.write(bufferRead, 0, bytesRead);
           } else if (messageHeader.error != 0 && !responseRequiresTimeExtension) {
@@ -229,15 +233,33 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
       } else if (bytesRead < 0) {
         throw new IOException("Failed to read response");
       }
-    } while ((bytesRead > 0 && bytesRead == bufferRead.length) || responseRequiresTimeExtension);
+    } while (responseRequiresTimeExtension
+        || (bytesRead >= 0
+            && !(receivedExpectedPrefix
+                && messageHeader != null
+                && stream.size() >= messageHeader.size() + messageHeader.dataLength)));
 
-    // 5. prepare data for returning to user
     byte[] output = stream.toByteArray();
     if (messageHeader == null || output.length < messageHeader.size()) {
       throw new IOException("Response is invalid");
     }
     int dataLength = Math.min(output.length - messageHeader.size(), messageHeader.dataLength);
-    return Arrays.copyOfRange(output, messageHeader.size(), messageHeader.size() + dataLength);
+    byte[] responseData =
+        Arrays.copyOfRange(output, messageHeader.size(), messageHeader.size() + dataLength);
+
+    if (messageHeader.chainParameter == 0x01 || messageHeader.chainParameter == 0x03) {
+      Logger.debug(
+          logger,
+          "CCID response chaining bChainParameter=0x{} — sending continuation XfrBlock (wLevelParameter=0x0010)",
+          String.format(Locale.ROOT, "%02X", messageHeader.chainParameter));
+      byte[] rest = transceive(REQUEST_MESSAGE_TYPE, new byte[0], (short) 0x0010);
+      byte[] combined = new byte[responseData.length + rest.length];
+      System.arraycopy(responseData, 0, combined, 0, responseData.length);
+      System.arraycopy(rest, 0, combined, responseData.length, rest.length);
+      return combined;
+    }
+
+    return responseData;
   }
 
   /**
@@ -251,7 +273,6 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
    */
   private static class MessageHeader {
     private static final int SIZE_OF_CCID_PREFIX = 10;
-    private static final byte[] MESSAGE_SPECIFIC_BYTES = new byte[] {0, 0, 0};
     private static final byte SLOT_NUMBER = 0;
 
     private byte type;
@@ -260,9 +281,8 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
     private byte sequence;
     private byte status;
     private byte error;
-
-    @SuppressFBWarnings("URF_UNREAD_FIELD")
-    private byte messageSpecificByte;
+    byte chainParameter;
+    private short levelParameter;
 
     private MessageHeader(byte[] buffer) {
       if (buffer.length > SIZE_OF_CCID_PREFIX) {
@@ -274,15 +294,20 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
         sequence = responseBuffer.get();
         status = responseBuffer.get();
         error = responseBuffer.get();
-        messageSpecificByte = responseBuffer.get();
+        chainParameter = responseBuffer.get(); // bChainParameter / messageSpecificByte
       }
     }
 
     private MessageHeader(byte type, int length, byte sequence) {
+      this(type, length, sequence, (short) 0);
+    }
+
+    private MessageHeader(byte type, int length, byte sequence, short levelParameter) {
       this.type = type;
       this.dataLength = length;
       this.slot = SLOT_NUMBER;
       this.sequence = sequence;
+      this.levelParameter = levelParameter;
     }
 
     private byte[] array() {
@@ -293,7 +318,8 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
               .putInt(dataLength)
               .put(slot)
               .put(sequence)
-              .put(MESSAGE_SPECIFIC_BYTES);
+              .put((byte) 0)            // bBWI
+              .putShort(levelParameter); // wLevelParameter (little-endian)
       return byteBuffer.array();
     }
 
