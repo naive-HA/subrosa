@@ -107,3 +107,11 @@ When logging into your remove server (ssh) you will be asked for a PIN. This is 
 NB: if the above instructions are not complete, open an issue and contribute to the project.
 
 Coffee tips can be sent to: 1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh
+
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/0.png" alt="subrosa-staticpwd" height="400">
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" alt="subrosa-staticpwd" height="400">
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" alt="subrosa-staticpwd" height="400">
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" alt="subrosa-staticpwd" height="400">
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" alt="subrosa-staticpwd" height="400">
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" alt="subrosa-staticpwd" height="400">
+
