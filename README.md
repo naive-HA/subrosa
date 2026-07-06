@@ -29,7 +29,7 @@ SSH authentication got so much simpler now that you do not need to reuse the sam
 
 # How to import OpenPGP keys from OpenKeychain
 sub rosa relies on the OpenKeychain app to manage OpenPGP keys, like generating, storing securely and backing them up. Importing from OpenKeychain is now a breeze.
-Share a key backup to sub rosa and enter the backup code shown by OpenKeyring. For now, this backup code made of 36 number and dashes cannot be copied to clipboard.
+Share a key backup to sub rosa and enter the backup code shown by OpenKeyring. For now, this backup code made of 36 numbers and dashes cannot be copied to clipboard.
 To make it "Uncomplicatedly simple", sub rosa includes tesseract: an Optical Character Recognition library. Take a screenshot of OpenKeyring app and share that screenshot with sub rosa.
 Select the section which includes the backup code and hit the EXTRACT PASSWORD button. The backup code will be copied to clipboard and you can return to OpenKeyring and hit the SHARE BACKUP button.
 Paste the backup code in sub rosa and get ready to write your private OpenPGP key to your security key.
@@ -45,7 +45,7 @@ On a clean Debian machine ensure all the right packages are installed:
     sudo apt update
     sudo apt install openssh-client gnupg scdaemon pinentry-curses
 
-Then, enable ssh support in gpg agent first identify where pinentry is installed
+Then, identify where pinentry is installed and enable ssh support in gpg agent first 
 
     which pinentry
 
