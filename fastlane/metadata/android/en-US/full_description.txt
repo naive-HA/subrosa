@@ -1,12 +1,8 @@
-Uncomplicated simple: if you manage your long, complicated and secure passwords in a password manager app (like KeePassDroid) on your Android device, you can now "type" them easily on any other device, be it a phone, tablet, or PC running Windows, Linux, or MacOS.
+Uncomplicatedly simple: if you manage your long, complicated and secure passwords in a password manager app (like KeePassDroid) on your Android device, you can now "type" them easily on any other device, be it a phone, tablet, or PC running Windows, Linux, or macOS.
 
-<i>sub rosa</i> allows you to program (over USB or NFC) the static password of your YubiKey which then can be used to "type" the password with the touch of a finger.
+<i>sub rosa</i> allows you to program the static password of your YubiKey which then can be used to "type" the password with the touch of a finger.
 
 Once you are done "typing" your long, complicated and secure password, remember to wipe clean your YubiKey... Is not much security if anyone can "type" your password by touching the YubiKey!
-
-<i>sub rosa</i> is an Android app, built on top of YubiKit library provided by Yubico,
-
-<b>Keyboards</b>
 
 The various keyboards accept the following characters:
 
@@ -17,6 +13,14 @@ The various keyboards accept the following characters:
 • <i>IT</i>: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-./:;<=>?@\^_`|£§°çèéàìòù
 • <i>MODHEX</i>: bcdefghijklnrtuvBCDEFGHIJKLNRTUV
 
-Version 1.0.10
- - preparing for F-Droid
- - preparing to add Nitrokey 3 support
+Since 2.0.0 sub rosa has added support for OpenPGP. You can now program an OpenPGP key to your YubiKey or Nitrokey.
+
+In keeping with the app's motto: "Uncomplicatedly simple", you can encrypt, decrypt, sign and authenticate using your security key and then wipe it clean and write another OpenPGP key to change your digital identity.
+
+SSH authentication got so much simpler now that you do not need to reuse the same SSH key or buy multiple security keys.
+
+<i>sub rosa</i> is an Android app, built on top of YubiKit library provided by Yubico,
+
+Version 2.0.0
+ - Adding support for Nitrokey 3
+ - Adding OpenPGP support for Yubikey and Nitrokey

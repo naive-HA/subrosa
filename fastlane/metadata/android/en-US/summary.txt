@@ -1,1 +1,1 @@
-Program (over USB or NFC) the static password of your YubiKey
+Program the static password and/or OpenPGP keys to your YubiKey or Nitrokey
