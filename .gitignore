@@ -76,3 +76,5 @@ fastlane/readme.md
 #VS Code
 .project
 .settings
+/AndroidDemo/release/baselineProfiles/0/subrosa.2.0.0.dm
+/AndroidDemo/release/baselineProfiles/1/subrosa.2.0.0.dm
