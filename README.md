@@ -23,7 +23,7 @@ The various keyboards accept the following characters:
 
 * *MODHEX*: bcdefghijklnrtuvBCDEFGHIJKLNRTUV
 
-Since version 2.0.0, sub rosa has added support for OpenPGP. You can now provision an OpenPGP key onto your YubiKey or Nitrokey. 
+Since version 2.0.0, sub rosa has added support for OpenPGP. You can now provision an OpenPGP key onto your YubiKey or Nitrokey 3. 
 In keeping with the app’s motto, “Uncomplicatedly simple,” you can encrypt, decrypt, sign, and authenticate with your security key, 
 then wipe it clean and write another OpenPGP key to change your digital identity. 
 SSH authentication is simpler now—you no longer need to reuse the same SSH key or buy multiple security keys
