@@ -13,11 +13,12 @@ The various keyboards accept the following characters:
 • <i>IT</i>: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-./:;<=>?@\^_`|£§°çèéàìòù
 • <i>MODHEX</i>: bcdefghijklnrtuvBCDEFGHIJKLNRTUV
 
-Since 2.0.0 sub rosa has added support for OpenPGP. You can now program an OpenPGP key to your YubiKey or Nitrokey.
+Since version 2.0.0, sub rosa has added support for OpenPGP. You can now provision an OpenPGP key onto your YubiKey or Nitrokey 3.
 
-In keeping with the app's motto: "Uncomplicatedly simple", you can encrypt, decrypt, sign and authenticate using your security key and then wipe it clean and write another OpenPGP key to change your digital identity.
+In keeping with the app’s motto, “Uncomplicatedly simple,” you can encrypt, decrypt, sign, and authenticate with your security key,
+then wipe it clean and write another OpenPGP key to change your digital identity.
 
-SSH authentication got so much simpler now that you do not need to reuse the same SSH key or buy multiple security keys.
+SSH authentication is simpler now—you no longer need to reuse the same SSH key or buy multiple security keys
 
 <i>sub rosa</i> is an Android app, built on top of YubiKit library provided by Yubico,
 

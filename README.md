@@ -29,15 +29,28 @@ then wipe it clean and write another OpenPGP key to change your digital identity
 SSH authentication is simpler now—you no longer need to reuse the same SSH key or buy multiple security keys
 
 # How to import OpenPGP keys from OpenKeychain
-sub rosa works closely with OpenKeychain. OpenKeychain manages OpenPGP keys, like generating, storing securely and backing them up. Importing from OpenKeychain is now a breeze.
-Share a key backup to sub rosa and enter the backup code shown by OpenKeyring. For now, this backup code made of 36 numbers and dashes cannot be copied to clipboard.
-To make it "Uncomplicatedly simple", sub rosa includes tesseract: an Optical Character Recognition library. Take a screenshot of OpenKeyring app and share that screenshot with sub rosa.
-Select the section which includes the backup code and hit the EXTRACT PASSWORD button. The backup code will be copied to clipboard and you can return to OpenKeyring and hit the SHARE BACKUP button.
-Paste the backup code in sub rosa and get ready to write your private OpenPGP key to your security key.
+sub rosa works closely with OpenKeychain. OpenKeychain manages OpenPGP keys, such as generating, storing them securely, and backing them up. 
+Importing from OpenKeychain is now a breeze. Share a key backup with Sub rosa and enter the backup code shown by OpenKeyring. 
+For now, this backup code—made of 36 numbers and dashes—cannot be copied to the clipboard.
+To make it “uncomplicatedly simple,” sub rosa includes Tesseract: an Optical Character Recognition library. 
 
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" alt="subrosa-staticpwd" height="400">
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7.png" alt="subrosa-staticpwd" height="400">
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8.png" alt="subrosa-staticpwd" height="400">
+Take a screenshot of the OpenKeyring app and share that screenshot with Sub rosa.
+
+Select the section that includes the backup code and hit the EXTRACT PASSWORD button. 
+
+The backup code will be copied to the clipboard, and you can return to OpenKeyring and hit the SHARE BACKUP button.
+
+Paste the backup code in Sub rosa and get ready to write your private OpenPGP key to your security key.
+
+<table>
+  <tr>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" alt="OpenKeychain import 1" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7.png" alt="OpenKeychain import 2" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8.png" alt="OpenKeychain import 3" height="400"></td>
+  </tr>
+</table>
+
+NB: sub rosa is not affiliated with OpenKeychain.
 
 # How to use your security key for SSH authentication
 When generating a new OpenPGP key with OpenKeyring, choose *Change key configuration* and add an Authentication subkey. 
@@ -112,10 +125,16 @@ NB: if the above instructions are not complete, open an issue and contribute to 
 
 Coffee tips can be sent to: 1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh
 
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/0.png" alt="subrosa-staticpwd" height="400">
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" alt="subrosa-staticpwd" height="400">
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" alt="subrosa-staticpwd" height="400">
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" alt="subrosa-staticpwd" height="400">
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" alt="subrosa-staticpwd" height="400">
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" alt="subrosa-staticpwd" height="400">
+<table>
+  <tr>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/0.png" alt="Management" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" alt="YubiOTP" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" alt="PIV" height="400"></td>
+  </tr>
+  <tr>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" alt="OATH" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" alt="OpenPGP" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" alt="Licenses" height="400"></td>
+  </tr>
+</table>
 
