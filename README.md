@@ -113,7 +113,7 @@ To extract the SSH authentication key, run:
 Make sure to replace 36F40BE75662CEA929402AAA360A64F448E35ABB with the keygrip of your own Authentication subkey. 
 The last command should display something like:
 
-    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGfZlzyF4mwdtAnUNJVz1TxOkotdHNizIaA56IOepfA/ cardno:25_547_078
+    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGfZlzyF4mwdtAnUNJVz1TxOkotdHNizIaA56IOepfA/ cardno:000F_D52FD320
 
 Take note of that and add it to ~/.ssh/authorized_keys on your remote server.
 
