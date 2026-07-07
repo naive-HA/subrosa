@@ -23,24 +23,24 @@ The various keyboards accept the following characters:
 
 * *MODHEX*: bcdefghijklnrtuvBCDEFGHIJKLNRTUV
 
-Since version 2.0.0, sub rosa has added support for OpenPGP. You can now provision an OpenPGP key onto your YubiKey or Nitrokey 3. 
+Since version 2.0.0, *sub rosa* has added support for OpenPGP. You can now provision an OpenPGP key onto your YubiKey or Nitrokey 3. 
 In keeping with the app’s motto, “Uncomplicatedly simple,” you can encrypt, decrypt, sign, and authenticate with your security key, 
 then wipe it clean and write another OpenPGP key to change your digital identity. 
 SSH authentication is simpler now—you no longer need to reuse the same SSH key or buy multiple security keys
 
 # How to import OpenPGP keys from OpenKeychain
-sub rosa works closely with OpenKeychain. OpenKeychain manages OpenPGP keys, such as generating, storing them securely, and backing them up. 
-Importing from OpenKeychain is now a breeze. Share a key backup with Sub rosa and enter the backup code shown by OpenKeyring. 
+*sub rosa* works closely with OpenKeychain. OpenKeychain manages OpenPGP keys, such as generating, storing them securely, and backing them up. 
+Importing from OpenKeychain is now a breeze. Share a key backup with *sub rosa* and enter the backup code shown by OpenKeyring. 
 For now, this backup code—made of 36 numbers and dashes—cannot be copied to the clipboard.
-To make it “uncomplicatedly simple,” sub rosa includes Tesseract: an Optical Character Recognition library. 
+To make it “uncomplicatedly simple,” *sub rosa* includes Tesseract: an Optical Character Recognition library. 
 
-Take a screenshot of the OpenKeyring app and share that screenshot with sub rosa.
+Take a screenshot of the OpenKeyring app and share that screenshot with *sub rosa*.
 
 Select the section that includes the backup code and hit the EXTRACT PASSWORD button. 
 
 The backup code will be copied to the clipboard, and you can return to OpenKeyring and hit the SHARE BACKUP button.
 
-Paste the backup code in Sub rosa and get ready to write your private OpenPGP key to your security key.
+Paste the backup code in *sub rosa* and get ready to write your private OpenPGP key to your security key.
 
 <table>
   <tr>
@@ -50,11 +50,11 @@ Paste the backup code in Sub rosa and get ready to write your private OpenPGP ke
   </tr>
 </table>
 
-NB: sub rosa is not affiliated with OpenKeychain.
+NB: *sub rosa* is not affiliated with OpenKeychain.
 
 # How to use your security key for SSH authentication
 When generating a new OpenPGP key with OpenKeyring, choose *Change key configuration* and add an Authentication subkey. 
-Then import this OpenPGP key into Sub Rosa and write it to your security key.
+Then import this OpenPGP key into *sub rosa* and write it to your security key.
 
 On a clean Debian machine, ensure all the right packages are installed:
 
