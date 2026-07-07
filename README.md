@@ -34,7 +34,7 @@ Importing from OpenKeychain is now a breeze. Share a key backup with Sub rosa an
 For now, this backup code—made of 36 numbers and dashes—cannot be copied to the clipboard.
 To make it “uncomplicatedly simple,” sub rosa includes Tesseract: an Optical Character Recognition library. 
 
-Take a screenshot of the OpenKeyring app and share that screenshot with Sub rosa.
+Take a screenshot of the OpenKeyring app and share that screenshot with sub rosa.
 
 Select the section that includes the backup code and hit the EXTRACT PASSWORD button. 
 
