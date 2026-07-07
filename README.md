@@ -1,13 +1,12 @@
 [<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png" height="80" alt="Get it at IzzyOnDroid">](https://apt.izzysoft.de/packages/acab.naiveha.subrosa)
 
 # sub rosa by naiveHA
-Uncomplicatedly simple: if you manage your long, complicated and secure passwords in a password manager app (like KeePassDroid) on your Android device, 
-you can now "type" them easily on any other device, be it a phone, tablet, or PC running Windows, Linux, or macOS.
+Uncomplicatedly simple: if you manage your long, complex, and secure passwords in a password manager app (like KeePassDroid) on your Android device, 
+you can now “type” them easily on any other device—phone, tablet, or PC—running Windows, Linux, or macOS.
 
-*sub rosa* allows you to program the static password of your YubiKey which then can be used to "type" the password with the touch of a finger.
-
-Once you are done "typing" your long, complicated and secure password, remember to wipe clean your YubiKey... 
-It is not much security if anyone can "type" your password by touching the YubiKey!
+*sub rosa* also lets you program the static password on your YubiKey, so you can “type” the password with the touch of a finger.
+When you’re done “typing” your long, complex, and secure password, be sure to wipe your YubiKey clean. 
+It isn’t much security if someone else can “type” your password by touching the YubiKey.
 
 The various keyboards accept the following characters:
 
