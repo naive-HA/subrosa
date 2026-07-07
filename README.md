@@ -28,7 +28,7 @@ In keeping with the app's motto: "Uncomplicatedly simple", you can encrypt, decr
 SSH authentication got so much simpler now that you do not need to reuse the same SSH key or buy multiple security keys.
 
 # How to import OpenPGP keys from OpenKeychain
-sub rosa relies on the OpenKeychain app to manage OpenPGP keys, like generating, storing securely and backing them up. Importing from OpenKeychain is now a breeze.
+sub rosa works closely with OpenKeychain. OpenKeychain manages OpenPGP keys, like generating, storing securely and backing them up. Importing from OpenKeychain is now a breeze.
 Share a key backup to sub rosa and enter the backup code shown by OpenKeyring. For now, this backup code made of 36 numbers and dashes cannot be copied to clipboard.
 To make it "Uncomplicatedly simple", sub rosa includes tesseract: an Optical Character Recognition library. Take a screenshot of OpenKeyring app and share that screenshot with sub rosa.
 Select the section which includes the backup code and hit the EXTRACT PASSWORD button. The backup code will be copied to clipboard and you can return to OpenKeyring and hit the SHARE BACKUP button.
@@ -39,13 +39,15 @@ Paste the backup code in sub rosa and get ready to write your private OpenPGP ke
 <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8.png" alt="subrosa-staticpwd" height="400">
 
 # How to use your security key for SSH authentication
-When generating a new OpenPGP key with OpenKeyring, choose *Change key configuration* and add an Authentication subkey. Then, import this OpenPGP key into sub rosa and write it to your security key.
-On a clean Debian machine ensure all the right packages are installed:
+When generating a new OpenPGP key with OpenKeyring, choose *Change key configuration* and add an Authentication subkey. 
+Then import this OpenPGP key into Sub Rosa and write it to your security key.
+
+On a clean Debian machine, ensure all the right packages are installed:
 
     sudo apt update
-    sudo apt install openssh-client gnupg scdaemon pinentry-curses
+    sudo apt install openssh-client gnupg scdaemon pinentry-curses pcscd
 
-Then, identify where pinentry is installed and enable ssh support in gpg agent first 
+Identify where pinentry is installed:
 
     which pinentry
 
@@ -53,40 +55,39 @@ The output should be something like:
 
     /usr/bin/pinentry
 
-Take note of that and then launch gpg-agent and edit the config file:
-    
-    gpgconf --kill gpg-agent
-    gpgconf --launch gpg-agent
-    echo "enable-ssh-support" > ~/.gnupg/gpg-agent.conf
-    echo "pinentry-program /usr/bin/pinentry" > ~/.gnupg/gpg-agent.conf
+Take note of that, then configure gpg-agent to enable SSH support and use that pinentry:
 
-Next, the gpg-agent needs to be able to communicate with your security key:
+    echo "enable-ssh-support" > ~/.gnupg/gpg-agent.conf
+    echo "pinentry-program /usr/bin/pinentry" >> ~/.gnupg/gpg-agent.conf
+
+Restart the agent to pick up the config:
 
     gpgconf --kill gpg-agent
     gpgconf --launch gpg-agent
     gpgconf --list-dirs agent-ssh-socket
 
-This should display something like this:
+This should display something like:
 
     /run/user/1000/gnupg/S.gpg-agent.ssh
 
-Take note of it and add it to your ~/.ssh/config file:
+Take note of it and add it to your ~/.ssh/config:
 
     echo "Host *" > ~/.ssh/config
-    echo "  IdentityAgent /run/user/1000/gnupg/S.gpg-agent.ssh" > ~/.ssh/config
+    echo "  IdentityAgent /run/user/1000/gnupg/S.gpg-agent.ssh" >> ~/.ssh/config
 
-Make sure to replace /run/user/1000/gnupg/S.gpg-agent.ssh with the right value for your security key
+Make sure to replace /run/user/1000/gnupg/S.gpg-agent.ssh with the correct value for your own system.
 
-Now, interrogate the security key:
+Now interrogate the security key:
 
     gpg-connect-agent "scd learn --force" /bye
 
-This displays details of the OpenPGP key written on your security key. The output looks something like this:
+This displays details of the OpenPGP key written on your security key.
+The output looks something like this:
 
     ...
     S KEYPAIRINFO ACD6963FB1576BFD6301E3C301DAE322834D8627 OPENPGP.1 sc 1782525877 rsa4096
     S KEYPAIRINFO F7172AFD4F68B5B1155DC06A371329E766D9AC29 OPENPGP.2 e 1782525877 rsa4096
-    S KEYPAIRINFO 2D9D95B0606CB9D32FB364F83F325237FC2AEA8E OPENPGP.3 sa 1782525877 rsa4096
+    S KEYPAIRINFO 2D9D95B0606CB9D32FB364F83F325237FC2AEA8E OPENPGP.3 a 1782525877 rsa4096
     OK
 
 To extract the SSH authentication key, run:
@@ -96,13 +97,15 @@ To extract the SSH authentication key, run:
     export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
     ssh-add -L
 
-Make sure to replace 2D9D95B0606CB9D32FB364F83F325237FC2AEA8E with the right value for your Authentication subkey. The last command should display something like this:
+Make sure to replace 2D9D95B0606CB9D32FB364F83F325237FC2AEA8E with the keygrip of your own Authentication subkey. 
+The last command should display something like:
 
     ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGfZlzyF4mwdtAnUNJVz1TxOkotdHNizIaA56IOepfA/ cardno:25_547_078
 
-Take note of that and add it to your ~/.ssh/authorized_keys file on your remote server
+Take note of that and add it to ~/.ssh/authorized_keys on your remote server.
 
-When logging into your remove server (ssh) you will be asked for a PIN. This is the User PIN (default 123456), not the Admin PIN (default 12345678)
+When logging into your remote server via SSH, you'll be asked for a PIN. 
+This is the User PIN (default 123456), not the Admin PIN (default 12345678).
 
 NB: if the above instructions are not complete, open an issue and contribute to the project.
 
