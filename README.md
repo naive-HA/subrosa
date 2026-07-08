@@ -31,7 +31,7 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 *sub rosa* works closely with OpenKeychain. OpenKeychain manages OpenPGP keys, such as generating, storing them securely, and backing them up. 
 Importing from OpenKeychain is now a breeze. Share a key backup with *sub rosa* and enter the backup code shown by OpenKeyring. 
 For now, this backup code—made of 36 numbers and dashes—cannot be copied to the clipboard.
-To make it “uncomplicatedly simple,” *sub rosa* includes Tesseract: an Optical Character Recognition library. 
+To make it “uncomplicatedly simple,” *sub rosa* includes Tesseract, an Optical Character Recognition library. 
 
 Take a screenshot of the OpenKeyring app and share that screenshot with *sub rosa*.
 
