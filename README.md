@@ -43,13 +43,13 @@ Paste the backup code in *sub rosa* and get ready to write your private OpenPGP 
 
 <table>
   <tr>
-    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" alt="OpenKeychain import 1" height="400"></td>
-    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7.png" alt="OpenKeychain import 2" height="400"></td>
-    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8.png" alt="OpenKeychain import 3" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8.png" height="400"></td>
   </tr>
 </table>
 
-NB: *sub rosa* is not affiliated with OpenKeychain.
+NB: *sub rosa* is not affiliated with OpenKeychain, we are just big fans of OpenKeychain
 
 # How to use your security key for SSH authentication
 When generating a new OpenPGP key with OpenKeyring, choose *Change key configuration* and add an Authentication subkey. 
@@ -126,14 +126,14 @@ Coffee tips can be sent to: 1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh
 
 <table>
   <tr>
-    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/0.png" alt="Management" height="400"></td>
-    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" alt="YubiOTP" height="400"></td>
-    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" alt="PIV" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/0.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" height="400"></td>
   </tr>
   <tr>
-    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" alt="OATH" height="400"></td>
-    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" alt="OpenPGP" height="400"></td>
-    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" alt="Licenses" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" height="400"></td>
   </tr>
 </table>
 
