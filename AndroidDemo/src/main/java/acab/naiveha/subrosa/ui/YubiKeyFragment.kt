@@ -16,21 +16,15 @@
 
 package acab.naiveha.subrosa.ui
 
-import android.graphics.Color
 import android.os.Bundle
-import android.view.ContextThemeWrapper
-import android.view.LayoutInflater
 import android.view.View
-import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import acab.naiveha.subrosa.MainViewModel
 import acab.naiveha.subrosa.R
-import com.google.android.material.button.MaterialButton
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.application.ApplicationNotAvailableException
@@ -42,7 +36,6 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 
 import java.io.Closeable
-import androidx.core.graphics.drawable.toDrawable
 
 abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fragment() {
 
@@ -51,51 +44,27 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
     private val activityViewModel: MainViewModel by activityViewModels()
     protected abstract val viewModel: VM
 
-    private lateinit var yubiKeyPrompt: android.app.Dialog
+    private lateinit var yubiKeyPrompt: YubiKeyPromptDialog
     private lateinit var emptyText: TextView
 
-    private lateinit var promptHelpText: TextView
+    private var lastDevice: YubiKeyDevice? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         emptyText = view.findViewById(R.id.empty_view)
         emptyText.visibility = View.VISIBLE
 
-        val themedContext = ContextThemeWrapper(requireContext(), com.yubico.yubikit.android.R.style.YubiKitPromptDialogTheme)
-        val promptView = LayoutInflater.from(themedContext).inflate(com.yubico.yubikit.android.R.layout.yubikit_yubikey_prompt_content, null)
-        
-        val primaryColor = ContextCompat.getColor(themedContext, com.yubico.yubikit.android.R.color.yubikit_text_color_primary)
-        val secondaryColor = ContextCompat.getColor(themedContext, com.yubico.yubikit.android.R.color.yubikit_text_color_secondary)
-        
-        promptView.findViewById<TextView>(com.yubico.yubikit.android.R.id.yubikit_prompt_title).apply {
-            text = getString(R.string.yubikit_prompt_activity_title)
-            setTextColor(primaryColor)
-        }
-        promptHelpText = promptView.findViewById<TextView>(com.yubico.yubikit.android.R.id.yubikit_prompt_help_text_view).apply {
-            text = getString(R.string.yubikit_prompt_plug_in_or_tap)
-            setTextColor(secondaryColor)
-        }
-
-        promptView.findViewById<Button>(com.yubico.yubikit.android.R.id.yubikit_prompt_cancel_btn).apply {
-            background = Color.TRANSPARENT.toDrawable()
-            stateListAnimator = null
-            elevation = 0f
-            if (this is MaterialButton) {
-                strokeWidth = 0
-            }
-            setTextColor(primaryColor)
-            setOnClickListener { yubiKeyPrompt.cancel() }
-        }
-
-        yubiKeyPrompt = android.app.Dialog(requireContext(), com.yubico.yubikit.android.R.style.YubiKitPromptDialogTheme).apply {
-            setContentView(promptView)
-            setOnCancelListener { viewModel.pendingAction.value = null }
-        }
+        yubiKeyPrompt = YubiKeyPromptDialog(requireContext()) { viewModel.pendingAction.value = null }
 
         activityViewModel.yubiKey.observe(viewLifecycleOwner) {
             if (it != null) {
+                lastDevice = it
                 onYubiKey(it)
             } else {
                 emptyText.setText(R.string.need_key)
+                if (lastDevice != null && lastDevice !is NfcYubiKeyDevice) {
+                    viewModel.onDeviceDisconnected()
+                }
+                lastDevice = null
             }
         }
 
@@ -120,7 +89,7 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
                     if (device != null) {
                         onYubiKey(device)
                     } else {
-                        promptHelpText.text = getString(R.string.yubikit_prompt_plug_in_or_tap)
+                        yubiKeyPrompt.setHelpText(getString(R.string.yubikit_prompt_plug_in_or_tap))
                         yubiKeyPrompt.show()
                     }
                 }
@@ -135,22 +104,32 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
         super.onPause()
     }
 
+    protected open fun shouldClearOnDisconnect(): Boolean = true
+
     private fun onYubiKey(it: YubiKeyDevice) {
+        val wasPromptShowing = yubiKeyPrompt.isShowing
+        if (wasPromptShowing) {
+            yubiKeyPrompt.dismiss()
+        }
+
         lifecycleScope.launch {
             withContext(activityViewModel.singleDispatcher) {
                 viewModel.onYubiKeyDevice(it)
 
                 if (it is NfcYubiKeyDevice) {
-                    withContext(Dispatchers.Main) {
-                        if (yubiKeyPrompt.isShowing) {
-                            promptHelpText.text = resources.getString(R.string.remove_key)
-                        } else {
+                    if (!wasPromptShowing) {
+                        withContext(Dispatchers.Main) {
                             emptyText.setText(R.string.remove_key)
                         }
                     }
-                    it.remove(yubiKeyPrompt::dismiss)
-                } else if (yubiKeyPrompt.isShowing) {
-                    yubiKeyPrompt.dismiss()
+                    it.remove {
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            emptyText.setText(R.string.need_key)
+                            if (shouldClearOnDisconnect()) {
+                                viewModel.onDeviceDisconnected()
+                            }
+                        }
+                    }
                 }
                 Unit
             }

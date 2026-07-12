@@ -187,9 +187,6 @@ public final class UsbDeviceManager {
     public void onReceive(Context context, Intent intent) {
       String action = intent.getAction();
       UsbDevice usbDevice = getUsbManagerExtraDevice(intent);
-//      if (usbDevice == null || usbDevice.getVendorId() != YUBICO_VENDOR_ID) {
-//        return;
-//      }
       if (usbDevice == null || !ACCEPTED_VENDOR_IDS.contains(usbDevice.getVendorId())) {
         return;
       }

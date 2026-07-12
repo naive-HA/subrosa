@@ -36,6 +36,7 @@ import com.yubico.yubikit.core.smartcard.SW;
 import com.yubico.yubikit.core.smartcard.SmartCardConnection;
 import com.yubico.yubikit.core.smartcard.SmartCardProtocol;
 import com.yubico.yubikit.core.smartcard.scp.ScpKeyParams;
+import com.yubico.yubikit.core.util.StringUtils;
 import com.yubico.yubikit.core.util.Tlv;
 import com.yubico.yubikit.core.util.Tlvs;
 import java.io.ByteArrayInputStream;
@@ -169,9 +170,18 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
       throws IOException, ApplicationNotAvailableException, ApduException {
     protocol = new SmartCardProtocol(connection);
 
+    Logger.debug(logger, "Selecting OpenPGP AID ({})", StringUtils.bytesToHex(AppId.OPENPGP));
     try {
       protocol.select(AppId.OPENPGP);
+      Logger.debug(logger, "OpenPGP AID selected on first attempt — no recovery needed");
     } catch (IOException e) {
+      Throwable initialCause = e.getCause();
+      String swHex = (initialCause instanceof ApduException)
+          ? String.format("0x%04X", ((ApduException) initialCause).getSw() & 0xFFFF)
+          : "n/a";
+      Logger.warn(logger,
+          "Initial SELECT OpenPGP failed (SW={}): {}: {} — entering activate() recovery",
+          swHex, e.getClass().getSimpleName(), e.getMessage());
       // The OpenPGP applet can be in an inactive state, in which case it needs activation.
       activate(e);
     }
@@ -210,53 +220,88 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
     Logger.debug(logger, "OpenPGP session initialized (version={})", version);
   }
 
+  private static String swHex(short sw) {
+    return String.format("0x%04X", sw & 0xFFFF);
+  }
+
   private void activate(IOException e)
       throws IOException, ApduException, ApplicationNotAvailableException {
     Throwable cause = e.getCause();
-    if (cause instanceof ApduException) {
-      short sw = ((ApduException) cause).getSw();
-      if (sw == SW.NO_INPUT_DATA || sw == SW.CONDITIONS_NOT_SATISFIED) {
-        Logger.warn(logger, "Application not active, sending ACTIVATE");
-        try {
-          protocol.sendAndReceive(new Apdu(0, INS_ACTIVATE, 0, 0, null));
-        } catch (ApduException activateEx) {
-          if (activateEx.getSw() == SW.CONDITIONS_NOT_SATISFIED) {
-            Logger.warn(logger, "ACTIVATE returned 0x6985 — card may already be operational; attempting SELECT");
-          } else {
-            throw activateEx;
-          }
-        }
-        try {
-          protocol.select(AppId.OPENPGP);
-          return;
-        } catch (IOException firstRetryEx) {
-          Throwable frc = firstRetryEx.getCause();
-          if (!(frc instanceof ApduException)
-              || ((ApduException) frc).getSw() != SW.CONDITIONS_NOT_SATISFIED) {
-            throw firstRetryEx;
-          }
-          Logger.warn(logger, "SELECT also returned 0x6985 — sending SELECT MF to reset card context");
-        }
-        try {
-          protocol.sendAndReceive(new Apdu(0, 0xA4, 0x00, 0x00, null));
-          Logger.debug(logger, "SELECT MF succeeded");
-        } catch (ApduException mfEx) {
-          Logger.warn(logger, "SELECT MF returned SW=0x{} — ignoring", String.format("%04X", mfEx.getSw() & 0xFFFF));
-        }
-        try {
-          protocol.select(AppId.OPENPGP);
-          return;
-        } catch (IOException finalEx) {
-          Throwable fc = finalEx.getCause();
-          if (fc instanceof ApduException && ((ApduException) fc).getSw() == SW.CONDITIONS_NOT_SATISFIED) {
-            Logger.error(logger, "OpenPGP applet still not accessible after SELECT MF. Remove the key from the reader and tap again.");
-            throw new IOException("OpenPGP applet not accessible. Remove the Nitrokey from the NFC reader and tap again.", finalEx);
-          }
-          throw finalEx;
-        }
+    if (!(cause instanceof ApduException)) {
+      Logger.warn(logger,
+          "activate(): initial SELECT failure has no ApduException cause "
+          + "({}: {}) — not an applet-inactive condition, propagating as-is",
+          cause == null ? "null" : cause.getClass().getSimpleName(),
+          cause == null ? "n/a" : cause.getMessage());
+      throw e;
+    }
+    short sw = ((ApduException) cause).getSw();
+    if (sw != SW.NO_INPUT_DATA && sw != SW.CONDITIONS_NOT_SATISFIED) {
+      Logger.warn(logger,
+          "activate(): initial SELECT failed with SW={} — not NO_INPUT_DATA/"
+          + "CONDITIONS_NOT_SATISFIED, no activation recovery applies, propagating as-is",
+          swHex(sw));
+      throw e;
+    }
+    Logger.warn(logger, "Application not active (SW={}), sending ACTIVATE", swHex(sw));
+    try {
+      protocol.sendAndReceive(new Apdu(0, INS_ACTIVATE, 0, 0, null));
+      Logger.debug(logger, "ACTIVATE succeeded");
+    } catch (ApduException activateEx) {
+      if (activateEx.getSw() == SW.CONDITIONS_NOT_SATISFIED) {
+        Logger.warn(logger,
+            "ACTIVATE returned {} — card may already be operational; attempting SELECT",
+            swHex(activateEx.getSw()));
+      } else {
+        Logger.error(logger,
+            "ACTIVATE failed with unexpected SW={} — aborting recovery", swHex(activateEx.getSw()));
+        throw activateEx;
       }
     }
-    throw e;
+    try {
+      protocol.select(AppId.OPENPGP);
+      Logger.debug(logger, "SELECT OpenPGP succeeded after ACTIVATE — recovered");
+      return;
+    } catch (IOException firstRetryEx) {
+      Throwable frc = firstRetryEx.getCause();
+      short retrySw = (frc instanceof ApduException) ? ((ApduException) frc).getSw() : 0;
+      if (!(frc instanceof ApduException) || retrySw != SW.CONDITIONS_NOT_SATISFIED) {
+        Logger.error(logger,
+            "SELECT OpenPGP after ACTIVATE failed with {} (expected {}) — aborting recovery",
+            (frc instanceof ApduException) ? swHex(retrySw) : frc == null ? "null cause" : frc.getClass().getSimpleName(),
+            swHex(SW.CONDITIONS_NOT_SATISFIED));
+        throw firstRetryEx;
+      }
+      Logger.warn(logger,
+          "SELECT also returned {} — sending SELECT MF to reset card context", swHex(retrySw));
+    }
+    try {
+      protocol.sendAndReceive(new Apdu(0, 0xA4, 0x00, 0x00, null));
+      Logger.debug(logger, "SELECT MF succeeded");
+    } catch (ApduException mfEx) {
+      Logger.warn(logger, "SELECT MF returned SW={} — ignoring", swHex(mfEx.getSw()));
+    }
+    try {
+      protocol.select(AppId.OPENPGP);
+      Logger.debug(logger, "SELECT OpenPGP succeeded after SELECT MF — recovered");
+      return;
+    } catch (IOException finalEx) {
+      Throwable fc = finalEx.getCause();
+      short finalSw = (fc instanceof ApduException) ? ((ApduException) fc).getSw() : 0;
+      if (fc instanceof ApduException && finalSw == SW.CONDITIONS_NOT_SATISFIED) {
+        Logger.error(logger,
+            "OpenPGP applet still not accessible after SELECT MF (SW={}). No further "
+            + "recovery available.",
+            swHex(finalSw));
+        throw new IOException("OpenPGP applet not accessible.", finalEx);
+      }
+      Logger.error(logger,
+          "Final SELECT OpenPGP failed with {} (not {}) — unrecognized failure mode, "
+          + "propagating as-is",
+          (fc instanceof ApduException) ? swHex(finalSw) : fc == null ? "null cause" : fc.getClass().getSimpleName(),
+          swHex(SW.CONDITIONS_NOT_SATISFIED));
+      throw finalEx;
+    }
   }
 
   @Override
@@ -390,7 +435,7 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
     try {
       protocol.sendAndReceive(new Apdu(0, INS_VERIFY, 0, pw.getValue() + mode, pinEnc));
     } catch (ApduException e) {
-      if (e.getSw() == SW.SECURITY_CONDITION_NOT_SATISFIED) {
+      if (e.getSw() == SW.SECURITY_CONDITION_NOT_SATISFIED || isVerifyFailSw(e.getSw())) {
         int remaining = getPinStatus().getAttempts(pw);
         throw new InvalidPinException(remaining);
       } else if (e.getSw() == SW.AUTH_METHOD_BLOCKED) {
@@ -400,6 +445,10 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
     } finally {
       Arrays.fill(pinEnc, (byte) 0);
     }
+  }
+
+  private static boolean isVerifyFailSw(int sw) {
+    return sw >= 0x6300 && sw <= 0x63FF;
   }
 
   /**
@@ -590,7 +639,7 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
       protocol.sendAndReceive(new Apdu(0, INS_CHANGE_PIN, 0, pw.getValue(), data));
 
     } catch (ApduException e) {
-      if (e.getSw() == SW.SECURITY_CONDITION_NOT_SATISFIED) {
+      if (e.getSw() == SW.SECURITY_CONDITION_NOT_SATISFIED || isVerifyFailSw(e.getSw())) {
         int remaining = getPinStatus().getAttempts(pw);
         throw new InvalidPinException(remaining);
       }

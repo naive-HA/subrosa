@@ -19,7 +19,7 @@ internal object NitrokeyAdminVersion {
             resp = sendFull(conn, byteArrayOf(0x00, INS_ADMIN_VERSION, 0x00, 0x01, 0x01, 0x01))
             if (sw(resp) != 0x9000) return null
 
-            parseVersion(resp.copyOf(resp.size - 2)) // strip SW
+            parseVersion(resp.copyOf(resp.size - 2))
         } catch (e: Exception) {
             null
         }
@@ -34,7 +34,7 @@ internal object NitrokeyAdminVersion {
             val major = (v shr 22).toInt()
             val minor = ((v shr 6) and 0xFFFFL).toInt()
             val patch = (v and 0x3FL).toInt()
-            return "v$major.$minor.$patch"
+            return "$major.$minor.$patch"
         }
         return try {
             data.toString(Charsets.UTF_8).trim()

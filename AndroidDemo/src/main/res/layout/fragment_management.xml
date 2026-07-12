@@ -36,6 +36,14 @@
             tools:ignore="ContentDescription" />
 
         <TextView
+            android:id="@+id/empty_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:text="@string/need_key_generic"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/info"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -47,148 +55,105 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:fontFamily="monospace"
-            android:textSize="11.5sp"
+            android:minLines="2"
+            tools:text="Static password - supported\nOpenPGP card - programmed" />
+
+        <LinearLayout
+            android:id="@+id/connected_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
             android:visibility="gone"
-            tools:text="── OpenPGP\nFirmware    5.4.3\nName        Shaggy Rogers\n\n── SIG  ✓  RSA-4096\n   2026-06-07\n   B4BE A28B …" />
+            tools:visibility="visible">
 
-        <TextView
-            android:layout_marginTop="@dimen/card_view_margin"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/mgmt_subtitle"
-            tools:visibility="gone" />
-
-        <GridLayout
-            android:id="@+id/application_table"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:columnCount="2">
-
-            <TextView
-                android:layout_width="0dp"
+            <LinearLayout
+                android:id="@+id/management_actions"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/transport_usb"
-                tools:visibility="gone" />
+                android:orientation="vertical">
 
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/transport_nfc"
-                tools:visibility="gone" />
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="5dp"
+                    android:layout_marginTop="36dp"
+                    android:layout_marginBottom="@dimen/activity_margin"
+                    android:background="@android:color/darker_gray" />
 
-            <CheckBox
-                android:id="@+id/checkbox_usb_otp"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/application_otp"
-                tools:visibility="gone" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/openpgp_device_management_desc" />
 
-            <CheckBox
-                android:id="@+id/checkbox_nfc_otp"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/application_otp"
-                tools:visibility="gone" />
+                <TextView
+                    android:id="@+id/pin_retries"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/activity_margin"
+                    android:textSize="12sp"
+                    android:textColor="?android:attr/textColorSecondary"
+                    android:visibility="gone"
+                    tools:visibility="visible"
+                    tools:text="User PIN retries: 3\nAdmin PIN retries: 3" />
 
-            <CheckBox
-                android:id="@+id/checkbox_usb_u2f"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/application_u2f"
-                tools:visibility="gone" />
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
 
-            <CheckBox
-                android:id="@+id/checkbox_nfc_u2f"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/application_u2f"
-                tools:visibility="gone" />
+                    <Button
+                        android:id="@+id/btn_change_user_pin"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/openpgp_btn_change_user_pin" />
 
-            <CheckBox
-                android:id="@+id/checkbox_usb_piv"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/application_piv"
-                tools:visibility="gone" />
+                    <ProgressBar
+                        android:id="@+id/progress_change_user_pin"
+                        style="?android:attr/progressBarStyleSmall"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical|end"
+                        android:layout_marginEnd="16dp"
+                        android:visibility="gone" />
 
-            <CheckBox
-                android:id="@+id/checkbox_nfc_piv"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/application_piv"
-                tools:visibility="gone" />
+                </FrameLayout>
 
-            <CheckBox
-                android:id="@+id/checkbox_usb_fido2"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/application_fido2"
-                tools:visibility="gone" />
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp">
 
-            <CheckBox
-                android:id="@+id/checkbox_nfc_fido2"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/application_fido2"
-                tools:visibility="gone" />
+                    <Button
+                        android:id="@+id/btn_change_admin_pin"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/openpgp_btn_change_admin_pin" />
 
-            <CheckBox
-                android:id="@+id/checkbox_usb_pgp"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/application_pgp"
-                tools:visibility="gone" />
+                    <ProgressBar
+                        android:id="@+id/progress_change_admin_pin"
+                        style="?android:attr/progressBarStyleSmall"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical|end"
+                        android:layout_marginEnd="16dp"
+                        android:visibility="gone" />
 
-            <CheckBox
-                android:id="@+id/checkbox_nfc_pgp"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/application_pgp"
-                tools:visibility="gone" />
+                </FrameLayout>
 
-            <CheckBox
-                android:id="@+id/checkbox_usb_oath"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/application_oath"
-                tools:visibility="gone" />
+                <TextView
+                    android:id="@+id/pin_change_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_horizontal"
+                    android:textSize="12sp"
+                    android:textColor="@android:color/darker_gray"
+                    android:fontFamily="monospace"
+                    android:text=""
+                    android:visibility="gone"
+                    tools:text="Admin PIN changed" />
 
-            <CheckBox
-                android:id="@+id/checkbox_nfc_oath"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:text="@string/application_oath"
-                tools:visibility="gone" />
-        </GridLayout>
+            </LinearLayout>
 
-        <TextView
-            android:id="@+id/empty_view"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/need_key_generic"
-            android:visibility="gone" />
-
-        <Button
-            android:id="@+id/save"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/save"
-            tools:visibility="gone" />
+        </LinearLayout>
 
         <View
             android:layout_width="0dp"

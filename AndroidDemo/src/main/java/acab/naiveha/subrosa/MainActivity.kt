@@ -21,7 +21,6 @@ import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.Menu
@@ -52,6 +51,7 @@ import com.yubico.yubikit.android.YubiKitManager
 import com.yubico.yubikit.android.transport.nfc.NfcConfiguration
 import com.yubico.yubikit.android.transport.nfc.NfcNotAvailable
 import com.yubico.yubikit.android.transport.usb.UsbConfiguration
+import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import acab.naiveha.subrosa.databinding.DialogAboutBinding
 import acab.naiveha.subrosa.ui.management.ManagementViewModel
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpViewModel
@@ -63,11 +63,6 @@ import java.security.Security
 import kotlin.properties.Delegates
 
 class MainActivity : AppCompatActivity() {
-
-    private companion object {
-        const val TAG = "MainActivity"
-    }
-
     private val logger = LoggerFactory.getLogger(MainActivity::class.java)
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var navController: NavController
@@ -108,24 +103,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
-            if (destination.id != R.id.nav_openpgp) {
-                ViewModelProvider(this)[OpenPgpViewModel::class.java].clearImportedKey()
-            }
-
-            if (destination.id != R.id.nav_yubiotp) {
-                ViewModelProvider(this)[OtpViewModel::class.java].requestClearUi()
-            }
-
-            if (destination.id != R.id.nav_management) {
-                ViewModelProvider(this)[ManagementViewModel::class.java].clearDeviceInfo()
-            }
-
+            ViewModelProvider(this)[OpenPgpViewModel::class.java].requestClearUi()
+            ViewModelProvider(this)[OtpViewModel::class.java].requestClearUi()
+            ViewModelProvider(this)[ManagementViewModel::class.java].requestClearUi()
             if (destination.id == R.id.nav_management) {
-                intent = Intent()
-                
-                viewModel.yubiKey.value?.let {
-                    viewModel.yubiKey.postValue(it) 
-                }
+                viewModel.yubiKey.value?.let {viewModel.yubiKey.postValue(it)}
             }
         }
 
@@ -156,7 +138,7 @@ class MainActivity : AppCompatActivity() {
 
         val drawerCallback = object : OnBackPressedCallback(false) {
             override fun handleOnBackPressed() {
-                Log.d(TAG, "onBackPressed: closing drawer")
+                logger.info("onBackPressed: closing drawer")
                 drawerLayout.closeDrawer(GravityCompat.START)
             }
         }
@@ -164,11 +146,11 @@ class MainActivity : AppCompatActivity() {
 
         drawerLayout.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
             override fun onDrawerOpened(drawerView: View) {
-                Log.d(TAG, "onDrawerOpened: enabling drawerCallback")
+                logger.info("onDrawerOpened: enabling drawerCallback")
                 drawerCallback.isEnabled = true
             }
             override fun onDrawerClosed(drawerView: View) {
-                Log.d(TAG, "onDrawerClosed: disabling drawerCallback")
+                logger.info("onDrawerClosed: disabling drawerCallback")
                 drawerCallback.isEnabled = false
             }
         })
@@ -188,6 +170,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 try {
                     yubikit.startNfcDiscovery(nfcConfiguration, this) { device ->
+                        if (viewModel.yubiKey.value is UsbYubiKeyDevice) {
+                            logger.info("Ignoring NFC device connected because USB device is already connected")
+                            return@startNfcDiscovery
+                        }
                         logger.info("NFC device connected {}", device)
                         viewModel.yubiKey.apply {
                             runOnUiThread {
@@ -218,12 +204,12 @@ class MainActivity : AppCompatActivity() {
     private fun handleIncomingIntent(intent: Intent) {
         val action = intent.action
         val mimeType = intent.type
-        Log.d(TAG, "handleIncomingIntent: action=$action, mimeType=$mimeType")
+        logger.info("handleIncomingIntent: action=$action, mimeType=$mimeType")
 
         if (action != Intent.ACTION_SEND && action != Intent.ACTION_VIEW) return
 
         if ((intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) {
-            Log.d(TAG, "handleIncomingIntent: ignoring intent from history")
+            logger.info("handleIncomingIntent: ignoring intent from history")
             return
         }
 
@@ -245,7 +231,7 @@ class MainActivity : AppCompatActivity() {
                     try {
                         navController.navigate(R.id.passwordOcrFragment, null, navOptions)
                     } catch (e: Exception) {
-                        Log.e(TAG, "handleIncomingIntent: navigation to OCR failed", e)
+                        logger.error("handleIncomingIntent: navigation to OCR failed", e)
                     }
                 }
                 setIntent(Intent())
@@ -264,7 +250,7 @@ class MainActivity : AppCompatActivity() {
 
         if (uri == null) return
 
-        Log.i(TAG, "PGP import intent — action=$action uri=$uri")
+        logger.info("PGP import intent — action=$action uri=$uri")
 
         if (navController.currentDestination?.id != R.id.nav_openpgp) {
             val navOptions = androidx.navigation.NavOptions.Builder()
@@ -320,6 +306,10 @@ class MainActivity : AppCompatActivity() {
         if (viewModel.handleYubiKey.value == true && hasNfc) {
             try {
                 yubikit.startNfcDiscovery(nfcConfiguration, this) { device ->
+                    if (viewModel.yubiKey.value is UsbYubiKeyDevice) {
+                        logger.info("Ignoring NFC device connected because USB device is already connected")
+                        return@startNfcDiscovery
+                    }
                     logger.info("NFC device connected {}", device)
                     viewModel.yubiKey.apply {
                         runOnUiThread {

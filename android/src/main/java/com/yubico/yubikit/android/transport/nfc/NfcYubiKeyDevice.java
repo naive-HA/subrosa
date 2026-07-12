@@ -25,6 +25,7 @@ import com.yubico.yubikit.core.Transport;
 import com.yubico.yubikit.core.YubiKeyConnection;
 import com.yubico.yubikit.core.YubiKeyDevice;
 import com.yubico.yubikit.core.application.ApplicationNotAvailableException;
+import com.yubico.yubikit.core.internal.Logger;
 import com.yubico.yubikit.core.smartcard.AppId;
 import com.yubico.yubikit.core.smartcard.SmartCardConnection;
 import com.yubico.yubikit.core.smartcard.SmartCardProtocol;
@@ -35,8 +36,11 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.LoggerFactory;
 
 public class NfcYubiKeyDevice implements YubiKeyDevice {
+  private static final org.slf4j.Logger logger = LoggerFactory.getLogger(NfcYubiKeyDevice.class);
+
   private final AtomicBoolean removed = new AtomicBoolean();
   private final ExecutorService executorService;
   private final Tag tag;
@@ -62,13 +66,46 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
   }
 
   private NfcSmartCardConnection openIso7816Connection() throws IOException {
+    Logger.debug(
+        logger,
+        "openIso7816Connection: tagId={} techList={} timeoutMs={}",
+        bytesToHex(tag.getId()),
+        java.util.Arrays.toString(tag.getTechList()),
+        timeout);
+
     IsoDep card = IsoDep.get(tag);
     if (card == null) {
+      Logger.warn(
+          logger,
+          "openIso7816Connection: IsoDep.get() returned null for tagId={} — techList={}. "
+              + "Tag does not support ISO-DEP; cannot select any smart-card applet.",
+          bytesToHex(tag.getId()),
+          java.util.Arrays.toString(tag.getTechList()));
       throw new IOException("the tag does not support ISO-DEP");
     }
     card.setTimeout(timeout);
+    try {
       card.connect();
-      return new NfcSmartCardConnection(card);
+    } catch (IOException e) {
+      Logger.error(
+          logger,
+          "openIso7816Connection: IsoDep.connect() FAILED for tagId={}: {}: {}",
+          bytesToHex(tag.getId()),
+          e.getClass().getSimpleName(),
+          e.getMessage());
+      throw e;
+    }
+    Logger.debug(
+        logger,
+        "openIso7816Connection: connected — isConnected={} maxTransceiveLength={} "
+            + "extendedLengthApduSupported={} timeout={} historicalBytes={} hiLayerResponse={}",
+        card.isConnected(),
+        card.getMaxTransceiveLength(),
+        card.isExtendedLengthApduSupported(),
+        card.getTimeout(),
+        bytesToHex(card.getHistoricalBytes()),
+        bytesToHex(card.getHiLayerResponse()));
+    return new NfcSmartCardConnection(card);
   }
 
   @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
@@ -122,7 +159,7 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
 
   @Override
   public boolean supportsConnection(Class<? extends YubiKeyConnection> connectionType) {
-      return connectionType.isAssignableFrom(NfcSmartCardConnection.class);
+    return connectionType.isAssignableFrom(NfcSmartCardConnection.class);
   }
 
   public <T extends YubiKeyConnection> T openConnection(Class<T> connectionType)
@@ -148,8 +185,20 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
             try (T connection = openConnection(connectionType)) {
               callback.invoke(Result.success(connection));
             } catch (IOException ioException) {
+              Logger.warn(
+                  logger,
+                  "requestConnection({}): openConnection failed: {}: {}",
+                  connectionType.getSimpleName(),
+                  ioException.getClass().getSimpleName(),
+                  ioException.getMessage());
               callback.invoke(Result.failure(ioException));
             } catch (Exception exception) {
+              Logger.error(
+                  logger,
+                  "requestConnection({}): unexpected exception: {}: {}",
+                  connectionType.getSimpleName(),
+                  exception.getClass().getSimpleName(),
+                  exception.getMessage());
               callback.invoke(
                   Result.failure(
                       new IOException(

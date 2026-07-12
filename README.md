@@ -27,6 +27,103 @@ In keeping with the app’s motto, “Uncomplicatedly simple,” you can encrypt
 then wipe it clean and write another OpenPGP key to change your digital identity. 
 SSH authentication is simpler now—you no longer need to reuse the same SSH key or buy multiple security keys
 
+# How does *sub rosa* support YubiKey and Nitrokey?
+<table>
+	<colgroup width="115"></colgroup>
+	<colgroup width="85"></colgroup>
+	<colgroup width="132"></colgroup>
+	<colgroup span="4"></colgroup>
+	<tr>
+		<td height="34"><br></td>
+		<td></td>
+		<td>YubiKey</td>
+		<td>YubiKey</td>
+		<td>Nitrokey</td>
+		<td>Nitrokey</td>
+		</tr>
+	<tr>
+		<td></td>
+		<td></td>
+		<td >USB</td>
+		<td>NFC</td>
+		<td>USB</td>
+		<td>NFC</td>
+	</tr>
+	<tr>
+		<td valign=middle>Static password</td>
+		<td>Write</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>❌</td>
+		<td>❌</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>Read</td>
+		<td>✅</td>
+		<td>❌</td>
+		<td>❌</td>
+		<td>❌</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>Wipe</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>❌</td>
+		<td>❌</td>
+	</tr>
+	<tr>
+		<td>OpenPGP</td>
+		<td>Write</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>❌</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>Read</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>❌</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>Wipe</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>❌</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>Change User PIN</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>❌</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>Reset User PIN</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>❌</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>Change Admin PIN</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>❌</td>
+	</tr>
+</table>
+
+
 # How to import OpenPGP keys from OpenKeychain
 *sub rosa* works closely with OpenKeychain. OpenKeychain manages OpenPGP keys, such as generating, storing them securely, and backing them up. 
 Importing from OpenKeychain is now a breeze. Share a key backup with *sub rosa* and enter the backup code shown by OpenKeyring. 
@@ -90,7 +187,7 @@ Take note of it and add it to your ~/.ssh/config:
 
 Make sure to replace /run/user/1000/gnupg/S.gpg-agent.ssh with the correct value for your own system.
 
-Now interrogate the security key:
+❌w interrogate the security key:
 
     gpg-connect-agent "scd learn --force" /bye
 

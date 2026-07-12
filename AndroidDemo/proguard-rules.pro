@@ -8,7 +8,6 @@
 -keep class com.yubico.yubikit.android.** { *; }
 -keep class com.yubico.yubikit.core.** { *; }
 -keep class com.yubico.yubikit.management.** { *; }
-#-keep class com.yubico.yubikit.oath.** { *; }
 -keep class com.yubico.yubikit.openpgp.** { *; }
 -keep class com.yubico.yubikit.fido.** { *; }
 -keep class com.yubico.yubikit.yubiotp.** { *; }

@@ -18,17 +18,28 @@ package acab.naiveha.subrosa.ui
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.util.Log
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.annotation.UiThread
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputLayout
 import acab.naiveha.subrosa.R
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @UiThread
 suspend fun getSecret(
@@ -89,7 +100,6 @@ suspend fun getSecret(
     dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
     dialog.show()
 
-    // Explicitly request focus and show keyboard after show()
     view.findViewById<EditText>(R.id.dialog_pin_edittext).run {
         requestFocus()
         postDelayed({
@@ -98,4 +108,88 @@ suspend fun getSecret(
             }
         }, 100)
     }
+}
+
+@UiThread
+suspend fun collectPin(
+    context: Context,
+    title: Any,
+    minLength: Int,
+    @StringRes tooShortRes: Int,
+    inputType: Int,
+    tag: String,
+    logLabel: String,
+    defaultValue: String? = null,
+    clearTextByDefault: Boolean = false,
+): CharArray? {
+    while (true) {
+        val entered = getSecret(
+            context,
+            title,
+            inputType = inputType,
+            defaultValue = defaultValue,
+            clearTextByDefault = clearTextByDefault,
+        ) ?: run { Log.d(tag, "$logLabel cancelled"); return null }
+
+        if (entered.length < minLength) {
+            Log.w(tag, "$logLabel too short (${entered.length} < $minLength) — re-showing dialog")
+            Toast.makeText(context, tooShortRes, Toast.LENGTH_SHORT).show()
+            continue
+        }
+
+        Log.d(tag, "$logLabel collected (length=${entered.length})")
+        return entered.toCharArray()
+    }
+}
+
+fun Fragment.bindAutoClearStatus(
+    status: LiveData<String>,
+    target: TextView,
+    vararg completeStatuses: String,
+    hideWhenBlank: Boolean = false,
+    shouldHide: (String) -> Boolean = { false },
+    post: (String) -> Unit,
+) {
+    var clearJob: Job? = null
+    status.observe(viewLifecycleOwner) { message ->
+        clearJob?.cancel()
+
+        if (shouldHide(message)) {
+            target.visibility = View.GONE
+            return@observe
+        }
+
+        target.text = message
+        target.visibility = if (hideWhenBlank && message.isBlank()) View.GONE else View.VISIBLE
+
+        if (message in completeStatuses) {
+            clearJob = lifecycleScope.launch {
+                delay(2000.milliseconds)
+                post("")
+            }
+        }
+    }
+}
+
+fun Fragment.showOpenPgpAppletResetDialog(
+    tag: String,
+    onConfirmed: () -> Unit,
+    onCancelled: () -> Unit = {},
+) {
+    MaterialAlertDialogBuilder(requireContext())
+        .setTitle(R.string.openpgp_reset_title)
+        .setMessage(R.string.openpgp_reset_message)
+        .setPositiveButton(R.string.openpgp_reset_confirm) { _, _ ->
+            Log.d(tag, "OpenPGP applet reset confirmed")
+            onConfirmed()
+        }
+        .setNegativeButton(android.R.string.cancel) { _, _ ->
+            Log.d(tag, "OpenPGP applet reset cancelled")
+            onCancelled()
+        }
+        .setOnCancelListener {
+            Log.d(tag, "OpenPGP applet reset dialog dismissed")
+            onCancelled()
+        }
+        .show()
 }

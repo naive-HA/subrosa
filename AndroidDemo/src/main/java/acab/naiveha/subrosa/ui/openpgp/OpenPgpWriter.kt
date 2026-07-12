@@ -14,6 +14,7 @@ interface OpenPgpWriter {
         session: OpenPgpSession,
         bundle: ImportBundle,
         adminPin: CharArray,
+        userPin: CharArray,
         status: (String) -> Unit = {},
     ): String?
 

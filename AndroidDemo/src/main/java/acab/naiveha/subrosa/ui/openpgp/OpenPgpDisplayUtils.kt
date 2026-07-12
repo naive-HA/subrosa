@@ -23,6 +23,9 @@ internal fun ByteArray.toFingerprintDisplay(): String =
 internal fun Int.toDateDisplay(): String =
     SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(toLong() * 1000L))
 
+internal fun Date.toDisplayDate(): String =
+    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(this)
+
 internal fun String.fromNameDo(): String {
     if (isBlank()) return "—"
     val parts = trim().split("<<", limit = 2)
@@ -57,4 +60,22 @@ internal fun OpenPgpCardInfo.toDisplayText(): String = buildString {
     appendLine("   User         $userPinRetries")
     appendLine("   Reset code   $resetRetries")
     append(  "   Admin        $adminPinRetries")
+}
+
+internal fun OpenPgpKeyInfo.toDisplayText(): String = buildString {
+    appendLine("User ID     $userId")
+    appendLine("Algorithm   $algorithm")
+    appendLine("Created     ${creationDate.toDisplayDate()}")
+    appendLine("Expires     ${expirationDate?.toDisplayDate() ?: "no expiry"}")
+    appendLine("Fingerprint $fingerprint")
+    appendLine()
+
+    appendLine("── Keys ($keyCount)")
+    for (subkey in keys) {
+        appendLine("${subkey.usage.padEnd(12)} ${subkey.algorithm}")
+        appendLine(subkey.fingerprint)
+        val subExpiry = subkey.expirationDate?.toDisplayDate() ?: "no expiry"
+        appendLine("Created: ${subkey.creationDate.toDisplayDate()} | Expires: $subExpiry")
+        appendLine()
+    }
 }

@@ -5,7 +5,6 @@ import com.yubico.yubikit.core.keys.EllipticCurveValues
 import com.yubico.yubikit.core.keys.PrivateKeyValues
 import com.yubico.yubikit.core.util.ByteUtils
 import com.yubico.yubikit.core.util.Tlv
-import com.yubico.yubikit.openpgp.Do
 import com.yubico.yubikit.openpgp.KeyRef
 import com.yubico.yubikit.openpgp.OpenPgpSession
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
@@ -30,89 +29,24 @@ object NitrokeyPgpWriter : OpenPgpWriter {
         session: OpenPgpSession,
         bundle: ImportBundle,
         adminPin: CharArray,
+        userPin: CharArray,
         status: (String) -> Unit,
-    ): String? {
-        Log.i(TAG, "program() — slots: ${bundle.slots.map { it.ref.name }} " +
-                   "hasName=${bundle.nameBytes.isNotEmpty()} " +
-                   "hasLogin=${bundle.loginBytes.isNotEmpty()} " +
-                   "adminPinLength=${adminPin.size}")
-        var succeeded = false
-        try {
-            Log.d(TAG, "Calling verifyAdminPin() (PIN length=${adminPin.size})…")
-            status("Verifying admin PIN…")
-            session.verifyAdminPin(adminPin)
-            Log.i(TAG, "verifyAdminPin() succeeded")
-            status("Admin PIN verified")
+    ): String? = OpenPgpWriterUtils.programCommon(session, bundle, adminPin, userPin, TAG, status) { s, slot, tag, st ->
+        val attrBytes = buildAlgorithmAttributes(
+            slot.privateKeyValues,
+            slot.ref,
+            slot.declaredModulusBitLength,
+        )
+        Log.d(tag, "  putData(algorithmAttributes, ${attrBytes.size} bytes)…")
+        s.putData(slot.ref.algorithmAttributes, attrBytes)
+        Log.d(tag, "  algorithm attributes written")
+        st("Algorithm attributes set for ${slot.ref.name}")
 
-            OpenPgpWriterUtils.factoryResetAndRestorePin(session, adminPin, TAG, status)
-
-            if (bundle.nameBytes.isNotEmpty()) {
-                Log.d(TAG, "Writing DO.NAME (${bundle.nameBytes.size} bytes)…")
-                session.putData(Do.NAME, bundle.nameBytes)
-                Log.d(TAG, "DO.NAME written")
-                status("NAME set")
-            }
-            if (bundle.loginBytes.isNotEmpty()) {
-                Log.d(TAG, "Writing DO.LOGIN_DATA (${bundle.loginBytes.size} bytes)…")
-                session.putData(Do.LOGIN_DATA, bundle.loginBytes)
-                Log.d(TAG, "DO.LOGIN_DATA written")
-                status("LOGIN_DATA set")
-            }
-
-            for (slot in bundle.slots) {
-                Log.d(TAG, "Writing slot ${slot.ref.name} — " +
-                           "fingerprintLength=${slot.fingerprint.size} " +
-                           "creationTimestamp=${slot.creationTimestamp}")
-                status("Writing slot ${slot.ref.name}…")
-
-                Log.d(TAG, "  clearSlot(${slot.ref.name})…")
-                OpenPgpWriterUtils.clearSlot(session, slot.ref, TAG)
-                status("Slot ${slot.ref.name} cleared")
-
-                val attrBytes = buildAlgorithmAttributes(
-                    slot.privateKeyValues,
-                    slot.ref,
-                    slot.declaredModulusBitLength,
-                )
-                Log.d(TAG, "  putData(algorithmAttributes, ${attrBytes.size} bytes)…")
-                session.putData(slot.ref.algorithmAttributes, attrBytes)
-                Log.d(TAG, "  algorithm attributes written")
-                status("Algorithm attributes set for ${slot.ref.name}")
-
-                val template = buildKeyTemplate(slot.ref, slot.privateKeyValues)
-                Log.d(TAG, "  putRawKeyTemplate(${slot.ref.name}, ${template.size} bytes)…")
-                session.putRawKeyTemplate(template)
-                Log.d(TAG, "  putRawKeyTemplate(${slot.ref.name}) done")
-                status("Key material written for ${slot.ref.name}")
-
-                Log.d(TAG, "  setFingerprint(${slot.ref.name})…")
-                session.setFingerprint(slot.ref, slot.fingerprint)
-                Log.d(TAG, "  setFingerprint(${slot.ref.name}) done")
-                status("Fingerprint set for ${slot.ref.name}")
-
-                Log.d(TAG, "  setGenerationTime(${slot.ref.name}, ${slot.creationTimestamp})…")
-                session.setGenerationTime(slot.ref, slot.creationTimestamp)
-                Log.d(TAG, "  setGenerationTime(${slot.ref.name}) done")
-                status("Generation time set for ${slot.ref.name}")
-
-                Log.i(TAG, "Slot ${slot.ref.name} programmed ✓")
-            }
-
-            val slotNames = bundle.slots.joinToString(", ") { it.ref.name }
-            Log.i(TAG, "program() complete — $slotNames")
-            status(OpenPgpWriter.WRITE_COMPLETE_STATUS)
-            succeeded = true
-            return null
-
-        } catch (e: Exception) {
-            Log.e(TAG, "program() FAILED: ${e::class.simpleName}: ${e.message}", e)
-            throw e
-        } finally {
-            adminPin.fill('\u0000')
-            bundle.destroy()
-            Log.d(TAG, "adminPin zeroed and bundle destroyed")
-            if (!succeeded) status("")
-        }
+        val template = buildKeyTemplate(slot.ref, slot.privateKeyValues)
+        Log.d(tag, "  putRawKeyTemplate(${slot.ref.name}, ${template.size} bytes)…")
+        s.putRawKeyTemplate(template)
+        Log.d(tag, "  putRawKeyTemplate(${slot.ref.name}) done")
+        st("Key material written for ${slot.ref.name}")
     }
 
     override fun wipe(session: OpenPgpSession, status: (String) -> Unit): String? {

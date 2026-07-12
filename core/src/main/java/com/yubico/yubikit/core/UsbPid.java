@@ -59,12 +59,12 @@ public enum UsbPid {
 
     throw new IllegalArgumentException("invalid pid value");
   }
+
   @Nullable
   public static UsbPid fromValueOrNull(int value) {
     for (UsbPid pid : UsbPid.values()) {
       if (pid.value == value) return pid;
     }
-//    throw new IllegalArgumentException("invalid pid value");
-    return null;  // unknown but tolerated (e.g. future devices)
+    return null;
   }
 }

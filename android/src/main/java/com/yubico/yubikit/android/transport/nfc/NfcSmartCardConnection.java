@@ -41,7 +41,11 @@ public class NfcSmartCardConnection implements SmartCardConnection {
    */
   NfcSmartCardConnection(IsoDep card) {
     this.card = card;
-    Logger.debug(logger, "nfc connection opened");
+    Logger.debug(logger,
+        "nfc connection opened — maxTransceiveLength={} extendedLengthApduSupported={} "
+        + "timeout={} historicalBytes={}",
+        card.getMaxTransceiveLength(), card.isExtendedLengthApduSupported(),
+        card.getTimeout(), StringUtils.bytesToHex(getAtr()));
   }
 
   @Override
@@ -56,9 +60,24 @@ public class NfcSmartCardConnection implements SmartCardConnection {
 
   @Override
   public byte[] sendAndReceive(byte[] apdu) throws IOException {
-    Logger.trace(logger, "sent: {}", StringUtils.bytesToHex(apdu));
-    byte[] received = card.transceive(apdu);
-    Logger.trace(logger, "received: {}", StringUtils.bytesToHex(received));
+    Logger.debug(logger, "APDU sent ({} bytes): {}", apdu.length, StringUtils.bytesToHex(apdu));
+    long start = System.nanoTime();
+    byte[] received;
+    try {
+      received = card.transceive(apdu);
+    } catch (IOException e) {
+      long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+      Logger.error(logger,
+          "APDU transceive FAILED after {}ms — apdu={}: {}: {}",
+          elapsedMs, StringUtils.bytesToHex(apdu), e.getClass().getSimpleName(), e.getMessage());
+      throw e;
+    }
+    long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+    String sw = received.length >= 2
+        ? StringUtils.bytesToHex(java.util.Arrays.copyOfRange(received, received.length - 2, received.length))
+        : "??";
+    Logger.debug(logger, "APDU received ({} bytes, {}ms, SW={}): {}",
+        received.length, elapsedMs, sw, StringUtils.bytesToHex(received));
     return received;
   }
 

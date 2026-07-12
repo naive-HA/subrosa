@@ -145,6 +145,10 @@ public class YubiKeyPromptActivity extends Activity {
     return hasNfc;
   }
 
+  protected int getIdleHelpTextRes() {
+    return hasNfc ? R.string.yubikit_prompt_plug_in_or_tap : R.string.yubikit_prompt_plug_in;
+  }
+
   /**
    * Called when a YubiKey is attached.
    *
@@ -163,12 +167,7 @@ public class YubiKeyPromptActivity extends Activity {
             // Keep processing additional YubiKeys
             if (commandState.awaitingTouch) {
               // Reset the help text if touch was prompted for
-              runOnUiThread(
-                  () ->
-                      helpTextView.setText(
-                          hasNfc
-                              ? R.string.yubikit_prompt_plug_in_or_tap
-                              : R.string.yubikit_prompt_plug_in));
+              runOnUiThread(() -> helpTextView.setText(getIdleHelpTextRes()));
               commandState.awaitingTouch = false;
             }
           } else {
@@ -294,8 +293,18 @@ public class YubiKeyPromptActivity extends Activity {
                 onYubiKeyDevice(
                     device,
                     () -> {
-                      runOnUiThread(() -> helpTextView.setText(R.string.yubikit_prompt_remove));
-                      device.remove(this::finishIfDone);
+                      boolean finishing = isDone;
+                      if (finishing) {
+                        runOnUiThread(() -> helpTextView.setText(R.string.yubikit_prompt_remove));
+                      }
+                      device.remove(
+                          () -> {
+                            if (finishing) {
+                              finishIfDone();
+                            } else {
+                              runOnUiThread(() -> helpTextView.setText(getIdleHelpTextRes()));
+                            }
+                          });
                     }));
       } catch (NfcNotAvailable e) {
         hasNfc = false;

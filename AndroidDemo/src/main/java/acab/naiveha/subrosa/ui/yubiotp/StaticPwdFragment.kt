@@ -1,5 +1,6 @@
 package acab.naiveha.subrosa.ui.yubiotp
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -35,20 +36,37 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
+import java.io.IOException
 
 class StaticPwdFragment : Fragment() {
-    class OtpContract : ActivityResultContract<Unit, String?>() {
-        override fun createIntent(context: Context, input: Unit): Intent = Intent(context, OtpActivity::class.java)
-        override fun parseResult(resultCode: Int, intent: Intent?): String? {
-            return intent?.getStringExtra(OtpActivity.EXTRA_OTP)
+    class OtpContract : ActivityResultContract<Unit, Result<String>?>() {
+        override fun createIntent(context: Context, input: Unit): Intent =
+            Intent(context, OtpActivity::class.java)
+                .putExtra(OtpActivity.ARG_STATIC_PASSWORD_NFC_UNSUPPORTED, true)
+        override fun parseResult(resultCode: Int, intent: Intent?): Result<String>? = when (resultCode) {
+            Activity.RESULT_OK -> {
+                val otp = intent?.getStringExtra(OtpActivity.EXTRA_OTP)
+                if (otp != null) Result.success(otp)
+                else Result.failure(IOException("OtpActivity returned no OTP"))
+            }
+            OtpActivity.RESULT_ERROR -> {
+                @Suppress("DEPRECATION")
+                val error = intent?.getSerializableExtra(OtpActivity.EXTRA_ERROR) as? Throwable
+                Result.failure(error ?: IOException("Failed to read static password"))
+            }
+            else -> null
         }
     }
-    private val requestOtp = registerForActivityResult(OtpContract()) {
+    private val requestOtp = registerForActivityResult(OtpContract()) { result ->
         if (!isAdded) return@registerForActivityResult
         activityViewModel.setYubiKeyListenerEnabled(true)
-        if (it != null) {
-            showStaticPasswordDialog(it)
-            viewModel.postReadStatus("Read complete")
+        when {
+            result == null -> Unit
+            result.isSuccess -> {
+                showStaticPasswordDialog(result.getOrThrow())
+                viewModel.postReadStatus("Read complete")
+            }
+            else -> viewModel.postResult(Result.failure(result.exceptionOrNull()!!))
         }
     }
     private val activityViewModel: MainViewModel by activityViewModels()
@@ -319,24 +337,12 @@ class StaticPwdFragment : Fragment() {
         }
         binding.btnDeleteStaticpwd.setOnClickListener {
             if (rejectIfNitrokeyConnected()) return@setOnClickListener
-            try {
-                val staticpwd = "Hello kitty"
-                val keyboard = "en_US"
-                val scancodes = Keyboard().encode(staticpwd, keyboard)
-                val configuration = StaticPasswordSlotConfiguration(scancodes)
-                val slot = when (binding.slotRadioReset.checkedRadioButtonId) {
-                    R.id.reset_slot_1 -> Slot.ONE
-                    R.id.reset_slot_2 -> Slot.TWO
-                    else -> Slot.ONE
-                }
-                viewModel.pendingAction.value = {
-                    putConfiguration(slot, configuration, null, null)
-                    viewModel.postDeleteStatus("Slot $slot reset")
-                    null
-                }
-            } catch (e: Exception) {
-                viewModel.postResult(Result.failure(e))
+            val slot = when (binding.slotRadioReset.checkedRadioButtonId) {
+                R.id.reset_slot_1 -> Slot.ONE
+                R.id.reset_slot_2 -> Slot.TWO
+                else -> Slot.ONE
             }
+            showStaticPasswordResetConfirmationDialog(slot)
         }
     }
     private fun getVibrator(): Vibrator {
@@ -369,6 +375,30 @@ class StaticPwdFragment : Fragment() {
             .apply {
                 focusCatcher.requestFocus()
             }
+    }
+
+    private fun showStaticPasswordResetConfirmationDialog(slot: Slot) {
+        val slotLabel = if (slot == Slot.ONE) "Slot 1" else "Slot 2"
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.staticpwd_reset_title)
+            .setMessage(getString(R.string.staticpwd_reset_message, slotLabel))
+            .setPositiveButton(R.string.staticpwd_reset_confirm) { _, _ ->
+                try {
+                    val staticpwd = "Hello kitty"
+                    val keyboard = "en_US"
+                    val scancodes = Keyboard().encode(staticpwd, keyboard)
+                    val configuration = StaticPasswordSlotConfiguration(scancodes)
+                    viewModel.pendingAction.value = {
+                        putConfiguration(slot, configuration, null, null)
+                        viewModel.postDeleteStatus("Slot $slot reset")
+                        null
+                    }
+                } catch (e: Exception) {
+                    viewModel.postResult(Result.failure(e))
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun rejectIfNitrokeyConnected(): Boolean {
