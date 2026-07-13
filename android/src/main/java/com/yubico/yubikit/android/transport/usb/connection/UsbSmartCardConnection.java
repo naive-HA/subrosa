@@ -23,7 +23,6 @@ import com.yubico.yubikit.core.Transport;
 import com.yubico.yubikit.core.internal.Logger;
 import com.yubico.yubikit.core.smartcard.SmartCardConnection;
 import com.yubico.yubikit.core.util.StringUtils;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -318,7 +317,7 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
               .putInt(dataLength)
               .put(slot)
               .put(sequence)
-              .put((byte) 0)            // bBWI
+              .put((byte) 0) // bBWI
               .putShort(levelParameter); // wLevelParameter (little-endian)
       return byteBuffer.array();
     }

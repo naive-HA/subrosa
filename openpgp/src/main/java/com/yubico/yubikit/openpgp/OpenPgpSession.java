@@ -176,12 +176,16 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
       Logger.debug(logger, "OpenPGP AID selected on first attempt — no recovery needed");
     } catch (IOException e) {
       Throwable initialCause = e.getCause();
-      String swHex = (initialCause instanceof ApduException)
-          ? String.format("0x%04X", ((ApduException) initialCause).getSw() & 0xFFFF)
-          : "n/a";
-      Logger.warn(logger,
+      String swHex =
+          (initialCause instanceof ApduException)
+              ? String.format("0x%04X", ((ApduException) initialCause).getSw() & 0xFFFF)
+              : "n/a";
+      Logger.warn(
+          logger,
           "Initial SELECT OpenPGP failed (SW={}): {}: {} — entering activate() recovery",
-          swHex, e.getClass().getSimpleName(), e.getMessage());
+          swHex,
+          e.getClass().getSimpleName(),
+          e.getMessage());
       // The OpenPGP applet can be in an inactive state, in which case it needs activation.
       activate(e);
     }
@@ -206,9 +210,10 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
       Logger.debug(logger, "Version read via INS_GET_VERSION: {}", parsedVersion);
     } catch (ApduException e) {
       if (e.getSw() == SW.INVALID_INSTRUCTION) {
-        Logger.warn(logger,
+        Logger.warn(
+            logger,
             "INS_GET_VERSION (0xF1) not supported (SW=0x6D00) — "
-            + "non-YubiKey device (e.g. Nitrokey 3); defaulting to version 0.0.0");
+                + "non-YubiKey device (e.g. Nitrokey 3); defaulting to version 0.0.0");
         parsedVersion = new Version(0, 0, 0);
       } else {
         throw e;
@@ -228,18 +233,20 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
       throws IOException, ApduException, ApplicationNotAvailableException {
     Throwable cause = e.getCause();
     if (!(cause instanceof ApduException)) {
-      Logger.warn(logger,
+      Logger.warn(
+          logger,
           "activate(): initial SELECT failure has no ApduException cause "
-          + "({}: {}) — not an applet-inactive condition, propagating as-is",
+              + "({}: {}) — not an applet-inactive condition, propagating as-is",
           cause == null ? "null" : cause.getClass().getSimpleName(),
           cause == null ? "n/a" : cause.getMessage());
       throw e;
     }
     short sw = ((ApduException) cause).getSw();
     if (sw != SW.NO_INPUT_DATA && sw != SW.CONDITIONS_NOT_SATISFIED) {
-      Logger.warn(logger,
+      Logger.warn(
+          logger,
           "activate(): initial SELECT failed with SW={} — not NO_INPUT_DATA/"
-          + "CONDITIONS_NOT_SATISFIED, no activation recovery applies, propagating as-is",
+              + "CONDITIONS_NOT_SATISFIED, no activation recovery applies, propagating as-is",
           swHex(sw));
       throw e;
     }
@@ -249,12 +256,15 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
       Logger.debug(logger, "ACTIVATE succeeded");
     } catch (ApduException activateEx) {
       if (activateEx.getSw() == SW.CONDITIONS_NOT_SATISFIED) {
-        Logger.warn(logger,
+        Logger.warn(
+            logger,
             "ACTIVATE returned {} — card may already be operational; attempting SELECT",
             swHex(activateEx.getSw()));
       } else {
-        Logger.error(logger,
-            "ACTIVATE failed with unexpected SW={} — aborting recovery", swHex(activateEx.getSw()));
+        Logger.error(
+            logger,
+            "ACTIVATE failed with unexpected SW={} — aborting recovery",
+            swHex(activateEx.getSw()));
         throw activateEx;
       }
     }
@@ -266,14 +276,19 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
       Throwable frc = firstRetryEx.getCause();
       short retrySw = (frc instanceof ApduException) ? ((ApduException) frc).getSw() : 0;
       if (!(frc instanceof ApduException) || retrySw != SW.CONDITIONS_NOT_SATISFIED) {
-        Logger.error(logger,
+        Logger.error(
+            logger,
             "SELECT OpenPGP after ACTIVATE failed with {} (expected {}) — aborting recovery",
-            (frc instanceof ApduException) ? swHex(retrySw) : frc == null ? "null cause" : frc.getClass().getSimpleName(),
+            (frc instanceof ApduException)
+                ? swHex(retrySw)
+                : frc == null ? "null cause" : frc.getClass().getSimpleName(),
             swHex(SW.CONDITIONS_NOT_SATISFIED));
         throw firstRetryEx;
       }
-      Logger.warn(logger,
-          "SELECT also returned {} — sending SELECT MF to reset card context", swHex(retrySw));
+      Logger.warn(
+          logger,
+          "SELECT also returned {} — sending SELECT MF to reset card context",
+          swHex(retrySw));
     }
     try {
       protocol.sendAndReceive(new Apdu(0, 0xA4, 0x00, 0x00, null));
@@ -289,16 +304,20 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
       Throwable fc = finalEx.getCause();
       short finalSw = (fc instanceof ApduException) ? ((ApduException) fc).getSw() : 0;
       if (fc instanceof ApduException && finalSw == SW.CONDITIONS_NOT_SATISFIED) {
-        Logger.error(logger,
+        Logger.error(
+            logger,
             "OpenPGP applet still not accessible after SELECT MF (SW={}). No further "
-            + "recovery available.",
+                + "recovery available.",
             swHex(finalSw));
         throw new IOException("OpenPGP applet not accessible.", finalEx);
       }
-      Logger.error(logger,
+      Logger.error(
+          logger,
           "Final SELECT OpenPGP failed with {} (not {}) — unrecognized failure mode, "
-          + "propagating as-is",
-          (fc instanceof ApduException) ? swHex(finalSw) : fc == null ? "null cause" : fc.getClass().getSimpleName(),
+              + "propagating as-is",
+          (fc instanceof ApduException)
+              ? swHex(finalSw)
+              : fc == null ? "null cause" : fc.getClass().getSimpleName(),
           swHex(SW.CONDITIONS_NOT_SATISFIED));
       throw finalEx;
     }

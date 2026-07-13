@@ -63,7 +63,8 @@ public class OtpActivity extends YubiKeyPromptActivity {
 
     current = this;
 
-    nfcDisabledForThisPrompt = getIntent().getBooleanExtra(ARG_STATIC_PASSWORD_NFC_UNSUPPORTED, false);
+    nfcDisabledForThisPrompt =
+        getIntent().getBooleanExtra(ARG_STATIC_PASSWORD_NFC_UNSUPPORTED, false);
     if (nfcDisabledForThisPrompt) {
       helpTextView.setText(R.string.yubikit_otp_usb_only);
     }
@@ -126,7 +127,9 @@ public class OtpActivity extends YubiKeyPromptActivity {
           OtpActivity activity = current;
           if (activity != null) {
             activity.runOnUiThread(
-                () -> Toast.makeText(activity, R.string.yubikit_otp_usb_only, Toast.LENGTH_SHORT).show());
+                () ->
+                    Toast.makeText(activity, R.string.yubikit_otp_usb_only, Toast.LENGTH_SHORT)
+                        .show());
           }
           callback.invoke(YubiKeyPromptAction.CONTINUE);
           return;

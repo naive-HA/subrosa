@@ -255,9 +255,12 @@ public class UsbYubiKeyDevice implements YubiKeyDevice, Closeable {
   @Override
   public String toString() {
     return "UsbYubiKeyDevice{"
-        + "vendorId=0x" + Integer.toHexString(usbDevice.getVendorId()).toUpperCase()
-        + " productId=0x" + Integer.toHexString(usbDevice.getProductId()).toUpperCase()
-        + " usbPid=" + usbPid
+        + "vendorId=0x"
+        + Integer.toHexString(usbDevice.getVendorId()).toUpperCase()
+        + " productId=0x"
+        + Integer.toHexString(usbDevice.getProductId()).toUpperCase()
+        + " usbPid="
+        + usbPid
         + '}';
   }
 }

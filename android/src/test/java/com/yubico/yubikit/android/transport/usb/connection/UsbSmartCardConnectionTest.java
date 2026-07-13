@@ -154,9 +154,10 @@ public class UsbSmartCardConnectionTest {
 
     assertSent("6f000000000002001000");
 
-    byte[] expected = Codec.fromHex(
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            + "bbbbbbbb9000");
+    byte[] expected =
+        Codec.fromHex(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                + "bbbbbbbb9000");
     Assert.assertArrayEquals(expected, response);
   }
 
@@ -180,8 +181,7 @@ public class UsbSmartCardConnectionTest {
     assertSent("6f000000000002001000");
     assertSent("6f000000000003001000");
 
-    byte[] expected = Codec.fromHex(
-        "aa".repeat(54) + "bb".repeat(54) + "cc".repeat(10) + "9000");
+    byte[] expected = Codec.fromHex("aa".repeat(54) + "bb".repeat(54) + "cc".repeat(10) + "9000");
     Assert.assertArrayEquals(expected, response);
   }
 }

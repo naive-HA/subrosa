@@ -26,7 +26,6 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
 import com.yubico.yubikit.core.internal.Logger;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
