@@ -187,7 +187,7 @@ Take note of it and add it to your ~/.ssh/config:
 
 Make sure to replace /run/user/1000/gnupg/S.gpg-agent.ssh with the correct value for your own system.
 
-❌w interrogate the security key:
+Now interrogate the security key:
 
     gpg-connect-agent "scd learn --force" /bye
 
