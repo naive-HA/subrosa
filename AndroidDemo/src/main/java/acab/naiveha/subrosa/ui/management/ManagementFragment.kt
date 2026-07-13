@@ -21,7 +21,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
-import android.text.InputType
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -35,16 +34,16 @@ import acab.naiveha.subrosa.databinding.FragmentManagementBinding
 import acab.naiveha.subrosa.ui.YubiKeyFragment
 import acab.naiveha.subrosa.ui.YubiKeyPromptDialog
 import acab.naiveha.subrosa.ui.bindAutoClearStatus
-import acab.naiveha.subrosa.ui.collectPin
-import acab.naiveha.subrosa.ui.getSecret
+import acab.naiveha.subrosa.ui.collectAdminPin
+import acab.naiveha.subrosa.ui.collectNewAdminPin
+import acab.naiveha.subrosa.ui.collectNewUserPin
+import acab.naiveha.subrosa.ui.collectUserPin
 import acab.naiveha.subrosa.ui.showOpenPgpAppletResetDialog
-import acab.naiveha.subrosa.ui.openpgp.NitrokeyPgpWriter
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpOperation
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpViewModel
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpWriter
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpWriterUtils
-import acab.naiveha.subrosa.ui.openpgp.PgpDeviceType
-import acab.naiveha.subrosa.ui.openpgp.YubiKeyPgpWriter
+import acab.naiveha.subrosa.ui.openpgp.writer
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.application.InvalidPinException
@@ -246,29 +245,24 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
 
     private fun onChangePinClicked(isAdmin: Boolean) {
         val label = if (isAdmin) "Admin" else "User"
-        val minLength = if (isAdmin) 8 else 6
-        val tooShortRes = if (isAdmin) R.string.openpgp_admin_pin_too_short else R.string.openpgp_user_pin_too_short
-        val numericPassword = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
         val operation = if (isAdmin) OpenPgpOperation.CHANGE_ADMIN_PIN else OpenPgpOperation.CHANGE_USER_PIN
 
         Log.d(TAG, "Change $label PIN tapped")
         openPgpViewModel.currentOperation.value = operation
 
         lifecycleScope.launch(Dispatchers.Main) {
-            val currentPin = collectPin(
-                requireContext(),
-                "Enter current Device $label PIN",
-                minLength = minLength,
-                tooShortRes = tooShortRes,
-                inputType = numericPassword,
-                tag = TAG,
-                logLabel = "Current $label PIN",
+            val currentPin = (
+                if (isAdmin) {
+                    collectAdminPin("Enter current Device Admin PIN", tag = TAG, logLabel = "Current Admin PIN")
+                } else {
+                    collectUserPin("Enter current Device User PIN", tag = TAG, logLabel = "Current User PIN")
+                }
             ) ?: run {
                 openPgpViewModel.currentOperation.value = OpenPgpOperation.NONE
                 return@launch
             }
 
-            val newPin = collectNewPin(label, minLength, tooShortRes, numericPassword)
+            val newPin = (if (isAdmin) collectNewAdminPin(TAG) else collectNewUserPin(TAG))
                 ?: run {
                     Log.d(TAG, "Change $label PIN cancelled (new PIN)")
                     currentPin.fill('\u0000')
@@ -319,18 +313,12 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
     }
 
     private fun onResetUserPinClicked() {
-        val numericPassword = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
-
         Log.d(TAG, "Reset blocked User PIN tapped")
         openPgpViewModel.currentOperation.value = OpenPgpOperation.RESET_USER_PIN
 
         lifecycleScope.launch(Dispatchers.Main) {
-            val adminPin = collectPin(
-                requireContext(),
+            val adminPin = collectAdminPin(
                 "Enter Device Admin PIN",
-                minLength = 8,
-                tooShortRes = R.string.openpgp_admin_pin_too_short,
-                inputType = numericPassword,
                 tag = TAG,
                 logLabel = "Admin PIN (for User PIN reset)",
             ) ?: run {
@@ -338,7 +326,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 return@launch
             }
 
-            val newUserPin = collectNewPin("User", minLength = 6, tooShortRes = R.string.openpgp_user_pin_too_short, numericPassword)
+            val newUserPin = collectNewUserPin(TAG)
                 ?: run {
                     Log.d(TAG, "Reset User PIN cancelled (new PIN)")
                     adminPin.fill('\u0000')
@@ -381,11 +369,6 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         showOpenPgpResetConfirmationDialog()
     }
 
-    private fun writerFor(type: PgpDeviceType?): OpenPgpWriter = when (type) {
-        PgpDeviceType.NITROKEY -> NitrokeyPgpWriter
-        else                   -> YubiKeyPgpWriter
-    }
-
     private fun showOpenPgpResetConfirmationDialog() {
         showOpenPgpAppletResetDialog(
             TAG,
@@ -393,7 +376,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 Log.i(TAG, "OpenPGP applet reset confirmed — device=${openPgpViewModel.connectedDevice.value?.type}")
                 openPgpViewModel.pendingAction.value = {
                     try {
-                        val writer = writerFor(openPgpViewModel.connectedDevice.value?.type)
+                        val writer = openPgpViewModel.connectedDevice.value?.type.writer()
                         Log.i(TAG, "pendingAction — resetting OpenPGP applet, writer=${writer::class.simpleName}")
                         writer.wipe(this, status = openPgpViewModel::postPinChangeStatus)
                         viewModel.updatePinRetries(user = 3, admin = 3)
@@ -409,34 +392,5 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             },
             onCancelled = { openPgpViewModel.currentOperation.value = OpenPgpOperation.NONE },
         )
-    }
-
-    private suspend fun collectNewPin(label: String, minLength: Int, tooShortRes: Int, inputType: Int): CharArray? {
-        while (true) {
-            val entered = collectPin(
-                requireContext(),
-                "Enter new Device $label PIN",
-                minLength = minLength,
-                tooShortRes = tooShortRes,
-                inputType = inputType,
-                tag = TAG,
-                logLabel = "New $label PIN",
-            ) ?: return null
-
-            val confirm = getSecret(
-                requireContext(),
-                "Confirm new Device $label PIN",
-                inputType = inputType,
-            ) ?: run { Log.d(TAG, "New $label PIN confirmation cancelled"); return null }
-
-            if (confirm != String(entered)) {
-                Log.w(TAG, "New $label PIN confirmation did not match — re-showing dialog")
-                Toast.makeText(requireContext(), R.string.openpgp_new_pin_mismatch, Toast.LENGTH_SHORT).show()
-                continue
-            }
-
-            Log.d(TAG, "New $label PIN collected and confirmed (length=${entered.size})")
-            return entered
-        }
     }
 }

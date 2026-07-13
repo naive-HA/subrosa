@@ -5,9 +5,7 @@ import org.bouncycastle.bcpg.ArmoredInputStream
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags
 import org.bouncycastle.bcpg.sig.KeyFlags
 import org.bouncycastle.openpgp.PGPObjectFactory
-import org.bouncycastle.openpgp.PGPPublicKey
 import org.bouncycastle.openpgp.PGPSecretKeyRing
-import org.bouncycastle.openpgp.PGPSignature
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator
 import org.bouncycastle.util.encoders.Hex
 import java.io.ByteArrayInputStream
@@ -69,7 +67,7 @@ object OpenPgpKeyParser {
                 Date(subCreationDate.time + subValidSeconds * 1_000L)
             } else null
             
-            val flags = keyFlagsFor(pk)
+            val flags = pk.keyFlags()
             val usage = mutableListOf<String>()
             if (pk.isMasterKey) usage.add("Primary")
 
@@ -102,7 +100,7 @@ object OpenPgpKeyParser {
         allSecretKeys.forEachIndexed { i, sk ->
             val role = if (sk.publicKey.isMasterKey) "primary" else "subkey[$i]"
             Log.d(TAG, "  $role: algorithm=${sk.publicKey.algorithm} " +
-                       "keyFlags=${keyFlagsFor(sk.publicKey)} " +
+                       "keyFlags=${sk.publicKey.keyFlags()} " +
                        "isEncryptionKey=${sk.publicKey.isEncryptionKey} " +
                        "s2KUsage=${sk.s2KUsage} " +
                        "(0=plaintext, 254=SHA1-protected, 255=checksum-protected)")
@@ -145,15 +143,5 @@ object OpenPgpKeyParser {
             30                                     -> "X448 (RFC 9580)"
             else                                   -> "Unknown (tag $algo)"
         }
-    }
-
-    private fun keyFlagsFor(pk: PGPPublicKey): Int {
-        val sigs = pk.signatures
-        while (sigs.hasNext()) {
-            val sig = sigs.next() as PGPSignature
-            val flags = sig.hashedSubPackets?.keyFlags ?: 0
-            if (flags != 0) return flags
-        }
-        return 0
     }
 }

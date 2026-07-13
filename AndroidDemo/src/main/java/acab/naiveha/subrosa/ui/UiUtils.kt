@@ -193,3 +193,93 @@ fun Fragment.showOpenPgpAppletResetDialog(
         }
         .show()
 }
+
+private const val ADMIN_PIN_MIN_LENGTH = 8
+private const val USER_PIN_MIN_LENGTH = 6
+private val PIN_NUMERIC_INPUT_TYPE = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+
+@UiThread
+suspend fun Fragment.collectAdminPin(
+    title: String,
+    tag: String,
+    logLabel: String = "Admin PIN",
+    defaultValue: String? = null,
+    clearTextByDefault: Boolean = false,
+): CharArray? = collectPin(
+    requireContext(),
+    title,
+    minLength = ADMIN_PIN_MIN_LENGTH,
+    tooShortRes = R.string.openpgp_admin_pin_too_short,
+    inputType = PIN_NUMERIC_INPUT_TYPE,
+    tag = tag,
+    logLabel = logLabel,
+    defaultValue = defaultValue,
+    clearTextByDefault = clearTextByDefault,
+)
+
+@UiThread
+suspend fun Fragment.collectUserPin(
+    title: String,
+    tag: String,
+    logLabel: String = "User PIN",
+    defaultValue: String? = null,
+    clearTextByDefault: Boolean = false,
+): CharArray? = collectPin(
+    requireContext(),
+    title,
+    minLength = USER_PIN_MIN_LENGTH,
+    tooShortRes = R.string.openpgp_user_pin_too_short,
+    inputType = PIN_NUMERIC_INPUT_TYPE,
+    tag = tag,
+    logLabel = logLabel,
+    defaultValue = defaultValue,
+    clearTextByDefault = clearTextByDefault,
+)
+
+@UiThread
+private suspend fun Fragment.collectNewPin(
+    label: String,
+    minLength: Int,
+    @StringRes tooShortRes: Int,
+    tag: String,
+): CharArray? {
+    while (true) {
+        val entered = collectPin(
+            requireContext(),
+            "Enter new Device $label PIN",
+            minLength = minLength,
+            tooShortRes = tooShortRes,
+            inputType = PIN_NUMERIC_INPUT_TYPE,
+            tag = tag,
+            logLabel = "New $label PIN",
+        ) ?: return null
+
+        val confirm = getSecret(
+            requireContext(),
+            "Confirm new Device $label PIN",
+            inputType = PIN_NUMERIC_INPUT_TYPE,
+        ) ?: run {
+            entered.fill('\u0000')
+            Log.d(tag, "New $label PIN confirmation cancelled")
+            return null
+        }
+
+        if (confirm != String(entered)) {
+            entered.fill('\u0000')
+            Log.w(tag, "New $label PIN confirmation did not match — re-showing dialog")
+            Toast.makeText(requireContext(), R.string.openpgp_new_pin_mismatch, Toast.LENGTH_SHORT).show()
+            continue
+        }
+
+        Log.d(tag, "New $label PIN collected and confirmed (length=${entered.size})")
+        return entered
+    }
+}
+
+@UiThread
+suspend fun Fragment.collectNewAdminPin(tag: String): CharArray? =
+    collectNewPin("Admin", ADMIN_PIN_MIN_LENGTH, R.string.openpgp_admin_pin_too_short, tag)
+
+@UiThread
+suspend fun Fragment.collectNewUserPin(tag: String): CharArray? =
+    collectNewPin("User", USER_PIN_MIN_LENGTH, R.string.openpgp_user_pin_too_short, tag)

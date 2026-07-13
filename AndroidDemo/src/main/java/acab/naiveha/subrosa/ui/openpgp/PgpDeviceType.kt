@@ -39,3 +39,8 @@ enum class PgpDeviceType {
         }
     }
 }
+
+fun PgpDeviceType?.writer(): OpenPgpWriter = when (this) {
+    PgpDeviceType.NITROKEY -> NitrokeyPgpWriter
+    else                   -> YubiKeyPgpWriter
+}

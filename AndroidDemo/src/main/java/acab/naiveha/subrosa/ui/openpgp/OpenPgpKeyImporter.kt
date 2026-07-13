@@ -61,7 +61,7 @@ object OpenPgpKeyImporter {
                        "isMaster=${pubKey.isMasterKey} " +
                        "isEncryption=${pubKey.isEncryptionKey} " +
                        "algorithm=${pubKey.algorithm} " +
-                       "keyFlags=0x${getKeyFlags(pubKey).toString(16)} " +
+                       "keyFlags=0x${pubKey.keyFlags().toString(16)} " +
                        "s2KUsage=${secretKey.s2KUsage} " +
                        "(0=plaintext,254=SHA1,255=checksum)")
             val declaredModulusBitLength = extractDeclaredRsaModulusBitLength(pubKey, keyIdHex)
@@ -70,7 +70,7 @@ object OpenPgpKeyImporter {
                 parseUid(uid).let { (n, e) -> displayName = n; email = e }
                 Log.d(TAG, "Primary key UID='$uid' → name='$displayName' email='$email'")
             }
-            val keyFlags = getKeyFlags(pubKey)
+            val keyFlags = pubKey.keyFlags()
             val ref: KeyRef = when {
                 pubKey.isMasterKey -> KeyRef.SIG
                 (keyFlags and KeyFlags.AUTHENTICATION) != 0 && !autSeen -> {
@@ -141,15 +141,6 @@ object OpenPgpKeyImporter {
         )
         Log.i(TAG, "prepare() complete — slots=${slots.map { it.ref.name }} name='${String(bundle.nameBytes)}' loginLength=${bundle.loginBytes.size}")
         return bundle
-    }
-    private fun getKeyFlags(pubKey: PGPPublicKey): Int {
-        val sigs = pubKey.signatures
-        while (sigs.hasNext()) {
-            val sig = sigs.next() as org.bouncycastle.openpgp.PGPSignature
-            val flags = sig.hashedSubPackets?.keyFlags ?: 0
-            if (flags != 0) return flags
-        }
-        return 0
     }
     private fun parseUid(uid: String): Pair<String, String> {
         val match = Regex("""^(.*?)\s*<([^>]+)>\s*$""").find(uid.trim())

@@ -1,9 +1,20 @@
 package acab.naiveha.subrosa.ui.openpgp
 
 import com.yubico.yubikit.openpgp.AlgorithmAttributes
+import org.bouncycastle.openpgp.PGPPublicKey
+import org.bouncycastle.openpgp.PGPSignature
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+internal fun PGPPublicKey.keyFlags(): Int {
+    val sigs = signatures
+    while (sigs.hasNext()) {
+        val flags = (sigs.next() as PGPSignature).hashedSubPackets?.keyFlags ?: 0
+        if (flags != 0) return flags
+    }
+    return 0
+}
 
 internal fun AlgorithmAttributes.toDisplayString(): String = try {
     when (javaClass.simpleName) {
@@ -58,8 +69,7 @@ internal fun OpenPgpCardInfo.toDisplayText(): String = buildString {
 
     appendLine("── PIN retries")
     appendLine("   User         $userPinRetries")
-    appendLine("   Reset code   $resetRetries")
-    append(  "   Admin        $adminPinRetries")
+    append("   Admin        $adminPinRetries")
 }
 
 internal fun OpenPgpKeyInfo.toDisplayText(): String = buildString {

@@ -16,11 +16,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
-import acab.naiveha.subrosa.MainViewModel
 import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.databinding.FragmentOpenpgpBinding
 import acab.naiveha.subrosa.ui.bindAutoClearStatus
-import acab.naiveha.subrosa.ui.collectPin
+import acab.naiveha.subrosa.ui.collectAdminPin
+import acab.naiveha.subrosa.ui.collectUserPin
 import acab.naiveha.subrosa.ui.getSecret
 import acab.naiveha.subrosa.ui.showOpenPgpAppletResetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -33,7 +33,6 @@ class OpenPgpFragment : Fragment() {
     private companion object {
         const val TAG = "OpenPgpFragment"
     }
-    private val activityViewModel: MainViewModel by activityViewModels()
     private val viewModel: OpenPgpViewModel by activityViewModels()
     private lateinit var binding: FragmentOpenpgpBinding
     private var rawKeyArmor: String? = null
@@ -166,12 +165,22 @@ class OpenPgpFragment : Fragment() {
                 "(writer decided once a device is connected)")
 
             lifecycleScope.launch(Dispatchers.Main) {
-                val adminPin = collectAdminPin() ?: return@launch
-                val userPin = collectUserPin() ?: run { adminPin.fill('\u0000'); return@launch }
+                val adminPin = collectAdminPin(
+                    "Enter Device Admin PIN",
+                    tag = TAG,
+                    defaultValue = String(OpenPgpWriterUtils.DEFAULT_ADMIN_PIN),
+                    clearTextByDefault = true,
+                ) ?: return@launch
+                val userPin = collectUserPin(
+                    "Enter Device User PIN",
+                    tag = TAG,
+                    defaultValue = String(OpenPgpWriterUtils.DEFAULT_USER_PIN),
+                    clearTextByDefault = true,
+                ) ?: run { adminPin.fill('\u0000'); return@launch }
 
                 viewModel.currentOperation.value = OpenPgpOperation.SAVE
                 viewModel.pendingAction.value = {
-                    val writer = writerFor(viewModel.connectedDevice.value?.type)
+                    val writer = viewModel.connectedDevice.value?.type.writer()
                     Log.i(TAG, "pendingAction — device=${viewModel.connectedDevice.value?.type} " +
                         "writer=${writer::class.simpleName}")
                     writer.program(this, bundle, adminPin, userPin, status = viewModel::postWriteStatus)
@@ -204,41 +213,12 @@ class OpenPgpFragment : Fragment() {
         validatedBundle = null
     }
 
-    private fun writerFor(type: PgpDeviceType?): OpenPgpWriter = when (type) {
-        PgpDeviceType.NITROKEY -> NitrokeyPgpWriter
-        else                   -> YubiKeyPgpWriter
-    }
-
-    private suspend fun collectAdminPin(): CharArray? = collectPin(
-        requireContext(),
-        "Enter Device Admin PIN",
-        minLength = 8,
-        tooShortRes = R.string.openpgp_admin_pin_too_short,
-        inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD,
-        tag = TAG,
-        logLabel = "Admin PIN",
-        defaultValue = String(OpenPgpWriterUtils.DEFAULT_ADMIN_PIN),
-        clearTextByDefault = true,
-    )
-
-    private suspend fun collectUserPin(): CharArray? = collectPin(
-        requireContext(),
-        "Enter Device User PIN",
-        minLength = 6,
-        tooShortRes = R.string.openpgp_user_pin_too_short,
-        inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD,
-        tag = TAG,
-        logLabel = "User PIN",
-        defaultValue = String(OpenPgpWriterUtils.DEFAULT_USER_PIN),
-        clearTextByDefault = true,
-    )
-
     private fun showResetConfirmationDialog() {
         showOpenPgpAppletResetDialog(TAG, onConfirmed = {
             Log.i(TAG, "Reset confirmed — device=${viewModel.connectedDevice.value?.type}")
             viewModel.currentOperation.value = OpenPgpOperation.WIPE
             viewModel.pendingAction.value = {
-                val writer = writerFor(viewModel.connectedDevice.value?.type)
+                val writer = viewModel.connectedDevice.value?.type.writer()
                 Log.i(TAG, "wipe — device=${viewModel.connectedDevice.value?.type} " +
                     "writer=${writer::class.simpleName}")
                 writer.wipe(this, status = viewModel::postWipeStatus)
