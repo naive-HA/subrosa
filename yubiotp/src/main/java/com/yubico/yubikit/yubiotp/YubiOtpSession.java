@@ -224,7 +224,7 @@ public class YubiOtpSession extends ApplicationSession<YubiOtpSession> {
           @Override
           void writeToSlot(byte slot, byte[] data) throws IOException, CommandException {
             byte[] status = delegate.sendAndReceive(new Apdu(0, INS_CONFIG, slot, 0, data));
-            if (!dummyStatus) {
+            if (!dummyStatus && status.length >= 6) {
               configurationState = parseConfigState(this.version, status);
             }
           }

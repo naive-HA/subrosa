@@ -111,17 +111,18 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
   @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
   public byte[] readNdef() throws IOException {
     try (Ndef ndef = Ndef.get(tag)) {
-      if (ndef != null) {
-        ndef.connect();
-        NdefMessage message = ndef.getNdefMessage();
-        if (message != null) {
-          return message.toByteArray();
-        }
+      if (ndef == null) {
+        throw new IOException("NDEF data missing or invalid");
       }
+      ndef.connect();
+      NdefMessage message = ndef.getNdefMessage();
+      if (message == null) {
+        throw new IOException("NDEF data missing or invalid");
+      }
+      return message.toByteArray();
     } catch (FormatException e) {
       throw new IOException(e);
     }
-    throw new IOException("NDEF data missing or invalid");
   }
 
   /**

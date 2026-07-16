@@ -17,15 +17,20 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContract
-import androidx.activity.result.launch
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import acab.naiveha.subrosa.MainViewModel
 import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.databinding.FragmentStaticpwdBinding
+import acab.naiveha.subrosa.ui.YubiKeyPromptDialog
+import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.android.ui.OtpActivity
+import com.yubico.yubikit.android.ui.YubiKeyPromptActivity
+import com.yubico.yubikit.core.smartcard.SmartCardConnection
+import com.yubico.yubikit.core.util.NdefUtils
 import com.yubico.yubikit.yubiotp.Slot
 import com.yubico.yubikit.yubiotp.StaticPasswordSlotConfiguration
+import com.yubico.yubikit.yubiotp.YubiOtpSession
 import androidx.core.content.ContextCompat
 import android.os.VibratorManager
 import androidx.core.view.WindowCompat
@@ -35,19 +40,19 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 import java.io.IOException
 
 class StaticPwdFragment : Fragment() {
-    class OtpContract : ActivityResultContract<Unit, Result<String>?>() {
+    private class OtpContract : ActivityResultContract<Unit, Result<String>?>() {
         override fun createIntent(context: Context, input: Unit): Intent =
             Intent(context, OtpActivity::class.java)
-                .putExtra(OtpActivity.ARG_STATIC_PASSWORD_NFC_UNSUPPORTED, true)
+                .putExtra(YubiKeyPromptActivity.ARG_ALLOW_NFC, false)
         override fun parseResult(resultCode: Int, intent: Intent?): Result<String>? = when (resultCode) {
             Activity.RESULT_OK -> {
                 val otp = intent?.getStringExtra(OtpActivity.EXTRA_OTP)
-                if (otp != null) Result.success(otp)
-                else Result.failure(IOException("OtpActivity returned no OTP"))
+                if (otp != null) Result.success(otp) else Result.failure(IOException("OtpActivity returned no data"))
             }
             OtpActivity.RESULT_ERROR -> {
                 @Suppress("DEPRECATION")
@@ -57,18 +62,79 @@ class StaticPwdFragment : Fragment() {
             else -> null
         }
     }
+
     private val requestOtp = registerForActivityResult(OtpContract()) { result ->
         if (!isAdded) return@registerForActivityResult
         activityViewModel.setYubiKeyListenerEnabled(true)
-        when {
-            result == null -> Unit
-            result.isSuccess -> {
-                showStaticPasswordDialog(result.getOrThrow())
+        if (result == null) return@registerForActivityResult
+        result.fold(
+            onSuccess = { password ->
+                showStaticPasswordDialog(password)
                 viewModel.postReadStatus("Read complete")
+            },
+            onFailure = { e ->
+                viewModel.postResult(Result.failure(e))
+            },
+        )
+    }
+
+    private var pendingReadSlotTwo: Boolean? = null
+    private lateinit var readPrompt: YubiKeyPromptDialog
+
+    private fun startRead(slotTwo: Boolean) {
+        pendingReadSlotTwo = slotTwo
+        when (val device = activityViewModel.yubiKey.value) {
+            is NfcYubiKeyDevice -> onNfcDeviceForRead(device)
+            null -> {
+                readPrompt.setHelpText(getString(R.string.yubikit_prompt_plug_in_or_tap))
+                readPrompt.show()
             }
-            else -> viewModel.postResult(Result.failure(result.exceptionOrNull()!!))
+            else -> {
+                pendingReadSlotTwo = null
+                activityViewModel.setYubiKeyListenerEnabled(false)
+                requestOtp.launch(Unit)
+            }
         }
     }
+
+    private fun onNfcDeviceForRead(device: NfcYubiKeyDevice) {
+        val slotTwo = pendingReadSlotTwo ?: return
+        pendingReadSlotTwo = null
+        if (readPrompt.isShowing) readPrompt.dismiss()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = withContext(activityViewModel.singleDispatcher) {
+                runCatching {
+                    device.openConnection(SmartCardConnection::class.java).use { connection ->
+                        YubiOtpSession(connection)
+                            .setNdefConfiguration(if (slotTwo) Slot.TWO else Slot.ONE, null, null)
+                    }
+                    val scancodes = NdefUtils.getNdefPayloadBytes(device.readNdef())
+                    Keyboard().decode(scancodes, selectedKeyboard(binding.readKeyboardRadio.checkedRadioButtonId))
+                }
+            }
+            result.fold(
+                onSuccess = { password ->
+                    showStaticPasswordDialog(password)
+                    viewModel.postReadStatus("Read complete")
+                },
+                onFailure = { e ->
+                    viewModel.postResult(Result.failure(e))
+                },
+            )
+            device.remove {}
+        }
+    }
+    private val keyboardByRadioId = mapOf(
+        R.id.keyoard_us to "en_US", R.id.read_keyoard_us to "en_US",
+        R.id.keyoard_uk to "en_UK", R.id.read_keyoard_uk to "en_UK",
+        R.id.keyoard_de to "de_DE", R.id.read_keyoard_de to "de_DE",
+        R.id.keyoard_fr to "fr_FR", R.id.read_keyoard_fr to "fr_FR",
+        R.id.keyoard_it to "it_IT", R.id.read_keyoard_it to "it_IT",
+        R.id.keyoard_modhex to "en_MODHEX", R.id.read_keyoard_modhex to "en_MODHEX",
+    )
+    private fun selectedKeyboard(checkedRadioButtonId: Int): String =
+        keyboardByRadioId[checkedRadioButtonId] ?: "en_US"
     private val activityViewModel: MainViewModel by activityViewModels()
     private val viewModel: OtpViewModel by activityViewModels()
     private lateinit var binding: FragmentStaticpwdBinding
@@ -81,9 +147,24 @@ class StaticPwdFragment : Fragment() {
         binding = FragmentStaticpwdBinding.inflate(inflater, container, false)
         return binding.root
     }
+
+    override fun onPause() {
+        if (::readPrompt.isInitialized && readPrompt.isShowing) {
+            readPrompt.dismiss()
+        }
+        super.onPause()
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.btnSaveStaticpwd.isEnabled = false
+
+        readPrompt = YubiKeyPromptDialog(requireContext()) { pendingReadSlotTwo = null }
+        activityViewModel.yubiKey.observe(viewLifecycleOwner) { device ->
+            if (device is NfcYubiKeyDevice && pendingReadSlotTwo != null) {
+                onNfcDeviceForRead(device)
+            }
+        }
 
         viewModel.clearUiTrigger.observe(viewLifecycleOwner) { shouldClear ->
             if (shouldClear) {
@@ -152,100 +233,20 @@ class StaticPwdFragment : Fragment() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
             }
         })
-        binding.keyoardUs.setOnClickListener {
-            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
+        binding.keyboardRadio.setOnCheckedChangeListener { _, checkedId ->
+            hideIme()
+            val extrasEnabled = checkedId != R.id.keyoard_modhex
+            binding.extrasTabFront.isChecked = false
+            binding.extrasTabFront.isEnabled = extrasEnabled
+            binding.extrasTabEnd.isChecked = false
+            binding.extrasTabEnd.isEnabled = extrasEnabled
+            binding.extrasCr.isChecked = false
+            binding.extrasCr.isEnabled = extrasEnabled
         }
-        binding.keyoardUs.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                binding.extrasTabFront.isChecked = false
-                binding.extrasTabFront.isEnabled = true
-                binding.extrasTabEnd.isChecked = false
-                binding.extrasTabEnd.isEnabled = true
-                binding.extrasCr.isChecked = false
-                binding.extrasCr.isEnabled = true
-            }
-        }
-        binding.keyoardUk.setOnClickListener {
-            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
-        }
-        binding.keyoardUk.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                binding.extrasTabFront.isChecked = false
-                binding.extrasTabFront.isEnabled = true
-                binding.extrasTabEnd.isChecked = false
-                binding.extrasTabEnd.isEnabled = true
-                binding.extrasCr.isChecked = false
-                binding.extrasCr.isEnabled = true
-            }
-        }
-        binding.keyoardDe.setOnClickListener {
-            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
-        }
-        binding.keyoardDe.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                binding.extrasTabFront.isChecked = false
-                binding.extrasTabFront.isEnabled = true
-                binding.extrasTabEnd.isChecked = false
-                binding.extrasTabEnd.isEnabled = true
-                binding.extrasCr.isChecked = false
-                binding.extrasCr.isEnabled = true
-            }
-        }
-        binding.keyoardFr.setOnClickListener {
-            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
-        }
-        binding.keyoardFr.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                binding.extrasTabFront.isChecked = false
-                binding.extrasTabFront.isEnabled = true
-                binding.extrasTabEnd.isChecked = false
-                binding.extrasTabEnd.isEnabled = true
-                binding.extrasCr.isChecked = false
-                binding.extrasCr.isEnabled = true
-            }
-        }
-        binding.keyoardIt.setOnClickListener {
-            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
-        }
-        binding.keyoardIt.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                binding.extrasTabFront.isChecked = false
-                binding.extrasTabFront.isEnabled = true
-                binding.extrasTabEnd.isChecked = false
-                binding.extrasTabEnd.isEnabled = true
-                binding.extrasCr.isChecked = false
-                binding.extrasCr.isEnabled = true
-            }
-        }
-        binding.keyoardModhex.setOnClickListener {
-            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
-        }
-        binding.keyoardModhex.setOnCheckedChangeListener { _, isChecked ->
-            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
-            if (isChecked) {
-                binding.extrasTabFront.isChecked = false
-                binding.extrasTabFront.isEnabled = false
-                binding.extrasTabEnd.isChecked = false
-                binding.extrasTabEnd.isEnabled = false
-                binding.extrasCr.isChecked = false
-                binding.extrasCr.isEnabled = false
-            }
-        }
-        binding.extrasTabFront.setOnClickListener {
-            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
-        }
-        binding.extrasTabEnd.setOnClickListener {
-            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
-        }
-        binding.extrasCr.setOnClickListener {
-            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
-        }
-        binding.radioSlot1.setOnClickListener {
-            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
-        }
-        binding.radioSlot2.setOnClickListener {
-            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
-        }
+        binding.extrasTabFront.hideImeOnClick()
+        binding.extrasTabEnd.hideImeOnClick()
+        binding.extrasCr.hideImeOnClick()
+        binding.slotRadio.setOnCheckedChangeListener { _, _ -> hideIme() }
 
         viewModel.saveStatus.observe(viewLifecycleOwner) { message ->
             saveStatusClearJob?.cancel()
@@ -290,15 +291,7 @@ class StaticPwdFragment : Fragment() {
         binding.btnSaveStaticpwd.setOnClickListener {
             if (rejectIfNitrokeyConnected()) return@setOnClickListener
             try {
-                val keyboard = when (binding.keyboardRadio.checkedRadioButtonId) {
-                    R.id.keyoard_us -> "en_US"
-                    R.id.keyoard_uk -> "en_UK"
-                    R.id.keyoard_de -> "de_DE"
-                    R.id.keyoard_fr -> "fr_FR"
-                    R.id.keyoard_it -> "it_IT"
-                    R.id.keyoard_modhex -> "en_MODHEX"
-                    else -> "en_US"
-                }
+                val keyboard = selectedKeyboard(binding.keyboardRadio.checkedRadioButtonId)
                 var staticpwd = binding.editTextStaticpwdId.text.toString()
                 if (staticpwd.length > 38){
                     throw IllegalStateException("Static password cannot exceed 38 characters")
@@ -332,8 +325,8 @@ class StaticPwdFragment : Fragment() {
         }
         binding.btnRequestStaticpwd.setOnClickListener {
             if (rejectIfNitrokeyConnected()) return@setOnClickListener
-            activityViewModel.setYubiKeyListenerEnabled(false)
-            requestOtp.launch()
+            val slotTwo = binding.readSlotRadio.checkedRadioButtonId == R.id.read_radio_slot_2
+            startRead(slotTwo)
         }
         binding.btnDeleteStaticpwd.setOnClickListener {
             if (rejectIfNitrokeyConnected()) return@setOnClickListener
@@ -345,6 +338,13 @@ class StaticPwdFragment : Fragment() {
             showStaticPasswordResetConfirmationDialog(slot)
         }
     }
+
+    private fun hideIme() {
+        WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
+    }
+
+    private fun View.hideImeOnClick() = setOnClickListener { hideIme() }
+
     private fun getVibrator(): Vibrator {
         val vibratorManager = requireContext().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
         return vibratorManager.defaultVibrator
@@ -353,10 +353,8 @@ class StaticPwdFragment : Fragment() {
     private fun showStaticPasswordDialog(password: String) {
         val context = context ?: return
 
-        val cleanedPassword = password.replace("\u0000", "")
-
         val text = buildString {
-            appendLine(cleanedPassword)
+            appendLine(password.replace("\u0000", ""))
         }
 
         val builder = MaterialAlertDialogBuilder(context)

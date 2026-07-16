@@ -19,7 +19,6 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.KeyEvent;
-import android.widget.Toast;
 import com.yubico.yubikit.android.R;
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice;
 import com.yubico.yubikit.android.transport.usb.UsbConfiguration;
@@ -38,21 +37,11 @@ public class OtpActivity extends YubiKeyPromptActivity {
   public static final String EXTRA_OTP = "otp";
   public static final String EXTRA_ERROR = "error";
 
-  public static final String ARG_STATIC_PASSWORD_NFC_UNSUPPORTED =
-      "STATIC_PASSWORD_NFC_UNSUPPORTED";
+  public static final String EXTRA_VIA_NFC = "via_nfc";
 
   private OtpKeyListener keyListener;
 
   private int usbSessionCounter = 0;
-
-  private boolean nfcDisabledForThisPrompt;
-
-  @Nullable private static volatile OtpActivity current;
-
-  @Override
-  protected int getIdleHelpTextRes() {
-    return nfcDisabledForThisPrompt ? R.string.yubikit_otp_usb_only : super.getIdleHelpTextRes();
-  }
 
   @Override
   protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -60,14 +49,6 @@ public class OtpActivity extends YubiKeyPromptActivity {
     getIntent().putExtra(ARG_ALLOW_USB, false); // Custom USB handling for keyboard.
 
     super.onCreate(savedInstanceState);
-
-    current = this;
-
-    nfcDisabledForThisPrompt =
-        getIntent().getBooleanExtra(ARG_STATIC_PASSWORD_NFC_UNSUPPORTED, false);
-    if (nfcDisabledForThisPrompt) {
-      helpTextView.setText(R.string.yubikit_otp_usb_only);
-    }
 
     getYubiKitManager()
         .startUsbDiscovery(
@@ -95,6 +76,7 @@ public class OtpActivity extends YubiKeyPromptActivity {
               public void onCaptureComplete(String capture) {
                 Intent intent = new Intent();
                 intent.putExtra(EXTRA_OTP, capture);
+                intent.putExtra(EXTRA_VIA_NFC, false);
                 setResult(Activity.RESULT_OK, intent);
                 finish();
               }
@@ -103,9 +85,6 @@ public class OtpActivity extends YubiKeyPromptActivity {
 
   @Override
   protected void onDestroy() {
-    if (current == this) {
-      current = null;
-    }
     getYubiKitManager().stopUsbDiscovery();
     super.onDestroy();
   }
@@ -123,30 +102,26 @@ public class OtpActivity extends YubiKeyPromptActivity {
         CommandState commandState,
         Callback<Pair<Integer, Intent>> callback) {
       if (device instanceof NfcYubiKeyDevice) {
-        if (extras != null && extras.getBoolean(ARG_STATIC_PASSWORD_NFC_UNSUPPORTED, false)) {
-          OtpActivity activity = current;
-          if (activity != null) {
-            activity.runOnUiThread(
-                () ->
-                    Toast.makeText(activity, R.string.yubikit_otp_usb_only, Toast.LENGTH_SHORT)
-                        .show());
-          }
-          callback.invoke(YubiKeyPromptAction.CONTINUE);
-          return;
-        }
+        NfcYubiKeyDevice nfcDevice = (NfcYubiKeyDevice) device;
         Intent intent = new Intent();
         try {
-          String credential = NdefUtils.getNdefPayload(((NfcYubiKeyDevice) device).readNdef());
+          String credential = NdefUtils.getNdefPayload(nfcDevice.readNdef());
           intent.putExtra(EXTRA_OTP, credential);
+          intent.putExtra(EXTRA_VIA_NFC, true);
           callback.invoke(new Pair<>(RESULT_OK, intent));
         } catch (IOException e) {
-          intent.putExtra(EXTRA_ERROR, e);
-          callback.invoke(new Pair<>(RESULT_ERROR, intent));
+          invokeReadError(callback, "NFC OTP read", e);
         } catch (RuntimeException e) {
-          intent.putExtra(EXTRA_ERROR, new IOException("Failed to parse NDEF payload", e));
-          callback.invoke(new Pair<>(RESULT_ERROR, intent));
+          invokeReadError(callback, "NFC OTP NDEF parse", new IOException("Failed to parse NDEF payload", e));
         }
       }
+    }
+
+    private static void invokeReadError(
+        Callback<Pair<Integer, Intent>> callback, String what, IOException e) {
+      Intent intent = new Intent();
+      intent.putExtra(EXTRA_ERROR, e);
+      callback.invoke(new Pair<>(RESULT_ERROR, intent));
     }
   }
 }

@@ -557,4 +557,21 @@ class Keyboard {
         }
         return scancodes
     }
+
+    fun decode(scancodes: ByteArray, keyboard: String): String {
+        val keyboardMap = keyboards[keyboard] ?: throw IllegalStateException("Unknown keyboard $keyboard")
+        val scancodeToChar = keyboardMap.entries.associate { (char, code) -> code to char }
+        val decoded = StringBuilder()
+        for (b in scancodes) {
+            val code = b.toInt() and 0xFF
+            if (code == 0x00) break
+            decoded.append(
+                scancodeToChar[code]
+                    ?: throw IllegalStateException(
+                        "Unknown scan code 0x${code.toString(16)} for selected keyboard",
+                    ),
+            )
+        }
+        return decoded.toString()
+    }
 }
