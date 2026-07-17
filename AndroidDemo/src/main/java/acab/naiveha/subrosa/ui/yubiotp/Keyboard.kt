@@ -1,6 +1,6 @@
 package acab.naiveha.subrosa.ui.yubiotp
 
-class Keyboard {
+object Keyboard {
     val SHIFT = 0x80
     val US = mapOf(
         'a' to 0x04,

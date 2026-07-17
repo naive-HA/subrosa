@@ -19,18 +19,17 @@ package acab.naiveha.subrosa.ui.management
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
+import acab.naiveha.subrosa.ui.PgpDeviceType
 import acab.naiveha.subrosa.ui.YubiKeyViewModel
 import acab.naiveha.subrosa.ui.openpgp.NitrokeyAdminVersion
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpCardInfo
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpReader
 import com.yubico.yubikit.openpgp.OpenPgpSession
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
-import com.yubico.yubikit.android.transport.usb.UsbDeviceManager
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.core.UsbPid
 import com.yubico.yubikit.core.YubiKeyConnection
 import com.yubico.yubikit.core.YubiKeyDevice
-import com.yubico.yubikit.core.YubiKeyType
 import com.yubico.yubikit.core.application.ApplicationNotAvailableException
 import com.yubico.yubikit.core.fido.FidoConnection
 import com.yubico.yubikit.core.otp.OtpConnection
@@ -123,7 +122,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
 
     private fun combine(connected: ConnectedDeviceInfo?, pgp: OpenPgpCardInfo?): ManagementUiState? {
         if (connected == null) return null
-        val showManagementActions = !(connected.type == YubiKeyType.NK3 && connected.isNfc)
+        val showManagementActions = !(connected.type == PgpDeviceType.NITROKEY && connected.isNfc)
         logger.debug(
             "uiState: type=${connected.type} isNfc=${connected.isNfc} " +
                 "showManagementActions=$showManagementActions"
@@ -137,19 +136,17 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
     }
 
     private fun computePgpStatus(connected: ConnectedDeviceInfo, pgp: OpenPgpCardInfo?): PgpStatus {
-        val isYubiKey = connected.deviceInfo != null ||
-            (connected.type != null && connected.type != YubiKeyType.NK3)
-        val isNitrokey = connected.type == YubiKeyType.NK3
-
-        return when {
-            isYubiKey -> PgpStatus.YubiKey(programmed = pgp.isProgrammed())
-            isNitrokey -> PgpStatus.Nitrokey(
+        return when (connected.type) {
+            PgpDeviceType.YUBIKEY -> PgpStatus.YubiKey(programmed = pgp.isProgrammed())
+            PgpDeviceType.NITROKEY -> PgpStatus.Nitrokey(
                 programmed = pgp?.let { it.isProgrammed() },
                 nfcUnsupported = pgp == null && connected.isNfc,
             )
-            pgp != null -> PgpStatus.OtherDevice(programmed = pgp.isProgrammed())
-            connected.isNfc -> PgpStatus.AwaitingSecondTap
-            else -> PgpStatus.None
+            PgpDeviceType.UNKNOWN -> when {
+                pgp != null -> PgpStatus.OtherDevice(programmed = pgp.isProgrammed())
+                connected.isNfc -> PgpStatus.AwaitingSecondTap
+                else -> PgpStatus.None
+            }
         }
     }
 
@@ -159,11 +156,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
 
         val usbPid: UsbPid? = (device as? UsbYubiKeyDevice)?.pid
 
-        val isUsbNitrokey = usbPid?.type == YubiKeyType.NK3
-                || (device as? UsbYubiKeyDevice)
-            ?.usbDevice?.vendorId == UsbDeviceManager.NITROKEY_VENDOR_ID
-
-        if (isUsbNitrokey) {
+        if (device is UsbYubiKeyDevice && PgpDeviceType.fromUsbDescriptor(device) == PgpDeviceType.NITROKEY) {
             readNitrokeyInfoUsb(device)
             return true
         }
@@ -178,6 +171,11 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
     }
 
     private fun readYubicoInfo(device: YubiKeyDevice, usbPid: UsbPid?) {
+        val pgpType = if (device is UsbYubiKeyDevice) {
+            PgpDeviceType.fromUsbDescriptor(device)
+        } else {
+            PgpDeviceType.UNKNOWN
+        }
         val readInfo: (YubiKeyConnection) -> Unit = { conn ->
             try {
                 val atr = StringUtils.bytesToHex(
@@ -187,7 +185,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                 _connectedDevice.postValue(
                     ConnectedDeviceInfo(
                         deviceInfo = devInfo,
-                        type       = usbPid?.type,
+                        type       = pgpType,
                         atr        = atr,
                         isNfc      = false,
                         infoText   = formatDeviceInfo(
@@ -285,6 +283,8 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
         val base = buildString {
             append("Device: $name\n")
             append("Firmware: $firmware")
+            if (fips == true) append("\nFIPS-certified")
+            if (locked == true) append("\nConfiguration locked")
         }
         return if (note != null) "$base\n\n$note" else base
     }
@@ -294,82 +294,94 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
             device.openConnection(SmartCardConnection::class.java).use { conn ->
                 val atr = StringUtils.bytesToHex(conn.atr ?: byteArrayOf())
 
-                val fwVersion = try {
-                    NitrokeyAdminVersion.query(conn)
-                } catch (e: Exception) {
-                    null
-                }
-
+                val fwVersion = NitrokeyAdminVersion.query(conn)
                 if (fwVersion != null) {
-                    logger.debug("readNfcDevice: Nitrokey detected (firmware $fwVersion) — " +
-                                 "OpenPGP applet is not reachable over NFC, not attempting it")
-                    _pgpCardInfo.postValue(null)
-                    _connectedDevice.postValue(
-                        ConnectedDeviceInfo(
-                            deviceInfo = null,
-                            type       = YubiKeyType.NK3,
-                            atr        = atr,
-                            isNfc      = true,
-                            infoText   = formatDeviceInfo(
-                                name     = "Nitrokey 3",
-                                firmware = fwVersion,
-                                note     = "Nitrokey over NFC is not supported. Connect over USB to access the OpenPGP applet",
-                            ),
-                        )
-                    )
+                    postNfcNitrokeyInfo(fwVersion, atr)
                     return@use
                 }
 
-                val pgpSession = try {
-                    OpenPgpSession(conn)
-                } catch (e: ApplicationNotAvailableException) {
-                    logger.debug("readNfcDevice: OpenPGP applet absent: ${e.message}")
-                    _errorInfo.postValue("OpenPGP applet not available on this NFC device.")
-                    _connectedDevice.postValue(null)
-                    return@use
-                }
-
-                val pgpInfo = buildPgpCardInfo(pgpSession)
-                _pgpCardInfo.postValue(pgpInfo)
-                val devInfo = try {
-                    DeviceUtil.readInfo(conn, null)
-                } catch (e: Exception) {
-                    logger.debug("readNfcDevice: DeviceUtil.readInfo failed: ${e.message}")
-                    null
-                }
-                _connectedDevice.postValue(
-                    ConnectedDeviceInfo(
-                        deviceInfo = devInfo,
-                        type       = null,
-                        atr        = atr,
-                        isNfc      = true,
-                        infoText   = if (devInfo != null) {
-                            formatDeviceInfo(
-                                name     = DeviceUtil.getName(devInfo, null),
-                                firmware = devInfo.version.toString(),
-                                fips     = devInfo.isFips,
-                                locked   = devInfo.isLocked,
-                            )
-                        } else {
-                            "Device: Unknown\n$atr\n\n(Unknown device. Not supported by sub rosa)"
-                        },
-                    )
-                )
+                readNfcOpenPgpDevice(device, conn, atr)
             }
         } catch (e: Exception) {
-            logger.debug("readNfcDevice failed: ${e::class.simpleName}: ${e.message}")
-            val msg = e.message ?: ""
-            val userMessage = when {
-                e is SecurityException
-                || msg.contains("out of date", ignoreCase = true)
-                || msg.contains("Tag was lost", ignoreCase = true) ->
-                    "NFC connection lost. Hold the device still over the reader and try again."
-                else ->
-                    "NFC read failed: $msg"
-            }
-            _errorInfo.postValue(userMessage)
-            _connectedDevice.postValue(null)
+            postNfcReadFailure(e)
         }
+    }
+
+    private fun postNfcNitrokeyInfo(fwVersion: String, atr: String) {
+        logger.debug("readNfcDevice: Nitrokey detected (firmware $fwVersion) — " +
+                     "OpenPGP applet is not reachable over NFC, not attempting it")
+        _pgpCardInfo.postValue(null)
+        _connectedDevice.postValue(
+            ConnectedDeviceInfo(
+                deviceInfo = null,
+                type       = PgpDeviceType.NITROKEY,
+                atr        = atr,
+                isNfc      = true,
+                infoText   = formatDeviceInfo(
+                    name     = "Nitrokey 3",
+                    firmware = fwVersion,
+                    note     = NitrokeyAdminVersion.NFC_NOT_SUPPORTED_MESSAGE,
+                ),
+            )
+        )
+    }
+
+    private fun readNfcOpenPgpDevice(device: NfcYubiKeyDevice, conn: SmartCardConnection, atr: String) {
+        val pgpSession = try {
+            OpenPgpSession(conn)
+        } catch (e: ApplicationNotAvailableException) {
+            logger.debug("readNfcDevice: OpenPGP applet absent: ${e.message}")
+            _errorInfo.postValue("OpenPGP applet not available on this NFC device.")
+            _connectedDevice.postValue(null)
+            return
+        }
+
+        // The OpenPGP AID's manufacturer field is spec-authoritative, so now that a
+        // session is open, classify off it rather than leaving the device unclassified
+        // the way a DeviceUtil.readInfo()-only classification would.
+        val pgpType = PgpDeviceType.detect(device, pgpSession.aid.manufacturer, pgpSession.version)
+
+        val pgpInfo = buildPgpCardInfo(pgpSession)
+        _pgpCardInfo.postValue(pgpInfo)
+        val devInfo = try {
+            DeviceUtil.readInfo(conn, null)
+        } catch (e: Exception) {
+            logger.debug("readNfcDevice: DeviceUtil.readInfo failed: ${e.message}")
+            null
+        }
+        _connectedDevice.postValue(
+            ConnectedDeviceInfo(
+                deviceInfo = devInfo,
+                type       = pgpType,
+                atr        = atr,
+                isNfc      = true,
+                infoText   = if (devInfo != null) {
+                    formatDeviceInfo(
+                        name     = DeviceUtil.getName(devInfo, null),
+                        firmware = devInfo.version.toString(),
+                        fips     = devInfo.isFips,
+                        locked   = devInfo.isLocked,
+                    )
+                } else {
+                    "Device: Unknown\n$atr\n\n(Unknown device. Not supported by sub rosa)"
+                },
+            )
+        )
+    }
+
+    private fun postNfcReadFailure(e: Exception) {
+        logger.debug("readNfcDevice failed: ${e::class.simpleName}: ${e.message}")
+        val msg = e.message ?: ""
+        val userMessage = when {
+            e is SecurityException
+            || msg.contains("out of date", ignoreCase = true)
+            || msg.contains("Tag was lost", ignoreCase = true) ->
+                "NFC connection lost. Hold the device still over the reader and try again."
+            else ->
+                "NFC read failed: $msg"
+        }
+        _errorInfo.postValue(userMessage)
+        _connectedDevice.postValue(null)
     }
 
     private fun readPgpInfo(conn: SmartCardConnection, knownFirmwareVersion: String? = null) {
@@ -402,10 +414,14 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
     ): ConnectedDeviceInfo {
         return ConnectedDeviceInfo(
             deviceInfo = null,
-            type       = YubiKeyType.NK3,
+            type       = PgpDeviceType.NITROKEY,
             atr        = "",
             isNfc      = false,
-            infoText   = formatDeviceInfo(name = "Nitrokey 3", firmware = fwVersion),
+            infoText   = formatDeviceInfo(
+                name     = "Nitrokey 3",
+                firmware = fwVersion,
+                note     = "Transport: $transport",
+            ),
         )
     }
 }

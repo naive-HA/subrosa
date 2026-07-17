@@ -168,13 +168,13 @@ class OpenPgpFragment : Fragment() {
                 val adminPin = collectAdminPin(
                     "Enter Device Admin PIN",
                     tag = TAG,
-                    defaultValue = String(OpenPgpWriterUtils.DEFAULT_ADMIN_PIN),
+                    defaultValue = OpenPgpWriterUtils.DEFAULT_ADMIN_PIN,
                     clearTextByDefault = true,
                 ) ?: return@launch
                 val userPin = collectUserPin(
                     "Enter Device User PIN",
                     tag = TAG,
-                    defaultValue = String(OpenPgpWriterUtils.DEFAULT_USER_PIN),
+                    defaultValue = OpenPgpWriterUtils.DEFAULT_USER_PIN,
                     clearTextByDefault = true,
                 ) ?: run { adminPin.fill('\u0000'); return@launch }
 
@@ -318,12 +318,11 @@ class OpenPgpFragment : Fragment() {
             runCatching { OpenPgpFileImporter.decrypt(fileBytes, CharArray(0)) }.getOrNull()
         }
         while (ring == null) {
-            val passphraseStr = getSecret(requireActivity(), R.string.enter_file_passphrase, showPaste = true)
+            val passphrase = getSecret(requireActivity(), R.string.enter_file_passphrase, showPaste = true)
                 ?: run { Log.d(TAG, "File passphrase cancelled"); return null }
-            Log.d(TAG, "File passphrase length=${passphraseStr.length} — decrypting…")
+            Log.d(TAG, "File passphrase length=${passphrase.size} — decrypting…")
             binding.progressSave.visibility = View.VISIBLE
             binding.btnSave.isEnabled = false
-            val passphrase = passphraseStr.toCharArray()
             ring = withContext(Dispatchers.IO) {
                 try {
                     OpenPgpFileImporter.decrypt(fileBytes, passphrase)
@@ -332,6 +331,7 @@ class OpenPgpFragment : Fragment() {
                     null
                 }
             }
+            passphrase.fill('\u0000')
             binding.progressSave.visibility = View.GONE
             if (ring == null) {
                 Log.w(TAG, "Wrong file passphrase")
@@ -376,11 +376,10 @@ class OpenPgpFragment : Fragment() {
     private suspend fun prepareBundleWithPassphraseRetry(armor: String): ImportBundle? {
         Log.d(TAG, "Key is passphrase-protected — collecting passphrase…")
         while (true) {
-            val p = getSecret(requireContext(), R.string.enter_key_passphrase, showPaste = true)
+            val passphrase = getSecret(requireContext(), R.string.enter_key_passphrase, showPaste = true)
                 ?: run { Log.d(TAG, "Passphrase cancelled"); return null }
             binding.progressSave.visibility = View.VISIBLE
             binding.btnSave.isEnabled = false
-            val passphrase = p.toCharArray()
             val bundle = withContext(Dispatchers.IO) {
                 try {
                     OpenPgpKeyImporter.prepare(armor, passphrase)

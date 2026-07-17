@@ -7,9 +7,7 @@
 
     <string name="menu_mgmt">Device Configuration</string>
     <string name="menu_otp">YubiOTP</string>
-    <string name="menu_piv">PIV</string>
     <string name="menu_web">WebView</string>
-    <string name="menu_oath">OATH</string>
     <string name="menu_openpgp">OpenPGP</string>
     <string name="menu_licenses">Licenses</string>
     <string name="openpgp_header">OpenPGP Configuration</string>
@@ -35,30 +33,9 @@
 
     <string name="application_otp">OTP</string>
     <string name="application_u2f">FIDO U2F</string>
-    <string name="application_piv">PIV</string>
     <string name="application_fido2">FIDO2</string>
     <string name="application_pgp">OpenPGP</string>
-    <string name="application_oath">OATH</string>
 
-    <string name="piv_enter_mgmt_key">Enter Management Key</string>
-    <string name="piv_mgmt_key_hint">Management Key (hex)</string>
-    <string name="piv_no_cert">No certificate loaded</string>
-    <string name="piv_authentication">Authentication</string>
-    <string name="piv_signature">Digital Signature</string>
-    <string name="piv_key_mgmt">Key Management</string>
-    <string name="piv_card_auth">Card Authentication</string>
-    <string name="piv_delete">Delete</string>
-    <string name="piv_attest">Attest</string>
-    <string name="piv_generate_ec_cert">Generate EC256</string>
-    <string name="piv_generate_rsa_cert">Generate RSA2048</string>
-    <string name="piv_generate_ed25519_cert">Generate ED25519</string>
-    <string name="piv_generate_x25519_cert">Generate X25519</string>
-    <string name="piv_import_cert">Import</string>
-    <string name="piv_message_hint">Message</string>
-    <string name="piv_sign">Sign</string>
-    <string name="piv_sign_desc">Sign a message with the private key</string>
-    <string name="piv_certificate_desc">Certificate actions</string>
-    <string name="piv_webview">WebView</string>
 
 <!--    <string name="mgmt_subtitle">Enable/disable applications</string>-->
     <string name="mgmt_subtitle"> </string>
@@ -68,6 +45,7 @@
     <string name="otp_yubistatic_desc">Program a Yubico static password.\nWARNING: Operation can NOT be undone!</string>
     <string name="otp_clipboard_paste">Paste from clipboard</string>
     <string name="otp_yubistatic_id">Type or paste from clipboard</string>
+    <string name="otp_yubistatic_hint">Static password</string>
     <string name="otp_illegal_char_desc">Error: Illegal character for selected keyboard</string>
     <string name="otp_extras_desc">Extras</string>
     <string name="otp_extras_cr_desc">Append \'enter\'</string>
@@ -105,10 +83,6 @@
     <string name="otp_program">Program</string>
     <string name="otp_use">Use</string>
 
-    <string name="oath_credentials">Credentials</string>
-    <string name="oath_key">Secret (hex)</string>
-    <string name="oath_issuer">Credential issuer</string>
-    <string name="oath_add">Add new credential</string>
 
     <string name="about">About</string>
     <string name="about_app">"sub rosa" is an app built on top of YubiKit library provided by Yubico.\n\n
@@ -192,6 +166,8 @@
     <string name="staticpwd_reset_title">Reset Static Password</string>
     <string name="staticpwd_reset_message">This will overwrite %1$s, erasing the currently programmed static password.\n\nThis cannot be undone.</string>
     <string name="staticpwd_reset_confirm">Reset</string>
+    <string name="staticpwd_slot_1">Slot 1</string>
+    <string name="staticpwd_slot_2">Slot 2</string>
 
     <string name="usage">Usage</string>
     <string name="dash">—</string>

@@ -1,4 +1,4 @@
-package acab.naiveha.subrosa.ui.openpgp
+package acab.naiveha.subrosa.ui
 
 import com.yubico.yubikit.android.transport.usb.UsbDeviceManager
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
@@ -38,9 +38,4 @@ enum class PgpDeviceType {
             }
         }
     }
-}
-
-fun PgpDeviceType?.writer(): OpenPgpWriter = when (this) {
-    PgpDeviceType.NITROKEY -> NitrokeyPgpWriter
-    else                   -> YubiKeyPgpWriter
 }

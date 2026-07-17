@@ -38,6 +38,7 @@ public class OtpActivity extends YubiKeyPromptActivity {
   public static final String EXTRA_ERROR = "error";
 
   public static final String EXTRA_VIA_NFC = "via_nfc";
+  public static final String EXTRA_SCANCODES = "scancodes";
 
   private OtpKeyListener keyListener;
 
@@ -73,9 +74,10 @@ public class OtpActivity extends YubiKeyPromptActivity {
               }
 
               @Override
-              public void onCaptureComplete(String capture) {
+              public void onCaptureComplete(String capture, byte[] scancodes) {
                 Intent intent = new Intent();
                 intent.putExtra(EXTRA_OTP, capture);
+                intent.putExtra(EXTRA_SCANCODES, scancodes);
                 intent.putExtra(EXTRA_VIA_NFC, false);
                 setResult(Activity.RESULT_OK, intent);
                 finish();

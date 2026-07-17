@@ -59,8 +59,6 @@ dependencies {
     implementation project(':management')
     implementation project(':fido')
     implementation project(':yubiotp')
-    implementation project(':oath')
-    implementation project(':piv')
     implementation project(':openpgp')
     implementation project(':support')
 

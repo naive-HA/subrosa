@@ -3,6 +3,8 @@ package acab.naiveha.subrosa.ui.openpgp
 import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import acab.naiveha.subrosa.ui.PgpDeviceType
+import acab.naiveha.subrosa.ui.StatusChannel
 import acab.naiveha.subrosa.ui.YubiKeyViewModel
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
@@ -112,12 +114,12 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
             if (device is NfcYubiKeyDevice) {
                 logNfcConnectionOpened(connection)
 
-                val nitrokeyVersion = runCatching { NitrokeyAdminVersion.query(connection) }.getOrNull()
+                val nitrokeyVersion = NitrokeyAdminVersion.query(connection)
                 if (nitrokeyVersion != null) {
                     logger.info("Nitrokey detected over NFC (admin firmware $nitrokeyVersion) — " +
                         "OpenPGP applet is not reachable over this transport, not attempting it")
                     _connectedDevice.postValue(ConnectedPgpDevice(PgpDeviceType.NITROKEY, nitrokeyVersion))
-                    onError(IOException("Nitrokey over NFC is not supported. Connect over USB to access the OpenPGP applet"))
+                    onError(IOException(NitrokeyAdminVersion.NFC_NOT_SUPPORTED_MESSAGE))
                     return@requestConnection
                 }
             }
@@ -171,7 +173,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
             val type = resolveDeviceType(device, session)
 
             val firmwareVersion = if (type == PgpDeviceType.NITROKEY) {
-                val fw = runCatching { NitrokeyAdminVersion.query(connection) }.getOrNull()
+                val fw = NitrokeyAdminVersion.query(connection)
                 logger.debug("Nitrokey admin firmware version: $fw")
                 runCatching { session.reselect() }
                     .onFailure { logger.warn("Failed to re-select OpenPGP applet after admin query: ${it.message}") }

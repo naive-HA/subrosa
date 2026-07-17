@@ -13,16 +13,6 @@
             android:icon="@drawable/passkey_24px"
             android:title="@string/menu_otp" />
         <item
-            android:id="@+id/nav_piv"
-            android:icon="@drawable/ic_baseline_account_box_24"
-            android:title="@string/menu_piv"
-            android:visible="false" />
-        <item
-            android:id="@+id/nav_oath"
-            android:icon="@drawable/ic_baseline_timelapse_24"
-            android:title="@string/menu_oath"
-            android:visible="false" />
-        <item
             android:id="@+id/nav_openpgp"
             android:icon="@drawable/enhanced_encryption_24px"
             android:title="@string/menu_openpgp" />

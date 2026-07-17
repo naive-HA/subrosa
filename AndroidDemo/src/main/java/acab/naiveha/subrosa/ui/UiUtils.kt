@@ -18,6 +18,7 @@ package acab.naiveha.subrosa.ui
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.text.TextUtils
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -47,10 +48,10 @@ suspend fun getSecret(
     title: Any,
     @StringRes hint: Int = R.string.pin,
     showPaste: Boolean = false,
-    defaultValue: String? = null,
+    defaultValue: CharArray? = null,
     inputType: Int? = null,
     clearTextByDefault: Boolean = false
-) = suspendCoroutine { cont ->
+): CharArray? = suspendCoroutine { cont ->
     val view = LayoutInflater.from(context).inflate(R.layout.dialog_pin, null).apply {
         val textInputLayout = findViewById<TextInputLayout>(R.id.dialog_pin_textinputlayout)
         val editText = findViewById<EditText>(R.id.dialog_pin_edittext)
@@ -62,7 +63,7 @@ suspend fun getSecret(
         }
 
         defaultValue?.let {
-            editText.setText(it)
+            editText.setText(it, 0, it.size)
             editText.selectAll()
         }
         editText.requestFocus()
@@ -86,7 +87,10 @@ suspend fun getSecret(
             })
             .setView(view)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                cont.resume(view.findViewById<EditText>(R.id.dialog_pin_edittext).text.toString())
+                val editable = view.findViewById<EditText>(R.id.dialog_pin_edittext).text
+                val chars = CharArray(editable.length)
+                TextUtils.getChars(editable, 0, editable.length, chars, 0)
+                cont.resume(chars)
             }
             .setNeutralButton(android.R.string.cancel) { d, _ ->
                 d.dismiss()
@@ -119,7 +123,7 @@ suspend fun collectPin(
     inputType: Int,
     tag: String,
     logLabel: String,
-    defaultValue: String? = null,
+    defaultValue: CharArray? = null,
     clearTextByDefault: Boolean = false,
 ): CharArray? {
     while (true) {
@@ -131,14 +135,15 @@ suspend fun collectPin(
             clearTextByDefault = clearTextByDefault,
         ) ?: run { Log.d(tag, "$logLabel cancelled"); return null }
 
-        if (entered.length < minLength) {
-            Log.w(tag, "$logLabel too short (${entered.length} < $minLength) — re-showing dialog")
+        if (entered.size < minLength) {
+            Log.w(tag, "$logLabel too short (${entered.size} < $minLength) — re-showing dialog")
             Toast.makeText(context, tooShortRes, Toast.LENGTH_SHORT).show()
+            entered.fill('\u0000')
             continue
         }
 
-        Log.d(tag, "$logLabel collected (length=${entered.length})")
-        return entered.toCharArray()
+        Log.d(tag, "$logLabel collected (length=${entered.size})")
+        return entered
     }
 }
 
@@ -171,28 +176,52 @@ fun Fragment.bindAutoClearStatus(
     }
 }
 
-fun Fragment.showOpenPgpAppletResetDialog(
+/**
+ * A destructive-action confirm/cancel dialog, with the confirm/cancel/dismiss outcome logged
+ * under [logLabel]. Shared by every "are you sure" dialog in the app so wording, button
+ * placement, and logging stay consistent — see [showOpenPgpAppletResetDialog] for a themed
+ * wrapper example.
+ */
+fun Fragment.showConfirmationDialog(
     tag: String,
+    logLabel: String,
+    @StringRes title: Int,
+    message: String,
+    @StringRes confirmText: Int,
     onConfirmed: () -> Unit,
     onCancelled: () -> Unit = {},
 ) {
     MaterialAlertDialogBuilder(requireContext())
-        .setTitle(R.string.openpgp_reset_title)
-        .setMessage(R.string.openpgp_reset_message)
-        .setPositiveButton(R.string.openpgp_reset_confirm) { _, _ ->
-            Log.d(tag, "OpenPGP applet reset confirmed")
+        .setTitle(title)
+        .setMessage(message)
+        .setPositiveButton(confirmText) { _, _ ->
+            Log.d(tag, "$logLabel confirmed")
             onConfirmed()
         }
         .setNegativeButton(android.R.string.cancel) { _, _ ->
-            Log.d(tag, "OpenPGP applet reset cancelled")
+            Log.d(tag, "$logLabel cancelled")
             onCancelled()
         }
         .setOnCancelListener {
-            Log.d(tag, "OpenPGP applet reset dialog dismissed")
+            Log.d(tag, "$logLabel dialog dismissed")
             onCancelled()
         }
         .show()
 }
+
+fun Fragment.showOpenPgpAppletResetDialog(
+    tag: String,
+    onConfirmed: () -> Unit,
+    onCancelled: () -> Unit = {},
+) = showConfirmationDialog(
+    tag         = tag,
+    logLabel    = "OpenPGP applet reset",
+    title       = R.string.openpgp_reset_title,
+    message     = getString(R.string.openpgp_reset_message),
+    confirmText = R.string.openpgp_reset_confirm,
+    onConfirmed = onConfirmed,
+    onCancelled = onCancelled,
+)
 
 private const val ADMIN_PIN_MIN_LENGTH = 8
 private const val USER_PIN_MIN_LENGTH = 6
@@ -203,7 +232,7 @@ suspend fun Fragment.collectAdminPin(
     title: String,
     tag: String,
     logLabel: String = "Admin PIN",
-    defaultValue: String? = null,
+    defaultValue: CharArray? = null,
     clearTextByDefault: Boolean = false,
 ): CharArray? = collectPin(
     requireContext(),
@@ -222,7 +251,7 @@ suspend fun Fragment.collectUserPin(
     title: String,
     tag: String,
     logLabel: String = "User PIN",
-    defaultValue: String? = null,
+    defaultValue: CharArray? = null,
     clearTextByDefault: Boolean = false,
 ): CharArray? = collectPin(
     requireContext(),
@@ -264,13 +293,15 @@ private suspend fun Fragment.collectNewPin(
             return null
         }
 
-        if (confirm != String(entered)) {
+        if (!confirm.contentEquals(entered)) {
             entered.fill('\u0000')
+            confirm.fill('\u0000')
             Log.w(tag, "New $label PIN confirmation did not match — re-showing dialog")
             Toast.makeText(requireContext(), R.string.openpgp_new_pin_mismatch, Toast.LENGTH_SHORT).show()
             continue
         }
 
+        confirm.fill('\u0000')
         Log.d(tag, "New $label PIN collected and confirmed (length=${entered.size})")
         return entered
     }

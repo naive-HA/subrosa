@@ -48,6 +48,7 @@ import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.application.InvalidPinException
 import com.yubico.yubikit.management.ManagementSession
+import com.yubico.yubikit.openpgp.OpenPgpSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -270,43 +271,21 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                     return@launch
                 }
 
-            val oldPin = currentPin
-            val finalNewPin = newPin
-            openPgpViewModel.pendingAction.value = {
-                try {
-                    Log.i(TAG, "pendingAction — changing $label PIN")
-                    if (isAdmin) {
-                        OpenPgpWriterUtils.changeAdminPin(this, oldPin, finalNewPin, TAG, status = openPgpViewModel::postPinChangeStatus)
-                    } else {
-                        OpenPgpWriterUtils.changeUserPin(this, oldPin, finalNewPin, TAG, status = openPgpViewModel::postPinChangeStatus)
-                    }
-                    openPgpViewModel.postPinChangeStatus(OpenPgpViewModel.PIN_CHANGE_COMPLETE_STATUS)
-                    viewModel.refreshPinRetries(this)
-                    null
-                } catch (e: Exception) {
-                    Log.w(TAG, "Change $label PIN failed: ${e.message}")
-
-                    if (e is InvalidPinException) {
-                        if (isAdmin) {
-                            viewModel.updatePinRetries(admin = e.attemptsRemaining)
-                            lifecycleScope.launch(Dispatchers.Main) {
-                                Toast.makeText(requireContext(), "Admin PIN change failed", Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            viewModel.updatePinRetries(user = e.attemptsRemaining)
-                            lifecycleScope.launch(Dispatchers.Main) {
-                                Toast.makeText(requireContext(), "User PIN change failed", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-
-                    openPgpViewModel.postPinChangeStatus(e.message ?: "Failed to change $label PIN")
-                    null
-                } finally {
-                    oldPin.fill('\u0000')
-                    finalNewPin.fill('\u0000')
-                    Log.d(TAG, "Change $label PIN — old/new PIN zeroed")
-                    lifecycleScope.launch(Dispatchers.Main) { openPgpViewModel.currentOperation.value = OpenPgpOperation.NONE }
+            runOpenPgpPinOperation(
+                logLabel = "Change $label PIN",
+                pins = listOf(currentPin, newPin),
+                completeStatus = OpenPgpViewModel.PIN_CHANGE_COMPLETE_STATUS,
+                failureFallback = "Failed to change $label PIN",
+                wrongPinToastMessage = "$label PIN change failed",
+                onWrongPin = { attemptsRemaining ->
+                    if (isAdmin) viewModel.updatePinRetries(admin = attemptsRemaining)
+                    else viewModel.updatePinRetries(user = attemptsRemaining)
+                },
+            ) { session ->
+                if (isAdmin) {
+                    OpenPgpWriterUtils.changeAdminPin(session, currentPin, newPin, TAG, status = openPgpViewModel::postPinChangeStatus)
+                } else {
+                    OpenPgpWriterUtils.changeUserPin(session, currentPin, newPin, TAG, status = openPgpViewModel::postPinChangeStatus)
                 }
             }
         }
@@ -334,31 +313,51 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                     return@launch
                 }
 
-            openPgpViewModel.pendingAction.value = {
-                try {
-                    Log.i(TAG, "pendingAction — resetting blocked User PIN")
-                    OpenPgpWriterUtils.resetBlockedUserPin(this, adminPin, newUserPin, TAG, status = openPgpViewModel::postPinChangeStatus)
-                    openPgpViewModel.postPinChangeStatus(OpenPgpViewModel.PIN_RESET_COMPLETE_STATUS)
-                    viewModel.refreshPinRetries(this)
-                    null
-                } catch (e: Exception) {
-                    Log.w(TAG, "Reset User PIN failed: ${e.message}")
+            runOpenPgpPinOperation(
+                logLabel = "Reset User PIN",
+                pins = listOf(adminPin, newUserPin),
+                completeStatus = OpenPgpViewModel.PIN_RESET_COMPLETE_STATUS,
+                failureFallback = "Failed to reset User PIN",
+                wrongPinToastMessage = "Reset User PIN failed: wrong Admin PIN",
+                onWrongPin = { attemptsRemaining -> viewModel.updatePinRetries(admin = attemptsRemaining) },
+            ) { session ->
+                OpenPgpWriterUtils.resetBlockedUserPin(session, adminPin, newUserPin, TAG, status = openPgpViewModel::postPinChangeStatus)
+            }
+        }
+    }
 
-                    if (e is InvalidPinException) {
-                        viewModel.updatePinRetries(admin = e.attemptsRemaining)
-                        lifecycleScope.launch(Dispatchers.Main) {
-                            Toast.makeText(requireContext(), "Reset User PIN failed: wrong Admin PIN", Toast.LENGTH_SHORT).show()
-                        }
+    private fun runOpenPgpPinOperation(
+        logLabel: String,
+        pins: List<CharArray>,
+        completeStatus: String,
+        failureFallback: String,
+        wrongPinToastMessage: String,
+        onWrongPin: (attemptsRemaining: Int) -> Unit,
+        execute: (OpenPgpSession) -> Unit,
+    ) {
+        openPgpViewModel.pendingAction.value = {
+            try {
+                Log.i(TAG, "pendingAction — $logLabel")
+                execute(this)
+                openPgpViewModel.postPinChangeStatus(completeStatus)
+                viewModel.refreshPinRetries(this)
+                null
+            } catch (e: Exception) {
+                Log.w(TAG, "$logLabel failed: ${e.message}")
+
+                if (e is InvalidPinException) {
+                    onWrongPin(e.attemptsRemaining)
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        Toast.makeText(requireContext(), wrongPinToastMessage, Toast.LENGTH_SHORT).show()
                     }
-
-                    openPgpViewModel.postPinChangeStatus(e.message ?: "Failed to reset User PIN")
-                    null
-                } finally {
-                    adminPin.fill('\u0000')
-                    newUserPin.fill('\u0000')
-                    Log.d(TAG, "Reset User PIN — Admin PIN/new User PIN zeroed")
-                    lifecycleScope.launch(Dispatchers.Main) { openPgpViewModel.currentOperation.value = OpenPgpOperation.NONE }
                 }
+
+                openPgpViewModel.postPinChangeStatus(e.message ?: failureFallback)
+                null
+            } finally {
+                pins.forEach { it.fill('\u0000') }
+                Log.d(TAG, "$logLabel — PIN(s) zeroed")
+                lifecycleScope.launch(Dispatchers.Main) { openPgpViewModel.currentOperation.value = OpenPgpOperation.NONE }
             }
         }
     }

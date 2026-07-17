@@ -4,6 +4,9 @@ import com.yubico.yubikit.core.smartcard.SmartCardConnection
 
 internal object NitrokeyAdminVersion {
 
+    const val NFC_NOT_SUPPORTED_MESSAGE =
+        "Nitrokey over NFC is not supported. Connect over USB to access the OpenPGP applet"
+
     private val ADMIN_AID = byteArrayOf(
         0xa0.toByte(), 0x00, 0x00, 0x08, 0x47, 0x00, 0x00, 0x00, 0x01
     )

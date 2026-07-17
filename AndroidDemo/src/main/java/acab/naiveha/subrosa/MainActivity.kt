@@ -90,8 +90,8 @@ class MainActivity : AppCompatActivity() {
         navController = findNavController(R.id.nav_host_fragment)
         appBarConfiguration = AppBarConfiguration(
             setOf(
-                R.id.nav_management, R.id.nav_yubiotp, R.id.nav_piv,
-                R.id.nav_oath, R.id.nav_openpgp, R.id.nav_licenses
+                R.id.nav_management, R.id.nav_yubiotp,
+                R.id.nav_openpgp, R.id.nav_licenses
             ),
             drawerLayout
         )

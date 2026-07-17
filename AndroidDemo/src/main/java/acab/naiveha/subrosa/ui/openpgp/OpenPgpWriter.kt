@@ -1,5 +1,6 @@
 package acab.naiveha.subrosa.ui.openpgp
 
+import acab.naiveha.subrosa.ui.PgpDeviceType
 import com.yubico.yubikit.openpgp.OpenPgpSession
 
 interface OpenPgpWriter {
@@ -19,4 +20,9 @@ interface OpenPgpWriter {
     ): String?
 
     fun wipe(session: OpenPgpSession, status: (String) -> Unit = {}): String?
+}
+
+fun PgpDeviceType?.writer(): OpenPgpWriter = when (this) {
+    PgpDeviceType.NITROKEY -> NitrokeyPgpWriter
+    else                   -> YubiKeyPgpWriter
 }

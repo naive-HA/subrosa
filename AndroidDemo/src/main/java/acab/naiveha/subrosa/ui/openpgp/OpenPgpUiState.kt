@@ -1,7 +1,6 @@
 package acab.naiveha.subrosa.ui.openpgp
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
+import acab.naiveha.subrosa.ui.PgpDeviceType
 
 data class ConnectedPgpDevice(
     val type: PgpDeviceType,
@@ -21,10 +20,4 @@ enum class OpenPgpOperation {
     RESET_ADMIN_PIN,
     CHANGE_USER_PIN,
     RESET_USER_PIN,
-}
-
-class StatusChannel {
-    private val _value = MutableLiveData("")
-    val value: LiveData<String> = _value
-    fun post(message: String) = _value.postValue(message)
 }

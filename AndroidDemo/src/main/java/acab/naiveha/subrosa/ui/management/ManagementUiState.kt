@@ -1,11 +1,11 @@
 package acab.naiveha.subrosa.ui.management
 
-import com.yubico.yubikit.core.YubiKeyType
+import acab.naiveha.subrosa.ui.PgpDeviceType
 import com.yubico.yubikit.management.DeviceInfo
 
 internal data class ConnectedDeviceInfo(
     val deviceInfo: DeviceInfo?,
-    val type: YubiKeyType?,
+    val type: PgpDeviceType,
     val atr: String,
     val isNfc: Boolean,
     val infoText: String,

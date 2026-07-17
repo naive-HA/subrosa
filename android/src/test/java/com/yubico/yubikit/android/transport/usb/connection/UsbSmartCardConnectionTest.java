@@ -25,11 +25,11 @@ import static org.mockito.Mockito.when;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
-import com.yubico.yubikit.testing.Codec;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.bouncycastle.util.encoders.Hex;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -44,7 +44,7 @@ public class UsbSmartCardConnectionTest {
   private final List<byte[]> packetsOut = new ArrayList<>();
 
   private void assertSent(String hex) {
-    Assert.assertArrayEquals("Unexpected packet sent", Codec.fromHex(hex), packetsOut.remove(0));
+    Assert.assertArrayEquals("Unexpected packet sent", Hex.decode(hex), packetsOut.remove(0));
   }
 
   @Before
@@ -67,7 +67,7 @@ public class UsbSmartCardConnectionTest {
         .then(
             invocation -> {
               byte[] buffer = invocation.getArgument(1);
-              byte[] packet = Codec.fromHex(packetsIn.remove(0));
+              byte[] packet = Hex.decode(packetsIn.remove(0));
               System.arraycopy(packet, 0, buffer, 0, packet.length);
               return packet.length;
             });
@@ -96,10 +96,10 @@ public class UsbSmartCardConnectionTest {
     UsbSmartCardConnection connection = getConnection();
 
     packetsIn.add("800500000000010000000102039000");
-    byte[] response = connection.sendAndReceive(Codec.fromHex("0001020300"));
+    byte[] response = connection.sendAndReceive(Hex.decode("0001020300"));
     assertSent("6f0500000000010000000001020300");
 
-    Assert.assertArrayEquals(Codec.fromHex("0102039000"), response);
+    Assert.assertArrayEquals(Hex.decode("0102039000"), response);
   }
 
   @Test
@@ -108,7 +108,7 @@ public class UsbSmartCardConnectionTest {
 
     packetsIn.add("800200000000010000009000");
     connection.sendAndReceive(
-        Codec.fromHex(
+        Hex.decode(
             "0001000032000102030405060708090001020304050607080900010203040506070809000102030405060"
                 + "7080900010203040506070809"));
 
@@ -124,7 +124,7 @@ public class UsbSmartCardConnectionTest {
 
     packetsIn.add("800200000000010000009000");
     connection.sendAndReceive(
-        Codec.fromHex(
+        Hex.decode(
             "0001000031000102030405060708090001020304050607080900010203040506070809000102030405060"
                 + "70809000102030405060708"));
 
@@ -148,14 +148,14 @@ public class UsbSmartCardConnectionTest {
     packetsIn.add("");
     packetsIn.add(secondChunk);
 
-    byte[] response = connection.sendAndReceive(Codec.fromHex("00ca006e00"));
+    byte[] response = connection.sendAndReceive(Hex.decode("00ca006e00"));
 
     assertSent("6f05000000000100000000ca006e00");
 
     assertSent("6f000000000002001000");
 
     byte[] expected =
-        Codec.fromHex(
+        Hex.decode(
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                 + "bbbbbbbb9000");
     Assert.assertArrayEquals(expected, response);
@@ -175,13 +175,13 @@ public class UsbSmartCardConnectionTest {
     packetsIn.add("");
     packetsIn.add(chunk3);
 
-    byte[] response = connection.sendAndReceive(Codec.fromHex("00ca006e00"));
+    byte[] response = connection.sendAndReceive(Hex.decode("00ca006e00"));
 
     assertSent("6f05000000000100000000ca006e00");
     assertSent("6f000000000002001000");
     assertSent("6f000000000003001000");
 
-    byte[] expected = Codec.fromHex("aa".repeat(54) + "bb".repeat(54) + "cc".repeat(10) + "9000");
+    byte[] expected = Hex.decode("aa".repeat(54) + "bb".repeat(54) + "cc".repeat(10) + "9000");
     Assert.assertArrayEquals(expected, response);
   }
 }
