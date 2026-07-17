@@ -41,7 +41,8 @@ public class DeviceInfoTest {
   @Test
   public void testParseSerialNumber() {
     assertNull(defaultInfo().getSerialNumber());
-    assertEquals(Integer.valueOf(123456789), infoOf(0x02, Hex.decode("075BCD15")).getSerialNumber());
+    assertEquals(
+        Integer.valueOf(123456789), infoOf(0x02, Hex.decode("075BCD15")).getSerialNumber());
   }
 
   @Test

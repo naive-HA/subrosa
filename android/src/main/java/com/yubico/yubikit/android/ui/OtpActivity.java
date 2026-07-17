@@ -114,7 +114,8 @@ public class OtpActivity extends YubiKeyPromptActivity {
         } catch (IOException e) {
           invokeReadError(callback, "NFC OTP read", e);
         } catch (RuntimeException e) {
-          invokeReadError(callback, "NFC OTP NDEF parse", new IOException("Failed to parse NDEF payload", e));
+          invokeReadError(
+              callback, "NFC OTP NDEF parse", new IOException("Failed to parse NDEF payload", e));
         }
       }
     }
