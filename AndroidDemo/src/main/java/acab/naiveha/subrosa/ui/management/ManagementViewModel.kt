@@ -139,7 +139,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
         return when (connected.type) {
             PgpDeviceType.YUBIKEY -> PgpStatus.YubiKey(programmed = pgp.isProgrammed())
             PgpDeviceType.NITROKEY -> PgpStatus.Nitrokey(
-                programmed = pgp?.let { it.isProgrammed() },
+                programmed = pgp?.isProgrammed(),
                 nfcUnsupported = pgp == null && connected.isNfc,
             )
             PgpDeviceType.UNKNOWN -> when {

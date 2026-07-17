@@ -157,7 +157,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         val atr = connection.atr
         logger.debug("NFC SmartCardConnection open — " +
             "extendedLengthApduSupported=${connection.isExtendedLengthApduSupported} " +
-            "atr/historicalBytes=${atr?.joinToString(" ") { "%02X".format(it) } ?: "null"}")
+            "atr/historicalBytes=${atr.joinToString(" ") { "%02X".format(it) } ?: "null"}")
     }
 
     private fun openSessionAndDispatch(
