@@ -61,7 +61,7 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 		<td></td>
 		<td>Read</td>
 		<td>✅</td>
-		<td>❌</td>
+		<td>✅</td>
 		<td>❌</td>
 		<td>❌</td>
 	</tr>
