@@ -25,14 +25,17 @@ import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.application.ApplicationNotAvailableException
-import com.yubico.yubikit.yubiotp.ConfigurationState
 import com.yubico.yubikit.yubiotp.Slot
 import com.yubico.yubikit.yubiotp.YubiOtpSession
+import org.bouncycastle.util.encoders.Hex
+import org.slf4j.LoggerFactory
 
 
 class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
-    private val _slotStatus = MutableLiveData<ConfigurationState?>()
-    val slotConfigurationState = _slotStatus
+    private val logger = LoggerFactory.getLogger(OtpViewModel::class.java)
+
+    private val _uiState = MutableLiveData<OtpUiState?>()
+    val uiState: LiveData<OtpUiState?> = _uiState
 
     private val _clearUiTrigger = MutableLiveData<Boolean>(false)
     val clearUiTrigger: LiveData<Boolean> = _clearUiTrigger
@@ -52,9 +55,15 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     fun requestClearUi() {
         _clearUiTrigger.value = true
         _clearUiTrigger.value = false
+        _uiState.postValue(null)
         postSaveStatus("")
         postReadStatus("")
         postDeleteStatus("")
+    }
+
+    override fun onDeviceDisconnected() {
+        logger.debug("onDeviceDisconnected — clearing slot status")
+        _uiState.postValue(null)
     }
 
     override fun getSession(
@@ -63,28 +72,44 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         callback: (YubiOtpSession) -> Unit
     ) {
         if (isUsbNitrokey(device)) {
+            logger.info("USB Nitrokey detected — YubiOTP is not supported on this device")
             onError(ApplicationNotAvailableException(NITROKEY_NOT_SUPPORTED_MESSAGE))
             return
         }
 
         if (device is NfcYubiKeyDevice && pendingAction.value == null) {
+            logger.debug("NFC tag detected but no pendingAction queued — ignoring tap " +
+                "(press Save/Read/Delete first, then tap)")
             return
         }
 
+        logger.debug("Opening YubiOtpSession over ${transportLabel(device)}")
         YubiOtpSession.create(device) { result ->
             try {
-                callback(result.value)
+                val session = result.value
+                logger.debug("YubiOtpSession opened over ${transportLabel(device)}")
+                callback(session)
             } catch (e: ApplicationNotAvailableException) {
+                logger.info("YubiOTP application not available over ${transportLabel(device)}: ${e.message}")
                 onError(ApplicationNotAvailableException(NITROKEY_NOT_SUPPORTED_MESSAGE))
             } catch (e: Throwable) {
+                logger.error("Failed to open YubiOtpSession over ${transportLabel(device)}: ${e.message}", e)
                 onError(e)
             }
         }
     }
 
     override fun YubiOtpSession.updateState() {
-        _slotStatus.postValue(configurationState)
+        val state = OtpUiState(
+            slotOneProgrammed = configurationState.isConfigured(Slot.ONE),
+            slotTwoProgrammed = configurationState.isConfigured(Slot.TWO),
+        )
+        logger.debug("updateState — slotOne=${state.slotOneProgrammed} slotTwo=${state.slotTwoProgrammed}")
+        _uiState.postValue(state)
     }
+
+    private fun transportLabel(device: YubiKeyDevice): String =
+        if (device is NfcYubiKeyDevice) "NFC" else "USB"
 
     companion object {
         const val NITROKEY_NOT_SUPPORTED_MESSAGE =
@@ -95,6 +120,8 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         fun slotProgrammedStatus(slot: Slot): String = "Slot $slot programmed"
 
         fun slotResetStatus(slot: Slot): String = "Slot $slot reset"
+
+        fun calculatedResponseStatus(response: ByteArray): String = "Calculated response: ${String(Hex.encode(response))}"
 
         fun isUsbNitrokey(device: YubiKeyDevice?): Boolean =
             device is UsbYubiKeyDevice && PgpDeviceType.fromUsbDescriptor(device) == PgpDeviceType.NITROKEY

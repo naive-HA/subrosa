@@ -27,7 +27,6 @@ import com.google.android.material.tabs.TabLayoutMediator
 import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.databinding.FragmentYubiotpBinding
 import acab.naiveha.subrosa.ui.YubiKeyFragment
-import com.yubico.yubikit.yubiotp.Slot
 import com.yubico.yubikit.yubiotp.YubiOtpSession
 
 class OtpFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
@@ -55,6 +54,7 @@ class OtpFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
             })
         }.attach()
 
+        // TODO: Yubico OTP and Challenge-Response tabs are intentionally disabled for now
 //        TabLayoutMediator(binding.tabLayout, binding.pager) { tab, position ->
 //            tab.setText(when (position) {
 //                0 -> R.string.otp_yubistatic
@@ -64,10 +64,20 @@ class OtpFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
 //            })
 //        }.attach()
 
-        viewModel.slotConfigurationState.observe(viewLifecycleOwner) {
-            if (it != null) {
+        viewModel.uiState.observe(viewLifecycleOwner) { state ->
+            if (state != null) {
                 binding.emptyView.visibility = View.INVISIBLE
-                binding.otpStatusText.text = "Slot 1: ${if (it.isConfigured(Slot.ONE)) "programmed" else "empty"}\nSlot 2: ${if (it.isConfigured(Slot.TWO)) "programmed" else "empty"}"
+                binding.otpStatusText.text = getString(
+                    R.string.otp_slot_status,
+                    getString(
+                        if (state.slotOneProgrammed) R.string.otp_slot_state_programmed
+                        else R.string.otp_slot_state_empty,
+                    ),
+                    getString(
+                        if (state.slotTwoProgrammed) R.string.otp_slot_state_programmed
+                        else R.string.otp_slot_state_empty,
+                    ),
+                )
                 binding.otpStatusText.visibility = View.VISIBLE
             } else {
                 binding.emptyView.visibility = View.VISIBLE

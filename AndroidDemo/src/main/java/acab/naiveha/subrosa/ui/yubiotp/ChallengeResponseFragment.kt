@@ -17,6 +17,7 @@
 package acab.naiveha.subrosa.ui.yubiotp
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -26,10 +27,13 @@ import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.databinding.FragmentYubiotpChalrespBinding
 import com.yubico.yubikit.core.util.RandomUtils
 import com.yubico.yubikit.yubiotp.HmacSha1SlotConfiguration
-import com.yubico.yubikit.yubiotp.Slot
 import org.bouncycastle.util.encoders.Hex
 
 class ChallengeResponseFragment : Fragment() {
+    companion object {
+        private const val TAG = "ChallengeResponseFragment"
+    }
+
     private val viewModel: OtpViewModel by activityViewModels()
     private lateinit var binding: FragmentYubiotpChalrespBinding
 
@@ -42,49 +46,44 @@ class ChallengeResponseFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.textLayoutKey.setEndIconOnClickListener {
-            binding.editTextKey.setText(String(Hex.encode(RandomUtils.getRandomBytes(8))))
+        binding.textLayoutKey.bindRandomGenerator(binding.editTextKey) {
+            String(Hex.encode(RandomUtils.getRandomBytes(8)))
         }
-        binding.editTextKey.setText(String(Hex.encode(RandomUtils.getRandomBytes(8))))
-
-        binding.textLayoutChallenge.setEndIconOnClickListener {
-            binding.editTextChallenge.setText(String(Hex.encode(RandomUtils.getRandomBytes(8))))
+        binding.textLayoutChallenge.bindRandomGenerator(binding.editTextChallenge) {
+            String(Hex.encode(RandomUtils.getRandomBytes(8)))
         }
-        binding.editTextChallenge.setText(String(Hex.encode(RandomUtils.getRandomBytes(8))))
 
         binding.btnSave.setOnClickListener {
-            try {
+            runValidated(viewModel) {
                 val key = Hex.decode(binding.editTextKey.text.toString())
                 val touch = binding.switchRequireTouch.isChecked
-                val slot = when (binding.slotRadio.checkedRadioButtonId) {
-                    R.id.radio_slot_1 -> Slot.ONE
-                    R.id.radio_slot_2 -> Slot.TWO
-                    else -> throw IllegalStateException("No slot selected")
-                }
+                val slot = resolveSlot(binding.slotRadio.checkedRadioButtonId, R.id.radio_slot_1, R.id.radio_slot_2)
+
+                Log.d(TAG, "btnSave — queuing program of slot $slot (requireTouch=$touch)")
                 viewModel.pendingAction.value = {
+                    Log.i(TAG, "pendingAction — programming slot $slot")
                     putConfiguration(slot, HmacSha1SlotConfiguration(key).requireTouch(touch), null, null)
-                    "Slot $slot programmed"
+                    Log.i(TAG, "pendingAction — slot $slot programmed")
+                    OtpViewModel.slotProgrammedStatus(slot)
                 }
-            } catch (e: Exception) {
-                viewModel.postResult(Result.failure(e))
             }
         }
 
         binding.btnCalculateResponse.setOnClickListener {
-            try {
+            runValidated(viewModel) {
                 val challenge = Hex.decode(binding.editTextChallenge.text.toString())
-                val slot = when (binding.slotCalculateRadio.checkedRadioButtonId) {
-                    R.id.radio_calculate_slot_1 -> Slot.ONE
-                    R.id.radio_calculate_slot_2 -> Slot.TWO
-                    else -> throw IllegalStateException("No slot selected")
-                }
+                val slot = resolveSlot(
+                    binding.slotCalculateRadio.checkedRadioButtonId,
+                    R.id.radio_calculate_slot_1,
+                    R.id.radio_calculate_slot_2,
+                )
 
+                Log.d(TAG, "btnCalculateResponse — queuing calculation on slot $slot")
                 viewModel.pendingAction.value = {
+                    Log.i(TAG, "pendingAction — calculating response on slot $slot")
                     val response = calculateHmacSha1(slot, challenge, null)
-                    "Calculated response: " + String(Hex.encode(response))
+                    OtpViewModel.calculatedResponseStatus(response)
                 }
-            } catch (e: java.lang.Exception) {
-                viewModel.postResult(Result.failure(e))
             }
         }
     }

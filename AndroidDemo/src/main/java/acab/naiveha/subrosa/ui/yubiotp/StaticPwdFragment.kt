@@ -11,6 +11,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -28,6 +29,7 @@ import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.android.ui.OtpActivity
 import com.yubico.yubikit.android.ui.YubiKeyPromptActivity
+import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.smartcard.SmartCardConnection
 import com.yubico.yubikit.core.util.NdefUtils
 import com.yubico.yubikit.yubiotp.Slot
@@ -59,14 +61,19 @@ class StaticPwdFragment : Fragment() {
         override fun parseResult(resultCode: Int, intent: Intent?): Result<ByteArray>? = when (resultCode) {
             Activity.RESULT_OK -> {
                 val scancodes = intent?.getByteArrayExtra(OtpActivity.EXTRA_SCANCODES)
-                if (scancodes != null) Result.success(scancodes) else Result.failure(IOException("OtpActivity returned no data"))
+                if (scancodes != null) Result.success(scancodes) else Result.failure(IOException(ERROR_NO_DATA))
             }
             OtpActivity.RESULT_ERROR -> {
                 @Suppress("DEPRECATION")
                 val error = intent?.getSerializableExtra(OtpActivity.EXTRA_ERROR) as? Throwable
-                Result.failure(error ?: IOException("Failed to read static password"))
+                Result.failure(error ?: IOException(ERROR_READ_FAILED))
             }
             else -> null
+        }
+
+        companion object {
+            private const val ERROR_NO_DATA = "OtpActivity returned no data"
+            private const val ERROR_READ_FAILED = "Failed to read static password"
         }
     }
 
@@ -87,24 +94,33 @@ class StaticPwdFragment : Fragment() {
 
     private fun startRead(slotTwo: Boolean) {
         pendingReadSlotTwo = slotTwo
-        when (val device = activityViewModel.yubiKey.value) {
-            is NfcYubiKeyDevice -> onNfcDeviceForRead(device)
-            null -> {
-                readPrompt.setHelpText(getString(R.string.yubikit_prompt_plug_in_or_tap))
-                readPrompt.show()
-            }
-            else -> {
-                pendingReadSlotTwo = null
-                activityViewModel.setYubiKeyListenerEnabled(false)
-                requestOtp.launch(Unit)
-            }
+        val device = activityViewModel.yubiKey.value
+        if (device == null) {
+            Log.d(TAG, "startRead — no device connected yet, showing prompt")
+            readPrompt.setHelpText(getString(R.string.yubikit_prompt_plug_in_or_tap))
+            readPrompt.show()
+        } else {
+            dispatchRead(device)
+        }
+    }
+
+    private fun dispatchRead(device: YubiKeyDevice) {
+        if (pendingReadSlotTwo == null) return
+        if (readPrompt.isShowing) readPrompt.dismiss()
+        if (device is NfcYubiKeyDevice) {
+            onNfcDeviceForRead(device)
+        } else {
+            Log.d(TAG, "dispatchRead — USB device available, launching OtpActivity")
+            pendingReadSlotTwo = null
+            activityViewModel.setYubiKeyListenerEnabled(false)
+            requestOtp.launch(Unit)
         }
     }
 
     private fun onNfcDeviceForRead(device: NfcYubiKeyDevice) {
         val slotTwo = pendingReadSlotTwo ?: return
         pendingReadSlotTwo = null
-        if (readPrompt.isShowing) readPrompt.dismiss()
+        Log.d(TAG, "onNfcDeviceForRead — reading slot ${if (slotTwo) "TWO" else "ONE"} over NFC")
 
         viewLifecycleOwner.lifecycleScope.launch {
             val result = withContext(activityViewModel.singleDispatcher) {
@@ -117,8 +133,12 @@ class StaticPwdFragment : Fragment() {
                 }
             }
             result.fold(
-                onSuccess = { scancodes -> decodeAndShow(scancodes) },
+                onSuccess = { scancodes ->
+                    Log.d(TAG, "onNfcDeviceForRead — NDEF read succeeded (${scancodes.size} bytes)")
+                    decodeAndShow(scancodes)
+                },
                 onFailure = { e ->
+                    Log.w(TAG, "onNfcDeviceForRead — failed: ${e.message}")
                     viewModel.postResult(Result.failure(e))
                 },
             )
@@ -130,11 +150,19 @@ class StaticPwdFragment : Fragment() {
         val password = try {
             Keyboard.decode(scancodes, selectedKeyboard(binding.readKeyboardRadio.checkedRadioButtonId))
         } catch (e: IllegalStateException) {
-            viewModel.postResult(Result.failure(e))
+            Log.w(TAG, "decodeAndShow — Keyboard.decode failed: ${e.message}")
+            viewModel.postResult(Result.failure(Exception(describeError(e), e)))
             return
         }
+        Log.d(TAG, "decodeAndShow — decoded ${password.length} character password")
         showStaticPasswordDialog(password)
         viewModel.postReadStatus(OtpViewModel.READ_COMPLETE_STATUS)
+    }
+
+    private fun requireWithinMaxLength(text: String) {
+        if (text.length > MAX_STATIC_PASSWORD_LENGTH) {
+            throw IllegalStateException(getString(R.string.otp_static_password_too_long, MAX_STATIC_PASSWORD_LENGTH))
+        }
     }
 
     private val keyboardByRadioId = mapOf(
@@ -169,8 +197,8 @@ class StaticPwdFragment : Fragment() {
 
         readPrompt = YubiKeyPromptDialog(requireContext()) { pendingReadSlotTwo = null }
         activityViewModel.yubiKey.observe(viewLifecycleOwner) { device ->
-            if (device is NfcYubiKeyDevice && pendingReadSlotTwo != null) {
-                onNfcDeviceForRead(device)
+            if (device != null && pendingReadSlotTwo != null) {
+                dispatchRead(device)
             }
             val usbConnected = device is UsbYubiKeyDevice
             binding.readRadioSlot1.isEnabled = !usbConnected
@@ -208,19 +236,14 @@ class StaticPwdFragment : Fragment() {
                 WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).show(WindowInsetsCompat.Type.ime())
             } else {
                 val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.primaryClip?.getItemAt(0)?.text?.let {
-                    try{
-                        if (it.length > MAX_STATIC_PASSWORD_LENGTH){
-                            throw IllegalStateException("Static password cannot exceed $MAX_STATIC_PASSWORD_LENGTH characters")
-                        } else {
-                            binding.textLayoutStaticpwdId.endIconDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_cancel_24dp)
-                            binding.editTextStaticpwdId.append(it)
-                            WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
-                            binding.editTextStaticpwdId.setSelection(binding.editTextStaticpwdId.text?.length ?: 0)
-                            clipboard.clearPrimaryClip()
-                        }
-                    } catch (e: Exception) {
-                        viewModel.postResult(Result.failure(e))
+                clipboard.primaryClip?.getItemAt(0)?.text?.let { pasted ->
+                    runValidated(viewModel) {
+                        requireWithinMaxLength(pasted.toString())
+                        binding.textLayoutStaticpwdId.endIconDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_cancel_24dp)
+                        binding.editTextStaticpwdId.append(pasted)
+                        WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
+                        binding.editTextStaticpwdId.setSelection(binding.editTextStaticpwdId.text?.length ?: 0)
+                        clipboard.clearPrimaryClip()
                     }
                 }
             }
@@ -284,12 +307,10 @@ class StaticPwdFragment : Fragment() {
 
         binding.btnSaveStaticpwd.setOnClickListener {
             if (rejectIfNitrokeyConnected()) return@setOnClickListener
-            try {
+            runValidated(viewModel) {
                 val keyboard = selectedKeyboard(binding.keyboardRadio.checkedRadioButtonId)
                 var staticpwd = binding.editTextStaticpwdId.text.toString()
-                if (staticpwd.length > MAX_STATIC_PASSWORD_LENGTH){
-                    throw IllegalStateException("Static password cannot exceed $MAX_STATIC_PASSWORD_LENGTH characters")
-                }
+                requireWithinMaxLength(staticpwd)
                 if (binding.extrasTabFront.isChecked){
                     staticpwd = '\t' + staticpwd
                 }
@@ -298,38 +319,30 @@ class StaticPwdFragment : Fragment() {
                 }
                 val scancodes = Keyboard.encode(staticpwd, keyboard)
                 val configuration = StaticPasswordSlotConfiguration(scancodes)
-                if (binding.extrasCr.isChecked){
-                    configuration.appendCr(true)
-                } else {
-                    configuration.appendCr(false)
-                }
-                val slot = when (binding.slotRadio.checkedRadioButtonId) {
-                    R.id.radio_slot_1 -> Slot.ONE
-                    R.id.radio_slot_2 -> Slot.TWO
-                    else -> Slot.ONE
-                }
+                configuration.appendCr(binding.extrasCr.isChecked)
+                val slot = resolveSlot(binding.slotRadio.checkedRadioButtonId, R.id.radio_slot_1, R.id.radio_slot_2)
+                Log.d(TAG, "btnSaveStaticpwd — queuing program of slot $slot (${staticpwd.length} chars, keyboard=$keyboard)")
                 viewModel.pendingAction.value = {
+                    Log.i(TAG, "pendingAction — programming slot $slot")
                     putConfiguration(slot, configuration, null, null)
+                    Log.i(TAG, "pendingAction — slot $slot programmed")
                     viewModel.postSaveStatus(OtpViewModel.slotProgrammedStatus(slot))
                     null
                 }
-            } catch (e: Exception) {
-                viewModel.postResult(Result.failure(e))
             }
         }
         binding.btnRequestStaticpwd.setOnClickListener {
             if (rejectIfNitrokeyConnected()) return@setOnClickListener
             val slotTwo = binding.readSlotRadio.checkedRadioButtonId == R.id.read_radio_slot_2
+            Log.d(TAG, "btnRequestStaticpwd — starting read of slot ${if (slotTwo) "TWO" else "ONE"}")
             startRead(slotTwo)
         }
         binding.btnDeleteStaticpwd.setOnClickListener {
             if (rejectIfNitrokeyConnected()) return@setOnClickListener
-            val slot = when (binding.slotRadioReset.checkedRadioButtonId) {
-                R.id.reset_slot_1 -> Slot.ONE
-                R.id.reset_slot_2 -> Slot.TWO
-                else -> Slot.ONE
+            runValidated(viewModel) {
+                val slot = resolveSlot(binding.slotRadioReset.checkedRadioButtonId, R.id.reset_slot_1, R.id.reset_slot_2)
+                showStaticPasswordResetConfirmationDialog(slot)
             }
-            showStaticPasswordResetConfirmationDialog(slot)
         }
     }
 
@@ -378,18 +391,19 @@ class StaticPwdFragment : Fragment() {
             message     = getString(R.string.staticpwd_reset_message, slotLabel),
             confirmText = R.string.staticpwd_reset_confirm,
             onConfirmed = {
-                try {
+                runValidated(viewModel) {
                     val staticpwd = SLOT_RESET_FILLER_PASSWORD
                     val keyboard = "en_US"
                     val scancodes = Keyboard.encode(staticpwd, keyboard)
                     val configuration = StaticPasswordSlotConfiguration(scancodes)
+                    Log.d(TAG, "onConfirmed — queuing reset of slot $slot")
                     viewModel.pendingAction.value = {
+                        Log.i(TAG, "pendingAction — resetting slot $slot")
                         putConfiguration(slot, configuration, null, null)
+                        Log.i(TAG, "pendingAction — slot $slot reset")
                         viewModel.postDeleteStatus(OtpViewModel.slotResetStatus(slot))
                         null
                     }
-                } catch (e: Exception) {
-                    viewModel.postResult(Result.failure(e))
                 }
             },
         )

@@ -19,6 +19,7 @@ package acab.naiveha.subrosa.ui.yubiotp
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -32,11 +33,14 @@ import acab.naiveha.subrosa.databinding.FragmentYubiotpOtpBinding
 import com.yubico.yubikit.android.ui.OtpActivity
 import com.yubico.yubikit.core.otp.Modhex
 import com.yubico.yubikit.core.util.RandomUtils
-import com.yubico.yubikit.yubiotp.Slot
 import com.yubico.yubikit.yubiotp.YubiOtpSlotConfiguration
 import org.bouncycastle.util.encoders.Hex
 
 class YubiOtpFragment : Fragment() {
+    companion object {
+        private const val TAG = "YubiOtpFragment"
+    }
+
     class OtpContract : ActivityResultContract<Unit, String?>() {
         override fun createIntent(context: Context, input: Unit): Intent = Intent(context, OtpActivity::class.java)
 
@@ -48,7 +52,8 @@ class YubiOtpFragment : Fragment() {
     private val requestOtp = registerForActivityResult(OtpContract()) {
         activityViewModel.setYubiKeyListenerEnabled(true)
         if (it != null) {
-            viewModel.postResult(Result.success("Read OTP: $it"))
+            Log.d(TAG, "requestOtp — OTP read")
+            viewModel.postResult(Result.success(getString(R.string.otp_read_result, it)))
         }
     }
 
@@ -65,38 +70,30 @@ class YubiOtpFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.textLayoutPublicId.setEndIconOnClickListener {
-            binding.editTextPublicId.setText(Modhex.encode(RandomUtils.getRandomBytes(6)))
+        binding.textLayoutPublicId.bindRandomGenerator(binding.editTextPublicId) {
+            Modhex.encode(RandomUtils.getRandomBytes(6))
         }
-        binding.editTextPublicId.setText(Modhex.encode(RandomUtils.getRandomBytes(6)))
-
-        binding.textLayoutPrivateId.setEndIconOnClickListener {
-            binding.editTextPrivateId.setText(String(Hex.encode(RandomUtils.getRandomBytes(6))))
+        binding.textLayoutPrivateId.bindRandomGenerator(binding.editTextPrivateId) {
+            String(Hex.encode(RandomUtils.getRandomBytes(6)))
         }
-        binding.editTextPrivateId.setText(String(Hex.encode(RandomUtils.getRandomBytes(6))))
-
-        binding.textLayoutKey.setEndIconOnClickListener {
-            binding.editTextKey.setText(String(Hex.encode(RandomUtils.getRandomBytes(16))))
+        binding.textLayoutKey.bindRandomGenerator(binding.editTextKey) {
+            String(Hex.encode(RandomUtils.getRandomBytes(16)))
         }
-        binding.editTextKey.setText(String(Hex.encode(RandomUtils.getRandomBytes(16))))
 
         binding.btnSave.setOnClickListener {
-            try {
+            runValidated(viewModel) {
                 val publicId = Modhex.decode(binding.editTextPublicId.text.toString())
                 val privateId = Hex.decode(binding.editTextPrivateId.text.toString())
                 val key = Hex.decode(binding.editTextKey.text.toString())
-                val slot = when (binding.slotRadio.checkedRadioButtonId) {
-                    R.id.radio_slot_1 -> Slot.ONE
-                    R.id.radio_slot_2 -> Slot.TWO
-                    else -> throw IllegalStateException("No slot selected")
-                }
+                val slot = resolveSlot(binding.slotRadio.checkedRadioButtonId, R.id.radio_slot_1, R.id.radio_slot_2)
 
+                Log.d(TAG, "btnSave — queuing program of slot $slot")
                 viewModel.pendingAction.value = {
+                    Log.i(TAG, "pendingAction — programming slot $slot")
                     putConfiguration(slot, YubiOtpSlotConfiguration(publicId, privateId, key), null, null)
-                    "Slot $slot programmed"
+                    Log.i(TAG, "pendingAction — slot $slot programmed")
+                    OtpViewModel.slotProgrammedStatus(slot)
                 }
-            } catch (e: Exception) {
-                viewModel.postResult(Result.failure(e))
             }
         }
 

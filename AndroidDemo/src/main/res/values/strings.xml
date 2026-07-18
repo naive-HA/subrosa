@@ -46,7 +46,15 @@
     <string name="otp_clipboard_paste">Paste from clipboard</string>
     <string name="otp_yubistatic_id">Type or paste from clipboard</string>
     <string name="otp_yubistatic_hint">Static password</string>
-    <string name="otp_illegal_char_desc">Error: Illegal character for selected keyboard</string>
+    <string name="otp_illegal_char_desc">Error: illegal character \'%1$s\' for selected keyboard</string>
+    <string name="otp_unknown_keyboard_desc">Error: unknown keyboard layout \'%1$s\'</string>
+    <string name="otp_unknown_scan_code_desc">Could not decode password for selected keyboard \u2014 try a different keyboard layout</string>
+    <string name="otp_no_slot_selected">No slot selected</string>
+    <string name="otp_static_password_too_long">Static password cannot exceed %1$d characters</string>
+    <string name="otp_slot_status">Slot 1: %1$s\nSlot 2: %2$s</string>
+    <string name="otp_slot_state_programmed">programmed</string>
+    <string name="otp_slot_state_empty">empty</string>
+    <string name="otp_read_result">Read OTP: %1$s</string>
     <string name="otp_extras_desc">Extras</string>
     <string name="otp_extras_cr_desc">Append \'enter\'</string>
     <string name="opt_extras_tab1_desc">Prepend \'tab\'   </string>

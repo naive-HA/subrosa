@@ -549,28 +549,31 @@ object Keyboard {
         "en_MODHEX" to MODHEX,
     )
 
+    class UnknownKeyboardException(val keyboard: String) :
+        IllegalStateException("Unknown keyboard $keyboard")
+
+    class IllegalCharacterException(val char: Char, val keyboard: String) :
+        IllegalStateException("Illegal character '$char' for selected keyboard $keyboard")
+
+    class UnknownScanCodeException(val code: Int, val keyboard: String) :
+        IllegalStateException("Unknown scan code 0x${code.toString(16)} for selected keyboard $keyboard")
+
     fun encode(password: String, keyboard: String): ByteArray {
-        var scancodes = byteArrayOf()
-        val keyboardMap = keyboards[keyboard] ?: throw IllegalStateException("Unknown keyboard $keyboard")
-        password.forEachIndexed { index, char ->
-            scancodes += (keyboardMap[char]?: throw IllegalStateException("Illegal character $char for selected keyboard")).toByte()
+        val keyboardMap = keyboards[keyboard] ?: throw UnknownKeyboardException(keyboard)
+        return ByteArray(password.length) { i ->
+            val char = password[i]
+            (keyboardMap[char] ?: throw IllegalCharacterException(char, keyboard)).toByte()
         }
-        return scancodes
     }
 
     fun decode(scancodes: ByteArray, keyboard: String): String {
-        val keyboardMap = keyboards[keyboard] ?: throw IllegalStateException("Unknown keyboard $keyboard")
+        val keyboardMap = keyboards[keyboard] ?: throw UnknownKeyboardException(keyboard)
         val scancodeToChar = keyboardMap.entries.associate { (char, code) -> code to char }
         val decoded = StringBuilder()
         for (b in scancodes) {
             val code = b.toInt() and 0xFF
             if (code == 0x00) break
-            decoded.append(
-                scancodeToChar[code]
-                    ?: throw IllegalStateException(
-                        "Unknown scan code 0x${code.toString(16)} for selected keyboard",
-                    ),
-            )
+            decoded.append(scancodeToChar[code] ?: throw UnknownScanCodeException(code, keyboard))
         }
         return decoded.toString()
     }
