@@ -55,7 +55,7 @@ import kotlinx.coroutines.withContext
 
 class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewModel>() {
     private companion object {
-        const val TAG = "ManagementFragment"
+        private const val TAG = "ManagementFragment"
     }
     override val viewModel: ManagementViewModel by activityViewModels()
 

@@ -38,7 +38,7 @@ data class ImportBundle(
     }
 }
 object OpenPgpKeyImporter {
-    private const val TAG = "OpenPgpImporter"
+    private const val TAG = "OpenPgpKeyImporter"
     private val bcProvider = BouncyCastleProvider()
     fun prepare(armor: String, passphrase: CharArray = CharArray(0)): ImportBundle {
         Log.d(TAG, "prepare() — armor length=${armor.length} chars, passphrase length=${passphrase.size} (isEmpty=${passphrase.isEmpty()})")

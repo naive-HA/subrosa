@@ -30,7 +30,7 @@ data class OpenPgpKeyInfo(
     val isPassphraseProtected: Boolean,
 )
 object OpenPgpKeyParser {
-    private const val TAG = "OpenPgpParser"
+    private const val TAG = "OpenPgpKeyParser"
     private const val PGP_PRIVATE_ARMOR_HEADER = "-----BEGIN PGP PRIVATE KEY BLOCK-----"
     fun isOpenPgpPrivateKey(text: String): Boolean =
         text.trimStart().startsWith(PGP_PRIVATE_ARMOR_HEADER)

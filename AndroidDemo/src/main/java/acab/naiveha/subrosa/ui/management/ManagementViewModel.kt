@@ -156,7 +156,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
 
         val usbPid: UsbPid? = (device as? UsbYubiKeyDevice)?.pid
 
-        if (device is UsbYubiKeyDevice && PgpDeviceType.fromUsbDescriptor(device) == PgpDeviceType.NITROKEY) {
+        if (PgpDeviceType.isUsbNitrokey(device)) {
             readNitrokeyInfoUsb(device)
             return true
         }

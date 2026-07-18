@@ -31,7 +31,7 @@ import org.bouncycastle.openpgp.PGPSecretKeyRing
 
 class OpenPgpFragment : Fragment() {
     private companion object {
-        const val TAG = "OpenPgpFragment"
+        private const val TAG = "OpenPgpFragment"
     }
     private val viewModel: OpenPgpViewModel by activityViewModels()
     private lateinit var binding: FragmentOpenpgpBinding

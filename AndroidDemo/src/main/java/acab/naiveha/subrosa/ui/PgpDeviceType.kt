@@ -27,6 +27,9 @@ enum class PgpDeviceType {
             return if (isNitrokey) NITROKEY else YUBIKEY
         }
 
+        fun isUsbNitrokey(device: YubiKeyDevice?): Boolean =
+            device is UsbYubiKeyDevice && fromUsbDescriptor(device) == NITROKEY
+
         fun detect(device: YubiKeyDevice, manufacturerId: Short, version: Version): PgpDeviceType {
             val byManufacturer = fromManufacturerId(manufacturerId)
             if (byManufacturer != UNKNOWN) return byManufacturer

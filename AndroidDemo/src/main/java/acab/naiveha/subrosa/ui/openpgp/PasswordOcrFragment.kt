@@ -28,15 +28,19 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
+import acab.naiveha.subrosa.MainViewModel
 import acab.naiveha.subrosa.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class PasswordOcrFragment : Fragment() {
+    companion object {
+        private const val TAG = "PasswordOcrFragment"
+    }
 
     private val viewModel: PasswordOcrViewModel by viewModels()
-    private val mainViewModel: acab.naiveha.subrosa.MainViewModel by activityViewModels()
+    private val activityViewModel: MainViewModel by activityViewModels()
     private lateinit var ocrEngine: PasswordOcrEngine
 
     private lateinit var imageView: ImageView
@@ -64,10 +68,10 @@ class PasswordOcrFragment : Fragment() {
 
         ocrEngine = PasswordOcrEngine(requireContext())
 
-        mainViewModel.pendingOcrUri.observe(viewLifecycleOwner) { uri ->
-            Log.d("PasswordOcrFragment", "pendingOcrUri observer: $uri")
+        activityViewModel.pendingOcrUri.observe(viewLifecycleOwner) { uri ->
+            Log.d(TAG, "pendingOcrUri observer: $uri")
             if (uri != null) {
-                mainViewModel.consumeOcrUri()
+                activityViewModel.consumeOcrUri()
                 lifecycleScope.launch {
                     val bitmap = decodeUri(uri)
                     viewModel.setImportedBitmap(bitmap)
@@ -85,7 +89,7 @@ class PasswordOcrFragment : Fragment() {
 
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                Log.d("PasswordOcrFragment", "handleOnBackPressed: terminating flow")
+                Log.d(TAG, "handleOnBackPressed: terminating flow")
                 findNavController().popBackStack(R.id.nav_management, false)
             }
         })

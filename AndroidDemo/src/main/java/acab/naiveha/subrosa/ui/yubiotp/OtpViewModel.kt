@@ -22,7 +22,6 @@ import acab.naiveha.subrosa.ui.PgpDeviceType
 import acab.naiveha.subrosa.ui.StatusChannel
 import acab.naiveha.subrosa.ui.YubiKeyViewModel
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
-import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.application.ApplicationNotAvailableException
 import com.yubico.yubikit.yubiotp.Slot
@@ -40,25 +39,25 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     private val _clearUiTrigger = MutableLiveData<Boolean>(false)
     val clearUiTrigger: LiveData<Boolean> = _clearUiTrigger
 
-    private val saveStatusChannel = StatusChannel()
-    val saveStatus: LiveData<String> = saveStatusChannel.value
-    fun postSaveStatus(message: String) = saveStatusChannel.post(message)
+    private val writeStatusChannel = StatusChannel()
+    val writeStatus: LiveData<String> = writeStatusChannel.value
+    fun postWriteStatus(message: String) = writeStatusChannel.post(message)
 
     private val readStatusChannel = StatusChannel()
     val readStatus: LiveData<String> = readStatusChannel.value
     fun postReadStatus(message: String) = readStatusChannel.post(message)
 
-    private val deleteStatusChannel = StatusChannel()
-    val deleteStatus: LiveData<String> = deleteStatusChannel.value
-    fun postDeleteStatus(message: String) = deleteStatusChannel.post(message)
+    private val resetStatusChannel = StatusChannel()
+    val resetStatus: LiveData<String> = resetStatusChannel.value
+    fun postResetStatus(message: String) = resetStatusChannel.post(message)
 
     fun requestClearUi() {
         _clearUiTrigger.value = true
         _clearUiTrigger.value = false
         _uiState.postValue(null)
-        postSaveStatus("")
+        postWriteStatus("")
         postReadStatus("")
-        postDeleteStatus("")
+        postResetStatus("")
     }
 
     override fun onDeviceDisconnected() {
@@ -71,7 +70,7 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         onError: (Throwable) -> Unit,
         callback: (YubiOtpSession) -> Unit
     ) {
-        if (isUsbNitrokey(device)) {
+        if (PgpDeviceType.isUsbNitrokey(device)) {
             logger.info("USB Nitrokey detected — YubiOTP is not supported on this device")
             onError(ApplicationNotAvailableException(NITROKEY_NOT_SUPPORTED_MESSAGE))
             return
@@ -79,7 +78,7 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
 
         if (device is NfcYubiKeyDevice && pendingAction.value == null) {
             logger.debug("NFC tag detected but no pendingAction queued — ignoring tap " +
-                "(press Save/Read/Delete first, then tap)")
+                "(press Write/Read/Reset first, then tap)")
             return
         }
 
@@ -122,8 +121,5 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         fun slotResetStatus(slot: Slot): String = "Slot $slot reset"
 
         fun calculatedResponseStatus(response: ByteArray): String = "Calculated response: ${String(Hex.encode(response))}"
-
-        fun isUsbNitrokey(device: YubiKeyDevice?): Boolean =
-            device is UsbYubiKeyDevice && PgpDeviceType.fromUsbDescriptor(device) == PgpDeviceType.NITROKEY
     }
 }

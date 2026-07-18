@@ -22,6 +22,7 @@ import androidx.fragment.app.activityViewModels
 import acab.naiveha.subrosa.MainViewModel
 import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.databinding.FragmentStaticpwdBinding
+import acab.naiveha.subrosa.ui.PgpDeviceType
 import acab.naiveha.subrosa.ui.YubiKeyPromptDialog
 import acab.naiveha.subrosa.ui.bindAutoClearStatus
 import acab.naiveha.subrosa.ui.showConfirmationDialog
@@ -283,10 +284,10 @@ class StaticPwdFragment : Fragment() {
         binding.slotRadio.setOnCheckedChangeListener { _, _ -> hideIme() }
 
         bindAutoClearStatus(
-            viewModel.saveStatus, binding.saveStatus,
+            viewModel.writeStatus, binding.saveStatus,
             OtpViewModel.slotProgrammedStatus(Slot.ONE), OtpViewModel.slotProgrammedStatus(Slot.TWO),
-        ) { viewModel.postSaveStatus(it) }
-        viewModel.saveStatus.observe(viewLifecycleOwner) { message ->
+        ) { viewModel.postWriteStatus(it) }
+        viewModel.writeStatus.observe(viewLifecycleOwner) { message ->
             if (message.isNotEmpty()) binding.editTextStaticpwdId.setText("")
         }
 
@@ -295,9 +296,9 @@ class StaticPwdFragment : Fragment() {
         ) { viewModel.postReadStatus(it) }
 
         bindAutoClearStatus(
-            viewModel.deleteStatus, binding.deleteStatus,
+            viewModel.resetStatus, binding.deleteStatus,
             OtpViewModel.slotResetStatus(Slot.ONE), OtpViewModel.slotResetStatus(Slot.TWO),
-        ) { viewModel.postDeleteStatus(it) }
+        ) { viewModel.postResetStatus(it) }
 
         viewModel.result.observe(viewLifecycleOwner) { result ->
             if (result.isFailure) {
@@ -326,7 +327,7 @@ class StaticPwdFragment : Fragment() {
                     Log.i(TAG, "pendingAction — programming slot $slot")
                     putConfiguration(slot, configuration, null, null)
                     Log.i(TAG, "pendingAction — slot $slot programmed")
-                    viewModel.postSaveStatus(OtpViewModel.slotProgrammedStatus(slot))
+                    viewModel.postWriteStatus(OtpViewModel.slotProgrammedStatus(slot))
                     null
                 }
             }
@@ -401,7 +402,7 @@ class StaticPwdFragment : Fragment() {
                         Log.i(TAG, "pendingAction — resetting slot $slot")
                         putConfiguration(slot, configuration, null, null)
                         Log.i(TAG, "pendingAction — slot $slot reset")
-                        viewModel.postDeleteStatus(OtpViewModel.slotResetStatus(slot))
+                        viewModel.postResetStatus(OtpViewModel.slotResetStatus(slot))
                         null
                     }
                 }
@@ -410,7 +411,7 @@ class StaticPwdFragment : Fragment() {
     }
 
     private fun rejectIfNitrokeyConnected(): Boolean {
-        if (OtpViewModel.isUsbNitrokey(activityViewModel.yubiKey.value)) {
+        if (PgpDeviceType.isUsbNitrokey(activityViewModel.yubiKey.value)) {
             viewModel.postResult(Result.failure(Exception(OtpViewModel.NITROKEY_NOT_SUPPORTED_MESSAGE)))
             return true
         }
