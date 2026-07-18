@@ -25,6 +25,7 @@ import acab.naiveha.subrosa.ui.YubiKeyPromptDialog
 import acab.naiveha.subrosa.ui.bindAutoClearStatus
 import acab.naiveha.subrosa.ui.showConfirmationDialog
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
+import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.android.ui.OtpActivity
 import com.yubico.yubikit.android.ui.YubiKeyPromptActivity
 import com.yubico.yubikit.core.smartcard.SmartCardConnection
@@ -171,6 +172,9 @@ class StaticPwdFragment : Fragment() {
             if (device is NfcYubiKeyDevice && pendingReadSlotTwo != null) {
                 onNfcDeviceForRead(device)
             }
+            val usbConnected = device is UsbYubiKeyDevice
+            binding.readRadioSlot1.isEnabled = !usbConnected
+            binding.readRadioSlot2.isEnabled = !usbConnected
         }
 
         viewModel.clearUiTrigger.observe(viewLifecycleOwner) { shouldClear ->
