@@ -24,7 +24,7 @@ public class Do {
   public static final int AID = 0x4F;
   public static final int NAME = 0x5B;
   public static final int LOGIN_DATA = 0x5E;
-  public static final int LANGUAGE = 0xEF2D;
+  public static final int LANGUAGE = 0x5F2D;
   public static final int SEX = 0x5F35;
   public static final int URL = 0x5F50;
   public static final int HISTORICAL_BYTES = 0x5F52;

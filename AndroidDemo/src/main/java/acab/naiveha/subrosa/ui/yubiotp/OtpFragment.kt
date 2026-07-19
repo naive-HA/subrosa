@@ -47,12 +47,12 @@ class OtpFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
 
         binding.pager.adapter = ProgramModeAdapter(this)
 
-        TabLayoutMediator(binding.tabLayout, binding.pager) { tab, position ->
-            tab.setText(when (position) {
-                0 -> R.string.otp_yubistatic
-                else -> throw IllegalStateException()
-            })
-        }.attach()
+//        TabLayoutMediator(binding.tabLayout, binding.pager) { tab, position ->
+//            tab.setText(when (position) {
+//                0 -> R.string.otp_yubistatic
+//                else -> throw IllegalStateException()
+//            })
+//        }.attach()
 
         // TODO: Yubico OTP and Challenge-Response tabs are intentionally disabled for now
 //        TabLayoutMediator(binding.tabLayout, binding.pager) { tab, position ->
@@ -64,26 +64,26 @@ class OtpFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
 //            })
 //        }.attach()
 
-        viewModel.uiState.observe(viewLifecycleOwner) { state ->
-            if (state != null) {
-                binding.emptyView.visibility = View.INVISIBLE
-                binding.otpStatusText.text = getString(
-                    R.string.otp_slot_status,
-                    getString(
-                        if (state.slotOneProgrammed) R.string.otp_slot_state_programmed
-                        else R.string.otp_slot_state_empty,
-                    ),
-                    getString(
-                        if (state.slotTwoProgrammed) R.string.otp_slot_state_programmed
-                        else R.string.otp_slot_state_empty,
-                    ),
-                )
-                binding.otpStatusText.visibility = View.VISIBLE
-            } else {
-                binding.emptyView.visibility = View.VISIBLE
-                binding.otpStatusText.visibility = View.INVISIBLE
-            }
-        }
+//        viewModel.uiState.observe(viewLifecycleOwner) { state ->
+//            if (state != null) {
+//                binding.emptyView.visibility = View.INVISIBLE
+//                binding.otpStatusText.text = getString(
+//                    R.string.otp_slot_status,
+//                    getString(
+//                        if (state.slotOneProgrammed) R.string.otp_slot_state_programmed
+//                        else R.string.otp_slot_state_empty,
+//                    ),
+//                    getString(
+//                        if (state.slotTwoProgrammed) R.string.otp_slot_state_programmed
+//                        else R.string.otp_slot_state_empty,
+//                    ),
+//                )
+//                binding.otpStatusText.visibility = View.VISIBLE
+//            } else {
+//                binding.emptyView.visibility = View.VISIBLE
+//                binding.otpStatusText.visibility = View.INVISIBLE
+//            }
+//        }
     }
 
     class ProgramModeAdapter(fragment: Fragment) : FragmentStateAdapter(fragment) {

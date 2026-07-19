@@ -89,17 +89,18 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             if (state == null) {
-                binding.emptyView.visibility = View.VISIBLE
+                binding.emptyView.setText(R.string.need_key_generic)
+                binding.info.setText("\n\n\n")
+                binding.pgpInfo.setText("\n\n")
                 binding.connectedContent.visibility = View.GONE
-                binding.pgpInfo.text = ""
-                binding.info.text = ""
                 return@observe
             }
 
-            binding.emptyView.visibility = View.GONE
+            binding.emptyView.setText("")
+            binding.info.text = state.infoText
             binding.connectedContent.visibility = View.VISIBLE
             binding.managementActions.visibility = if (state.showManagementActions) View.VISIBLE else View.GONE
-            binding.info.text = state.infoText
+
             renderPgpStatus(state.pgpStatus)
 
             val retries = state.pinRetries
@@ -121,7 +122,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                     }
                 }
             } else {
-                binding.pinRetries.visibility = View.GONE
+                binding.pinRetries.setText("\n")
                 binding.btnChangeUserPin.visibility = View.VISIBLE
                 binding.btnChangeUserPin.text = getString(R.string.openpgp_btn_change_user_pin)
                 binding.btnChangeAdminPin.text = getString(R.string.openpgp_btn_change_admin_pin)

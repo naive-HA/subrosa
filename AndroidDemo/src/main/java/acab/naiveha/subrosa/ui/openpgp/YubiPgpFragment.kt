@@ -31,23 +31,23 @@ class YubiPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
 
         binding.pager.adapter = PgpModeAdapter(this)
 
-        TabLayoutMediator(binding.tabLayout, binding.pager) { tab, position ->
-            tab.setText(when (position) {
-                0 -> R.string.menu_openpgp
-                else -> throw IllegalStateException()
-            })
-        }.attach()
+//        TabLayoutMediator(binding.tabLayout, binding.pager) { tab, position ->
+//            tab.setText(when (position) {
+//                0 -> R.string.menu_openpgp
+//                else -> throw IllegalStateException()
+//            })
+//        }.attach()
 
-        viewModel.status.observe(viewLifecycleOwner) {
-            if (it != null) {
-                binding.emptyView.visibility = View.INVISIBLE
-                binding.statusText.text = it
-                binding.statusText.visibility = View.VISIBLE
-            } else {
-                binding.emptyView.visibility = View.VISIBLE
-                binding.statusText.visibility = View.INVISIBLE
-            }
-        }
+//        viewModel.status.observe(viewLifecycleOwner) {
+//            if (it != null) {
+//                binding.emptyView.visibility = View.INVISIBLE
+//                binding.statusText.text = "" //it
+//                binding.statusText.visibility = View.VISIBLE
+//            } else {
+//                binding.emptyView.visibility = View.VISIBLE
+//                binding.statusText.visibility = View.INVISIBLE
+//            }
+//        }
     }
 
     class PgpModeAdapter(fragment: Fragment) : FragmentStateAdapter(fragment) {

@@ -420,7 +420,6 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
             infoText   = formatDeviceInfo(
                 name     = "Nitrokey 3",
                 firmware = fwVersion,
-                note     = "Transport: $transport",
             ),
         )
     }

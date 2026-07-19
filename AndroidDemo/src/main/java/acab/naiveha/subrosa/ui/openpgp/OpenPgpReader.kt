@@ -25,45 +25,9 @@ object OpenPgpReader {
             val pw = disc.pwStatus
 
             status("Reading cardholder name…")
-            val rawCrdResult = runCatching { session.getData(Do.CARDHOLDER_RELATED_DATA) }
-            rawCrdResult.fold(
-                onSuccess = { raw ->
-                    Log.d(TAG, "getData(Do.CARDHOLDER_RELATED_DATA) raw bytes " +
-                               "(${raw.size}): ${raw.joinToString(" ") { "%02X".format(it) }}")
-                },
-                onFailure = { e ->
-                    Log.w(TAG, "getData(Do.CARDHOLDER_RELATED_DATA) raw read FAILED: " +
-                               "${e::class.simpleName}: ${e.message}", e)
-                }
-            )
-
-            val crdResult = runCatching { session.getCardholderRelatedData() }
-            crdResult.fold(
-                onSuccess = { crd ->
-                    Log.d(TAG, "getCardholderRelatedData() parsed OK — " +
-                               "name=${crd.name.joinToString(" ") { "%02X".format(it) }} " +
-                               "(${crd.name.size} bytes) " +
-                               "language=${crd.language.size} bytes sex=${crd.sex}")
-                },
-                onFailure = { e ->
-                    Log.w(TAG, "getCardholderRelatedData() THREW after the raw read above " +
-                               "— this is the bug: ${e::class.simpleName}: ${e.message}", e)
-                }
-            )
-
-            val name = crdResult.mapCatching { crd ->
-                String(crd.name, Charsets.UTF_8).trim()
-            }.recoverCatching {
-                Log.d(TAG, "Falling back to standalone getData(Do.NAME)…")
-                val raw = session.getData(Do.NAME)
-                Log.d(TAG, "Standalone getData(Do.NAME) unexpectedly succeeded: " +
-                           "${raw.size} bytes")
-                String(raw, Charsets.UTF_8).trim()
-            }.onFailure { e ->
-                Log.w(TAG, "Standalone getData(Do.NAME) fallback also failed (expected " +
-                           "on YubiKey per its doc comment): ${e::class.simpleName}: ${e.message}")
+            val name = runCatching {
+                String(session.getCardholderRelatedData().name, Charsets.UTF_8).trim()
             }.getOrDefault("")
-            Log.i(TAG, "Resolved cardholder name: '$name'")
 
             status("Reading login data…")
             val login = runCatching {

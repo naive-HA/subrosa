@@ -45,13 +45,13 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
     protected abstract val viewModel: VM
 
     private lateinit var yubiKeyPrompt: YubiKeyPromptDialog
-    private lateinit var emptyText: TextView
+//    private lateinit var emptyText: TextView
 
     private var lastDevice: YubiKeyDevice? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        emptyText = view.findViewById(R.id.empty_view)
-        emptyText.visibility = View.VISIBLE
+//        emptyText = view.findViewById(R.id.empty_view)
+//        emptyText.visibility = View.VISIBLE
 
         yubiKeyPrompt = YubiKeyPromptDialog(requireContext()) { viewModel.pendingAction.value = null }
 
@@ -60,7 +60,7 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
                 lastDevice = it
                 onYubiKey(it)
             } else {
-                emptyText.setText(R.string.need_key)
+//                emptyText.setText(R.string.need_key)
                 if (lastDevice != null && lastDevice !is NfcYubiKeyDevice) {
                     viewModel.onDeviceDisconnected()
                 }
@@ -76,9 +76,9 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
             }.onFailure {
                 logger.error("Error:", it)
                 Toast.makeText(context, it.message ?: "No message", Toast.LENGTH_SHORT).show()
-                if (it is ApplicationNotAvailableException) {
-                    emptyText.setText(R.string.app_missing)
-                }
+//                if (it is ApplicationNotAvailableException) {
+//                    emptyText.setText(R.string.app_missing)
+//                }
             }
             viewModel.clearResult()
         }
@@ -119,12 +119,12 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
                 if (it is NfcYubiKeyDevice) {
                     if (!wasPromptShowing) {
                         withContext(Dispatchers.Main) {
-                            emptyText.setText(R.string.remove_key)
+//                            emptyText.setText("") //R.string.remove_key)
                         }
                     }
                     it.remove {
                         lifecycleScope.launch(Dispatchers.Main) {
-                            emptyText.setText(R.string.need_key)
+//                            emptyText.setText(R.string.need_key)
                             if (shouldClearOnDisconnect()) {
                                 viewModel.onDeviceDisconnected()
                             }
