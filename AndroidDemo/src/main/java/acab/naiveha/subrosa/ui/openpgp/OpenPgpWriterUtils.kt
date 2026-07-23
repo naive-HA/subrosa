@@ -138,6 +138,7 @@ internal object OpenPgpWriterUtils {
         userPin: CharArray,
         tag: String,
         status: (String) -> Unit = {},
+        clearSlotBeforeWrite: Boolean = true,
         writeKeyMaterial: (session: OpenPgpSession, slot: SlotData, tag: String, status: (String) -> Unit) -> Unit,
     ): String? {
         Log.i(tag, "program() — slots: ${bundle.slots.map { it.ref.name }} " +
@@ -174,9 +175,13 @@ internal object OpenPgpWriterUtils {
                            "creationTimestamp=${slot.creationTimestamp}")
                 status("Writing slot ${slot.ref.name}…")
 
-                Log.d(tag, "  clearSlot(${slot.ref.name})…")
-                clearSlot(session, slot.ref, tag)
-                status("Slot ${slot.ref.name} cleared")
+                if (clearSlotBeforeWrite) {
+                    Log.d(tag, "  clearSlot(${slot.ref.name})…")
+                    clearSlot(session, slot.ref, tag)
+                    status("Slot ${slot.ref.name} cleared")
+                } else {
+                    Log.d(tag, "  Skipping clearSlot(${slot.ref.name}) — not needed post factory-reset")
+                }
 
                 writeKeyMaterial(session, slot, tag, status)
 

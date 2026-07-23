@@ -1,6 +1,7 @@
 package acab.naiveha.subrosa.ui.openpgp
 
 import com.yubico.yubikit.openpgp.AlgorithmAttributes
+import com.yubico.yubikit.openpgp.OpenPgpSession
 import org.bouncycastle.openpgp.PGPPublicKey
 import org.bouncycastle.openpgp.PGPSignature
 import java.text.SimpleDateFormat
@@ -30,6 +31,9 @@ internal fun AlgorithmAttributes.toDisplayString(): String = try {
 
 internal fun ByteArray.toFingerprintDisplay(): String =
     joinToString("") { "%02X".format(it) }.chunked(4).joinToString(" ")
+
+internal fun OpenPgpSession.gnukVersionLabel(): String =
+    "OpenPGP ${aid.version.first}.${aid.version.second}"
 
 internal fun Int.toDateDisplay(): String =
     SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(toLong() * 1000L))

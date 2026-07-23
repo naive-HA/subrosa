@@ -252,7 +252,7 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
     }
     Logger.warn(logger, "Application not active (SW={}), sending ACTIVATE", swHex(sw));
     try {
-      protocol.sendAndReceive(new Apdu(0, INS_ACTIVATE, 0, 0, null));
+      protocol.sendAndReceive(new Apdu(0, INS_ACTIVATE, 0, 0, null, Apdu.NO_LE));
       Logger.debug(logger, "ACTIVATE succeeded");
     } catch (ApduException activateEx) {
       if (activateEx.getSw() == SW.CONDITIONS_NOT_SATISFIED) {
@@ -326,6 +326,10 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
   @Override
   public Version getVersion() {
     return version;
+  }
+
+  public void forceExtendedApdusIfSupported() {
+    protocol.enableExtendedApdusIfSupported();
   }
 
   @Override
@@ -606,8 +610,8 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
 
     // Reset the application
     Logger.debug(logger, "Sending TERMINATE, then ACTIVATE");
-    protocol.sendAndReceive(new Apdu(0, INS_TERMINATE, 0, 0, null));
-    protocol.sendAndReceive(new Apdu(0, INS_ACTIVATE, 0, 0, null));
+    protocol.sendAndReceive(new Apdu(0, INS_TERMINATE, 0, 0, null, Apdu.NO_LE));
+    protocol.sendAndReceive(new Apdu(0, INS_ACTIVATE, 0, 0, null, Apdu.NO_LE));
     Logger.info(logger, "OpenPGP application data reset performed");
   }
 
@@ -1240,8 +1244,8 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
 
   public void terminateAndActivate() throws ApduException, IOException {
     Logger.debug(logger, "Sending TERMINATE (Admin PIN already verified), then ACTIVATE");
-    protocol.sendAndReceive(new Apdu(0, INS_TERMINATE, 0, 0, null));
-    protocol.sendAndReceive(new Apdu(0, INS_ACTIVATE, 0, 0, null));
+    protocol.sendAndReceive(new Apdu(0, INS_TERMINATE, 0, 0, null, Apdu.NO_LE));
+    protocol.sendAndReceive(new Apdu(0, INS_ACTIVATE, 0, 0, null, Apdu.NO_LE));
     Logger.info(logger, "OpenPGP application factory-reset; PINs now at device defaults");
   }
 

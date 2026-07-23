@@ -16,7 +16,9 @@ sealed class PgpStatus {
 
     data class Nitrokey(val programmed: Boolean?, val nfcUnsupported: Boolean) : PgpStatus()
 
-    data class OtherDevice(val programmed: Boolean) : PgpStatus()
+    // staticPasswordSupported is null when genuinely unknown (PgpDeviceType.UNKNOWN) --
+    // only GNUK sets it explicitly to false, since it's spec-known (no Yubico OTP applet) there.
+    data class OtherDevice(val programmed: Boolean, val staticPasswordSupported: Boolean? = null) : PgpStatus()
 
     object AwaitingSecondTap : PgpStatus()
 

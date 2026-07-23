@@ -23,6 +23,11 @@ interface OpenPgpWriter {
 }
 
 fun PgpDeviceType?.writer(): OpenPgpWriter = when (this) {
+    PgpDeviceType.YUBIKEY -> YubiKeyPgpWriter
     PgpDeviceType.NITROKEY -> NitrokeyPgpWriter
-    else                   -> YubiKeyPgpWriter
+    PgpDeviceType.GNUK     -> GnukPgpWriter
+    PgpDeviceType.UNKNOWN,
+    null                  -> throw UnsupportedOperationException(
+        "No OpenPgpWriter available for an unrecognized device (PgpDeviceType=$this)."
+    )
 }

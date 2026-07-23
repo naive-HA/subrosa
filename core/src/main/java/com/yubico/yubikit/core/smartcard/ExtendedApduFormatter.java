@@ -28,13 +28,17 @@ class ExtendedApduFormatter implements ApduFormatter {
   @Override
   public byte[] formatApdu(
       byte cla, byte ins, byte p1, byte p2, byte[] data, int offset, int length, int le) {
+    boolean bareCase1 = data.length == 0 && le == Apdu.NO_LE;
     ByteBuffer buf =
-        ByteBuffer.allocate(5 + (data.length > 0 ? 2 : 0) + data.length + (le > 0 ? 2 : 0))
+        ByteBuffer.allocate(
+                (bareCase1 ? 4 : 5) + (data.length > 0 ? 2 : 0) + data.length + (le > 0 ? 2 : 0))
             .put(cla)
             .put(ins)
             .put(p1)
-            .put(p2)
-            .put((byte) 0x00);
+            .put(p2);
+    if (!bareCase1) {
+      buf.put((byte) 0x00);
+    }
     if (data.length > 0) {
       buf.putShort((short) data.length).put(data);
     }

@@ -69,9 +69,16 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
 
   private static final byte STATUS_TIME_EXTENSION = (byte) 0x80;
 
+  private static final int CCID_CLASS_DESCRIPTOR_TYPE = 0x21;
+
+  private static final int CCID_CLASS_DESCRIPTOR_MIN_LENGTH = 0x36;
+  private static final int DW_FEATURES_OFFSET = 40;
+  private static final int DW_FEATURES_TPDU_LEVEL_EXCHANGE = 0x00010000;
+
   private final UsbDeviceConnection connection;
   private final UsbEndpoint endpointOut, endpointIn;
   private final byte[] atr;
+  private final T1Protocol t1Protocol;
 
   private byte sequence = 0;
 
@@ -98,8 +105,45 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
     this.connection = connection;
     this.endpointIn = endpointIn;
     this.endpointOut = endpointOut;
+    if (isTpduLevelExchange(connection)) {
+      Logger.debug(
+          logger, "CCID reader requires TPDU-level exchange — using host-side T=1 framing");
+      this.t1Protocol = new T1Protocol(this::transceiveT1Block);
+    } else {
+      this.t1Protocol = null;
+    }
     // PC_to_RDR_IccPowerOn command makes the slot "active" if it was "inactive"
     atr = transceive(POWER_ON_MESSAGE_TYPE, new byte[0]);
+  }
+
+  private static boolean isTpduLevelExchange(UsbDeviceConnection connection) {
+    byte[] raw = connection.getRawDescriptors();
+    if (raw == null) {
+      return false;
+    }
+    int pos = 0;
+    while (pos + 2 <= raw.length) {
+      int len = raw[pos] & 0xFF;
+      int type = raw[pos + 1] & 0xFF;
+      if (len == 0) {
+        break;
+      }
+      if (type == CCID_CLASS_DESCRIPTOR_TYPE
+          && len >= CCID_CLASS_DESCRIPTOR_MIN_LENGTH
+          && pos + len <= raw.length) {
+        int dwFeatures =
+            ByteBuffer.wrap(raw, pos + DW_FEATURES_OFFSET, 4)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .getInt();
+        return (dwFeatures & DW_FEATURES_TPDU_LEVEL_EXCHANGE) != 0;
+      }
+      pos += len;
+    }
+    return false;
+  }
+
+  private byte[] transceiveT1Block(byte[] block) throws IOException {
+    return transceive(REQUEST_MESSAGE_TYPE, block);
   }
 
   @Override
@@ -118,6 +162,9 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
 
   @Override
   public byte[] sendAndReceive(byte[] apdu) throws IOException {
+    if (t1Protocol != null) {
+      return t1Protocol.transceiveApdu(apdu);
+    }
     return transceive(REQUEST_MESSAGE_TYPE, apdu);
   }
 

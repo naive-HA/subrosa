@@ -27,9 +27,10 @@ class ShortApduFormatter implements ApduFormatter {
     if (length > SHORT_APDU_MAX_CHUNK) {
       throw new IllegalArgumentException("Length must be no greater than " + SHORT_APDU_MAX_CHUNK);
     }
-    if (le < 0 || le > SHORT_APDU_MAX_CHUNK) {
+    if (le != Apdu.NO_LE && (le < 0 || le > SHORT_APDU_MAX_CHUNK)) {
       throw new IllegalArgumentException("Le must be between 0 and " + SHORT_APDU_MAX_CHUNK);
     }
+    boolean bareCase1 = length == 0 && le == Apdu.NO_LE;
 
     ByteBuffer buf =
         ByteBuffer.allocate(
@@ -47,7 +48,7 @@ class ShortApduFormatter implements ApduFormatter {
     }
     if (le > 0) {
       buf.put((byte) le);
-    } else if (length == 0) {
+    } else if (length == 0 && !bareCase1) {
       buf.put((byte) 0);
     }
     return buf.array();

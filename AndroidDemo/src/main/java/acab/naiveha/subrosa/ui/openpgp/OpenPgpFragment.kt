@@ -180,8 +180,8 @@ class OpenPgpFragment : Fragment() {
 
                 viewModel.currentOperation.value = OpenPgpOperation.SAVE
                 viewModel.pendingAction.value = {
-                    val writer = viewModel.connectedDevice.value?.type.writer()
-                    Log.i(TAG, "pendingAction — device=${viewModel.connectedDevice.value?.type} " +
+                    val writer = viewModel.currentDeviceType.writer()
+                    Log.i(TAG, "pendingAction — device=${viewModel.currentDeviceType} " +
                         "writer=${writer::class.simpleName}")
                     writer.program(this, bundle, adminPin, userPin, status = viewModel::postWriteStatus)
                 }
@@ -218,8 +218,8 @@ class OpenPgpFragment : Fragment() {
             Log.i(TAG, "Reset confirmed — device=${viewModel.connectedDevice.value?.type}")
             viewModel.currentOperation.value = OpenPgpOperation.WIPE
             viewModel.pendingAction.value = {
-                val writer = viewModel.connectedDevice.value?.type.writer()
-                Log.i(TAG, "wipe — device=${viewModel.connectedDevice.value?.type} " +
+                val writer = viewModel.currentDeviceType.writer()
+                Log.i(TAG, "wipe — device=${viewModel.currentDeviceType} " +
                     "writer=${writer::class.simpleName}")
                 writer.wipe(this, status = viewModel::postWipeStatus)
             }

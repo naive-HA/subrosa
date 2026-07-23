@@ -89,7 +89,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             if (state == null) {
-                binding.emptyView.setText(R.string.need_key_generic)
+                binding.emptyView.text = viewModel.errorInfo.value ?: getString(R.string.need_key_generic)
                 binding.info.setText("\n\n\n")
                 binding.pgpInfo.setText("\n\n")
                 binding.connectedContent.visibility = View.GONE
@@ -221,9 +221,16 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 }
                 if (pgpLine != null) "$staticLine\n$pgpLine" else staticLine
             }
-            is PgpStatus.OtherDevice -> getString(
-                if (status.programmed) R.string.openpgp_card_programmed else R.string.openpgp_card_not_programmed
-            )
+            is PgpStatus.OtherDevice -> {
+                val pgpLine = getString(
+                    if (status.programmed) R.string.openpgp_card_programmed else R.string.openpgp_card_not_programmed
+                )
+                if (status.staticPasswordSupported == false) {
+                    "${getString(R.string.static_password_not_supported)}\n$pgpLine"
+                } else {
+                    pgpLine
+                }
+            }
             PgpStatus.AwaitingSecondTap -> getString(R.string.openpgp_tap_again)
             PgpStatus.None -> ""
         }
@@ -376,7 +383,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 Log.i(TAG, "OpenPGP applet reset confirmed — device=${openPgpViewModel.connectedDevice.value?.type}")
                 openPgpViewModel.pendingAction.value = {
                     try {
-                        val writer = openPgpViewModel.connectedDevice.value?.type.writer()
+                        val writer = openPgpViewModel.currentDeviceType.writer()
                         Log.i(TAG, "pendingAction — resetting OpenPGP applet, writer=${writer::class.simpleName}")
                         writer.wipe(this, status = openPgpViewModel::postPinChangeStatus)
                         viewModel.updatePinRetries(user = 3, admin = 3)

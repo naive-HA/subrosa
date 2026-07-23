@@ -1,1 +1,1 @@
-Program the static password and/or OpenPGP keys to your YubiKey or Nitrokey 3
+Program the static password and/or OpenPGP keys to your hardware security key

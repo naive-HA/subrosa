@@ -44,6 +44,10 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
     var currentDeviceFirmwareVersion: String? = null
         private set
 
+    @Volatile
+    var currentDeviceType: PgpDeviceType? = null
+        private set
+
     val currentOperation = MutableLiveData(OpenPgpOperation.NONE)
 
     private val _cardInfo = MutableLiveData<OpenPgpCardInfo?>(null)
@@ -172,17 +176,20 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
 
             val type = resolveDeviceType(device, session)
 
-            val firmwareVersion = if (type == PgpDeviceType.NITROKEY) {
-                val fw = NitrokeyAdminVersion.query(connection)
-                logger.debug("Nitrokey admin firmware version: $fw")
-                runCatching { session.reselect() }
-                    .onFailure { logger.warn("Failed to re-select OpenPGP applet after admin query: ${it.message}") }
-                fw
-            } else {
-                null
+            val firmwareVersion = when (type) {
+                PgpDeviceType.NITROKEY -> {
+                    val fw = NitrokeyAdminVersion.query(connection)
+                    logger.debug("Nitrokey admin firmware version: $fw")
+                    runCatching { session.reselect() }
+                        .onFailure { logger.warn("Failed to re-select OpenPGP applet after admin query: ${it.message}") }
+                    fw
+                }
+                PgpDeviceType.GNUK -> session.gnukVersionLabel()
+                else -> null
             }
 
             currentDeviceFirmwareVersion = firmwareVersion
+            currentDeviceType = type
             _connectedDevice.postValue(ConnectedPgpDevice(type, firmwareVersion))
             callback(session)
         } catch (e: Throwable) {

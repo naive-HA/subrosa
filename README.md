@@ -22,12 +22,12 @@ The various keyboards accept the following characters:
 
 * *MODHEX*: bcdefghijklnrtuvBCDEFGHIJKLNRTUV
 
-Since version 2.0.0, *sub rosa* has added support for OpenPGP. You can now provision an OpenPGP key onto your YubiKey or Nitrokey 3. 
+Since version 2.0.0, *sub rosa* has added support for OpenPGP. You can now provision an OpenPGP key onto your YubiKey, Nitrokey 3, Nitrokey Pro or Librem Key. 
 In keeping with the app’s motto, “Uncomplicatedly simple,” you can encrypt, decrypt, sign, and authenticate with your security key, 
 then wipe it clean and write another OpenPGP key to change your digital identity. 
 SSH authentication is simpler now—you no longer need to reuse the same SSH key or buy multiple security keys
 
-# How does *sub rosa* support YubiKey and Nitrokey?
+# How does *sub rosa* support various hardware security keys?
 <table>
 	<colgroup width="115"></colgroup>
 	<colgroup width="85"></colgroup>
@@ -38,8 +38,10 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 		<td></td>
 		<td>YubiKey</td>
 		<td>YubiKey</td>
-		<td>Nitrokey</td>
-		<td>Nitrokey</td>
+		<td>Nitrokey 3</td>
+		<td>Nitrokey 3</td>
+        <td>Nitrokey Pro</td>
+        <td>Librem Key</td>
 		</tr>
 	<tr>
 		<td></td>
@@ -48,14 +50,18 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 		<td>NFC</td>
 		<td>USB</td>
 		<td>NFC</td>
+        <td>USB</td>
+        <td>USB</td>
 	</tr>
 	<tr>
-		<td valign=middle>Static password</td>
+		<td>Static password</td>
 		<td>Write</td>
 		<td>✅</td>
 		<td>✅</td>
 		<td>❌</td>
 		<td>❌</td>
+        <td>❌</td>
+        <td>❌</td>
 	</tr>
 	<tr>
 		<td></td>
@@ -64,6 +70,8 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 		<td>✅</td>
 		<td>❌</td>
 		<td>❌</td>
+        <td>❌</td>
+        <td>❌</td>
 	</tr>
 	<tr>
 		<td></td>
@@ -72,6 +80,8 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 		<td>✅</td>
 		<td>❌</td>
 		<td>❌</td>
+        <td>❌</td>
+        <td>❌</td>
 	</tr>
 	<tr>
 		<td>OpenPGP</td>
@@ -80,6 +90,8 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 		<td>✅</td>
 		<td>✅</td>
 		<td>❌</td>
+        <td>✅</td>
+        <td>✅</td>
 	</tr>
 	<tr>
 		<td></td>
@@ -88,6 +100,8 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 		<td>✅</td>
 		<td>✅</td>
 		<td>❌</td>
+        <td>✅</td>
+        <td>✅</td>
 	</tr>
 	<tr>
 		<td></td>
@@ -96,6 +110,8 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 		<td>✅</td>
 		<td>✅</td>
 		<td>❌</td>
+        <td>✅</td>
+        <td>✅</td>
 	</tr>
 	<tr>
 		<td></td>
@@ -104,6 +120,8 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 		<td>✅</td>
 		<td>✅</td>
 		<td>❌</td>
+        <td>✅</td>
+        <td>✅</td>
 	</tr>
 	<tr>
 		<td></td>
@@ -112,6 +130,8 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 		<td>✅</td>
 		<td>✅</td>
 		<td>❌</td>
+        <td>✅</td>
+        <td>✅</td>
 	</tr>
 	<tr>
 		<td></td>
@@ -120,9 +140,74 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 		<td>✅</td>
 		<td>✅</td>
 		<td>❌</td>
+        <td>✅</td>
+        <td>✅</td>
 	</tr>
 </table>
 
+<table>
+	<colgroup width="115"></colgroup>
+	<colgroup width="85"></colgroup>
+	<colgroup width="132"></colgroup>
+	<tr>
+		<td height="34"><br></td>
+		<td></td>
+		<td>YubiKey</td>
+		<td>Nitrokey 3</td>
+        <td>Nitrokey Pro</td>
+        <td>Librem Key</td>
+		</tr>
+	<tr>
+		<td>OpenKeychain supported algortihm</td>
+		<td>RSA 2048</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>RSA 3072</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>RSA 4096</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>ECC NIST P-256</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>ECC NIST P-521</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>✅</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>Ed25519/X25519</td>
+		<td>✅</td>
+		<td>✅</td>
+		<td>❌</td>
+		<td>❌</td>
+	</tr>
+</table>
+
+Other algorithms have not been tested
 
 # How to import OpenPGP keys from OpenKeychain
 *sub rosa* works closely with OpenKeychain. OpenKeychain manages OpenPGP keys, such as generating, storing them securely, and backing them up. 

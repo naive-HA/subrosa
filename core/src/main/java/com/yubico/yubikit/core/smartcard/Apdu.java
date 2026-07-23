@@ -21,6 +21,8 @@ import javax.annotation.Nullable;
 
 /** Data model for encapsulating an APDU command, as defined by ISO/IEC 7816-4 standard. */
 public class Apdu {
+  public static final int NO_LE = -1;
+
   private final byte cla;
   private final byte ins;
   private final byte p1;

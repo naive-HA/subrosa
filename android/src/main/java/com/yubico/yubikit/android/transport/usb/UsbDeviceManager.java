@@ -40,6 +40,7 @@ public final class UsbDeviceManager {
   private static final String ACTION_USB_PERMISSION = "com.yubico.yubikey.USB_PERMISSION";
   public static final int YUBICO_VENDOR_ID = 0x1050;
   public static final int NITROKEY_VENDOR_ID = 0x20A0;
+  public static final int PURISM_VENDOR_ID = 0x316D;
 
   @Nullable private static UsbDeviceManager instance;
 
@@ -72,7 +73,7 @@ public final class UsbDeviceManager {
       new WeakHashMap<>();
   private final Set<UsbDevice> awaitingPermissions = new HashSet<>();
   static final Set<Integer> ACCEPTED_VENDOR_IDS =
-      new HashSet<>(Arrays.asList(YUBICO_VENDOR_ID, NITROKEY_VENDOR_ID));
+      new HashSet<>(Arrays.asList(YUBICO_VENDOR_ID, NITROKEY_VENDOR_ID, PURISM_VENDOR_ID));
 
   private synchronized void addUsbListener(Context context, UsbDeviceListener listener) {
     if (deviceListeners.isEmpty()) {

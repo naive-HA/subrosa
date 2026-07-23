@@ -76,6 +76,13 @@ public class SmartCardProtocol implements Closeable {
     }
   }
 
+  public void enableExtendedApdusIfSupported() {
+    if (connection.isExtendedLengthApduSupported()) {
+      extendedApdus = true;
+      reconfigureProcessor();
+    }
+  }
+
   /**
    * Create new instance of {@link SmartCardProtocol} and selects the application for use
    *

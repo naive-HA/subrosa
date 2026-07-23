@@ -3,4 +3,6 @@
     <usb-device vendor-id="4176" />
     <!-- Nitrokey — all models (VID 0x20A0 = 8352) -->
     <usb-device vendor-id="8352" />
+    <!-- Purism Librem Key (VID 0x316D = 12653) -->
+    <usb-device vendor-id="12653" />
 </resources>
