@@ -75,6 +75,12 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
   private static final int DW_FEATURES_OFFSET = 40;
   private static final int DW_FEATURES_TPDU_LEVEL_EXCHANGE = 0x00010000;
 
+  // Some readers (e.g. Gnuk/Nitrokey Start) can return a garbled response to the very first
+  // bulk transfer sent right after the interface is claimed, before their firmware has
+  // finished settling.
+  private static final int MAX_POWER_ON_ATTEMPTS = 2;
+  private static final int POWER_ON_RETRY_DELAY_MS = 150;
+
   private final UsbDeviceConnection connection;
   private final UsbEndpoint endpointOut, endpointIn;
   private final byte[] atr;
@@ -113,7 +119,29 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
       this.t1Protocol = null;
     }
     // PC_to_RDR_IccPowerOn command makes the slot "active" if it was "inactive"
-    atr = transceive(POWER_ON_MESSAGE_TYPE, new byte[0]);
+    atr = powerOn();
+  }
+
+  private byte[] powerOn() throws IOException {
+    IOException lastError = null;
+    for (int attempt = 1; attempt <= MAX_POWER_ON_ATTEMPTS; attempt++) {
+      try {
+        return transceive(POWER_ON_MESSAGE_TYPE, new byte[0]);
+      } catch (IOException e) {
+        lastError = e;
+        if (attempt < MAX_POWER_ON_ATTEMPTS) {
+          Logger.debug(
+              logger, "Power on attempt {} failed, retrying: {}", attempt, e.getMessage());
+          try {
+            Thread.sleep(POWER_ON_RETRY_DELAY_MS);
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while retrying power on", ie);
+          }
+        }
+      }
+    }
+    throw lastError;
   }
 
   private static boolean isTpduLevelExchange(UsbDeviceConnection connection) {
