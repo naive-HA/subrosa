@@ -13,6 +13,7 @@ class T1Protocol {
   }
 
   private static final int DEFAULT_IFSC = 254;
+  private static final int FALLBACK_IFSC = 32; // ISO/IEC 7816-3 spec-default IFSC
   private static final int MAX_RETRANSMITS = 3;
 
   private static final byte PCB_I_TOP_BIT = (byte) 0x80;
@@ -22,7 +23,7 @@ class T1Protocol {
   private static final byte PCB_WTX_RESPONSE = (byte) 0xE3;
 
   private final BlockTransport transport;
-  private final int outboundChunkSize;
+  private int outboundChunkSize;
 
   private byte nsSend = 0;
 
@@ -38,14 +39,45 @@ class T1Protocol {
   }
 
   byte[] transceiveApdu(byte[] apdu) throws IOException {
+    try {
+      return chunkAndSend(apdu, outboundChunkSize);
+    } catch (FirstChunkRejected e) {
+      if (outboundChunkSize == FALLBACK_IFSC) {
+        throw e.ioCause();
+      }
+      Logger.warn(
+          logger,
+          "T=1: first chunk (size={}) was repeatedly rejected -- retrying this and all "
+              + "future writes on this connection at the ISO/IEC 7816-3 default IFSC ({})",
+          outboundChunkSize,
+          FALLBACK_IFSC);
+      outboundChunkSize = FALLBACK_IFSC;
+      try {
+        return chunkAndSend(apdu, outboundChunkSize);
+      } catch (FirstChunkRejected e2) {
+        throw e2.ioCause();
+      }
+    }
+  }
+
+  private byte[] chunkAndSend(byte[] apdu, int chunkSize) throws IOException {
     int offset = 0;
     do {
-      int chunkLen = Math.min(outboundChunkSize, apdu.length - offset);
+      int chunkLen = Math.min(chunkSize, apdu.length - offset);
       boolean more = offset + chunkLen < apdu.length;
       byte[] chunk = Arrays.copyOfRange(apdu, offset, offset + chunkLen);
+      boolean isFirstChunk = offset == 0;
       offset += chunkLen;
 
-      ParsedBlock response = sendIBlockWithRetry(chunk, more);
+      ParsedBlock response;
+      try {
+        response = sendIBlockWithRetry(chunk, more);
+      } catch (IOException e) {
+        if (isFirstChunk) {
+          throw new FirstChunkRejected(e);
+        }
+        throw e;
+      }
 
       if (more) {
         if (!response.isR()) {
@@ -57,6 +89,16 @@ class T1Protocol {
       }
       return receiveChainedResponse(response);
     } while (true);
+  }
+
+  private static class FirstChunkRejected extends IOException {
+    FirstChunkRejected(IOException cause) {
+      super(cause);
+    }
+
+    IOException ioCause() {
+      return (IOException) getCause();
+    }
   }
 
   private byte[] receiveChainedResponse(ParsedBlock first) throws IOException {
