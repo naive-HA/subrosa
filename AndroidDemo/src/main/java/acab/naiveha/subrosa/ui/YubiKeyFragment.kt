@@ -16,7 +16,11 @@
 
 package acab.naiveha.subrosa.ui
 
+import android.content.Context
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
@@ -75,6 +79,7 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
                 }
             }.onFailure {
                 logger.error("Error:", it)
+                errorVibrate()
                 Toast.makeText(context, it.message ?: "No message", Toast.LENGTH_SHORT).show()
 //                if (it is ApplicationNotAvailableException) {
 //                    emptyText.setText(R.string.app_missing)
@@ -105,6 +110,15 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
     }
 
     protected open fun shouldClearOnDisconnect(): Boolean = true
+
+    protected fun errorVibrate() {
+        getVibrator().vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+    }
+
+    private fun getVibrator(): Vibrator {
+        val vibratorManager = requireContext().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+        return vibratorManager.defaultVibrator
+    }
 
     private fun onYubiKey(it: YubiKeyDevice) {
         val wasPromptShowing = yubiKeyPrompt.isShowing

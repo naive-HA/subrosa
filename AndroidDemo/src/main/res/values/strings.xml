@@ -95,7 +95,7 @@
     <string name="about">About</string>
     <string name="about_app">"sub rosa" is an app built on top of YubiKit library provided by Yubico.\n\n
         sub rosa programs the static password and/or an OpenPGP key to a hardware security key.\n
-        sub rosa fully supports YubiKey and only partially Nitrokey. Nitrokey does not support HID emulation and, as such, static passwords.\n\n
+        sub rosa fully supports YubiKey and only partially other devices like Nitrokey or Librem Key. Some devices do not support HID emulation and, as such, static passwords.\n\n
         More info about the allowed characters when programming the static password and how to import an OpenPGP key can be found at:\nhttps://github.com./naive-HA/subrosa\n\n\n
        Coffee tips go to:\n1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh
     </string>

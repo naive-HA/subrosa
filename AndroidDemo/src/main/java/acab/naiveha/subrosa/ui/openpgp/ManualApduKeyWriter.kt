@@ -36,6 +36,7 @@ internal object ManualApduKeyWriter {
         tag: String,
         status: (String) -> Unit,
         clearSlotBeforeWrite: Boolean,
+        omitEcPublicKeyForNistCurves: Boolean = false,
     ): String? =
         OpenPgpWriterUtils.programCommon(
             session, bundle, adminPin, userPin, tag, status,
@@ -52,7 +53,7 @@ internal object ManualApduKeyWriter {
             Log.d(t, "  algorithm attributes written")
             st("Algorithm attributes set for ${slot.ref.name}")
 
-            val template = buildKeyTemplate(slot.ref, slot.privateKeyValues)
+            val template = buildKeyTemplate(slot.ref, slot.privateKeyValues, omitEcPublicKeyForNistCurves)
             Log.d(t, "  putRawKeyTemplate(${slot.ref.name}, ${template.size} bytes)…")
             s.putRawKeyTemplate(template)
             Log.d(t, "  putRawKeyTemplate(${slot.ref.name}) done")
@@ -117,10 +118,14 @@ internal object ManualApduKeyWriter {
     private fun ecdsaOrEcdh(ref: KeyRef): Int =
         if (ref == KeyRef.DEC) PGP_ALGO_ECDH else PGP_ALGO_ECDSA
 
-    private fun buildKeyTemplate(ref: KeyRef, values: PrivateKeyValues): ByteArray =
+    private fun buildKeyTemplate(
+        ref: KeyRef,
+        values: PrivateKeyValues,
+        omitEcPublicKeyForNistCurves: Boolean,
+    ): ByteArray =
         when (values) {
             is PrivateKeyValues.Rsa -> buildRsaKeyTemplate(ref, values)
-            is PrivateKeyValues.Ec -> buildEcKeyTemplate(ref, values)
+            is PrivateKeyValues.Ec -> buildEcKeyTemplate(ref, values, omitEcPublicKeyForNistCurves)
             else -> throw UnsupportedOperationException(
                 "Unsupported private key type for manual PGP import: ${values::class.simpleName}"
             )
@@ -140,7 +145,11 @@ internal object ManualApduKeyWriter {
         return wrapExtendedHeaderList(ref, headerBytes, valueBytes)
     }
 
-    private fun buildEcKeyTemplate(ref: KeyRef, ec: PrivateKeyValues.Ec): ByteArray {
+    private fun buildEcKeyTemplate(
+        ref: KeyRef,
+        ec: PrivateKeyValues.Ec,
+        omitEcPublicKeyForNistCurves: Boolean,
+    ): ByteArray {
         return when (ec.curveParams) {
             EllipticCurveValues.Ed25519 -> {
                 val secret = require32ByteSecret(ec.secret)
@@ -155,13 +164,36 @@ internal object ManualApduKeyWriter {
                 buildPrivateAndPublicTemplate(ref, secret, publicKeyBytes)
             }
             EllipticCurveValues.SECP256R1 ->
-                buildPrivateOnlyTemplate(ref, nistScalar(ec.secret, "secp256r1"))
+                buildNistEcTemplate(ref, ec.secret, "secp256r1", omitEcPublicKeyForNistCurves)
             EllipticCurveValues.SECP521R1 ->
-                buildPrivateOnlyTemplate(ref, nistScalar(ec.secret, "secp521r1"))
+                buildNistEcTemplate(ref, ec.secret, "secp521r1", omitEcPublicKeyForNistCurves)
             else -> throw UnsupportedOperationException(
                 "Manual PGP import only supports Ed25519/X25519/NIST P-256/NIST P-521, " +
                     "got ${ec.curveParams}"
             )
+        }
+    }
+
+    /**
+     * NIST curves (P-256/P-521): most OpenPGP-card implementations (genuine YubiKey, Gnuk) can
+     * derive Q from the private scalar and accept a private-key-only Extended Header List. The
+     * Nitrokey 3's OpenPGP applet does not — it rejects a private-only template for these curves
+     * with SW=6A80, so the public point has to be computed and included explicitly, the same way
+     * the Ed25519/X25519 branches above already do. Gnuk (Librem Key) is the opposite: an earlier
+     * fix (confirmed against a real scdaemon capture) found it rejects the write if a public key
+     * is present at all, so callers that target Gnuk pass omitEcPublicKeyForNistCurves=true.
+     */
+    private fun buildNistEcTemplate(
+        ref: KeyRef,
+        secret: ByteArray,
+        bcCurveName: String,
+        omitEcPublicKeyForNistCurves: Boolean,
+    ): ByteArray {
+        val scalar = nistScalar(secret, bcCurveName)
+        return if (omitEcPublicKeyForNistCurves) {
+            buildPrivateOnlyTemplate(ref, scalar)
+        } else {
+            buildPrivateAndPublicTemplate(ref, scalar, nistPublicKeyBytes(scalar, bcCurveName))
         }
     }
 
@@ -192,6 +224,13 @@ internal object ManualApduKeyWriter {
         val scalarLength = (curve.curve.fieldSize + 7) / 8
         val d = BigInteger(1, secret)
         return ByteUtils.intToLength(d, scalarLength)
+    }
+
+    /** Computes the uncompressed public point Q = d*G (0x04 || X || Y) for a NIST curve. */
+    private fun nistPublicKeyBytes(scalar: ByteArray, bcCurveName: String): ByteArray {
+        val curve = SECNamedCurves.getByName(bcCurveName)
+        val d = BigInteger(1, scalar)
+        return curve.g.multiply(d).normalize().getEncoded(false)
     }
 
     private fun tlvHeaderBytes(tag: Int, value: ByteArray): ByteArray {

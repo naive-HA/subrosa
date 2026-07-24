@@ -16,12 +16,12 @@
 
 package acab.naiveha.subrosa.ui.yubiotp
 
+import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import acab.naiveha.subrosa.ui.PgpDeviceType
 import acab.naiveha.subrosa.ui.StatusChannel
 import acab.naiveha.subrosa.ui.YubiKeyViewModel
-import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.application.ApplicationNotAvailableException
 import com.yubico.yubikit.yubiotp.Slot
@@ -33,8 +33,22 @@ import org.slf4j.LoggerFactory
 class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     private val logger = LoggerFactory.getLogger(OtpViewModel::class.java)
 
-    private val _uiState = MutableLiveData<OtpUiState?>()
+    @Volatile
+    private var state = OtpUiState(false, false)
+
+    private val _uiState = MutableLiveData<OtpUiState?>(state)
     val uiState: LiveData<OtpUiState?> = _uiState
+
+    @Synchronized
+    private fun updateUi(update: (OtpUiState) -> OtpUiState) {
+        val newState = update(state)
+        state = newState
+        if (Looper.getMainLooper().thread == Thread.currentThread()) {
+            _uiState.value = newState
+        } else {
+            _uiState.postValue(newState)
+        }
+    }
 
     private val _clearUiTrigger = MutableLiveData<Boolean>(false)
     val clearUiTrigger: LiveData<Boolean> = _clearUiTrigger
@@ -52,17 +66,21 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     fun postResetStatus(message: String) = resetStatusChannel.post(message)
 
     fun requestClearUi() {
-        _clearUiTrigger.value = true
-        _clearUiTrigger.value = false
-        _uiState.postValue(null)
+        _clearUiTrigger.postValue(true)
+        _clearUiTrigger.postValue(false)
+        updateUi { OtpUiState(false, false) }
         postWriteStatus("")
         postReadStatus("")
         postResetStatus("")
     }
 
+    fun setCurrentOperation(op: OtpOperation) {
+        updateUi { it.copy(currentOperation = op) }
+    }
+
     override fun onDeviceDisconnected() {
         logger.debug("onDeviceDisconnected — clearing slot status")
-        _uiState.postValue(null)
+        updateUi { OtpUiState(false, false) }
     }
 
     override fun getSession(
@@ -72,11 +90,11 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     ) {
         if (PgpDeviceType.isUsbNitrokey(device)) {
             logger.info("USB Nitrokey detected — YubiOTP is not supported on this device")
-            onError(ApplicationNotAvailableException(NITROKEY_NOT_SUPPORTED_MESSAGE))
+            onError(ApplicationNotAvailableException(STATIC_PASSWORDS_NOT_SUPPORTED))
             return
         }
 
-        if (device is NfcYubiKeyDevice && pendingAction.value == null) {
+        if (shouldIgnoreTap(device)) {
             logger.debug("NFC tag detected but no pendingAction queued — ignoring tap " +
                 "(press Write/Read/Reset first, then tap)")
             return
@@ -90,7 +108,7 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
                 callback(session)
             } catch (e: ApplicationNotAvailableException) {
                 logger.info("YubiOTP application not available over ${transportLabel(device)}: ${e.message}")
-                onError(ApplicationNotAvailableException(NITROKEY_NOT_SUPPORTED_MESSAGE))
+                onError(ApplicationNotAvailableException(STATIC_PASSWORDS_NOT_SUPPORTED))
             } catch (e: Throwable) {
                 logger.error("Failed to open YubiOtpSession over ${transportLabel(device)}: ${e.message}", e)
                 onError(e)
@@ -99,20 +117,18 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     }
 
     override fun YubiOtpSession.updateState() {
-        val state = OtpUiState(
-            slotOneProgrammed = configurationState.isConfigured(Slot.ONE),
-            slotTwoProgrammed = configurationState.isConfigured(Slot.TWO),
-        )
+        updateUi {
+            it.copy(
+                slotOneProgrammed = configurationState.isConfigured(Slot.ONE),
+                slotTwoProgrammed = configurationState.isConfigured(Slot.TWO),
+            )
+        }
         logger.debug("updateState — slotOne=${state.slotOneProgrammed} slotTwo=${state.slotTwoProgrammed}")
-        _uiState.postValue(state)
     }
 
-    private fun transportLabel(device: YubiKeyDevice): String =
-        if (device is NfcYubiKeyDevice) "NFC" else "USB"
-
     companion object {
-        const val NITROKEY_NOT_SUPPORTED_MESSAGE =
-            "Nitrokey does not support static passwords"
+        const val STATIC_PASSWORDS_NOT_SUPPORTED =
+            "Static passwords are not supported on this device"
 
         const val READ_COMPLETE_STATUS = "Read complete"
 

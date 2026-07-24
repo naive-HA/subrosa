@@ -5,8 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.os.VibrationEffect
-import android.os.Vibrator
 import android.text.Editable
 import android.text.TextWatcher
 import android.text.method.HideReturnsTransformationMethod
@@ -37,7 +35,6 @@ import com.yubico.yubikit.yubiotp.Slot
 import com.yubico.yubikit.yubiotp.StaticPasswordSlotConfiguration
 import com.yubico.yubikit.yubiotp.YubiOtpSession
 import androidx.core.content.ContextCompat
-import android.os.VibratorManager
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -196,6 +193,22 @@ class StaticPwdFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.btnSaveStaticpwd.isEnabled = false
 
+        viewModel.uiState.observe(viewLifecycleOwner) { state ->
+            if (state == null) return@observe
+            updateButtonStates()
+            updateProgressVisibility(state)
+        }
+
+        viewModel.pendingAction.observe(viewLifecycleOwner) { action ->
+            val state = viewModel.uiState.value ?: return@observe
+            updateProgressVisibility(state, action != null)
+            updateButtonStates(action != null)
+
+            if (action == null && state.currentOperation != OtpOperation.NONE) {
+                viewModel.setCurrentOperation(OtpOperation.NONE)
+            }
+        }
+
         readPrompt = YubiKeyPromptDialog(requireContext()) { pendingReadSlotTwo = null }
         activityViewModel.yubiKey.observe(viewLifecycleOwner) { device ->
             if (device != null && pendingReadSlotTwo != null) {
@@ -252,7 +265,8 @@ class StaticPwdFragment : Fragment() {
         binding.editTextStaticpwdId.addTextChangedListener(object: TextWatcher{
             override fun afterTextChanged(s: Editable?) {
                 val staticpwd = s?.toString() ?: ""
-                binding.btnSaveStaticpwd.isEnabled = staticpwd.isNotEmpty()
+                val busy = viewModel.pendingAction.value != null
+                binding.btnSaveStaticpwd.isEnabled = !busy && staticpwd.isNotEmpty()
                 if (staticpwd.isEmpty()) {
                     binding.textLayoutStaticpwdId.endIconDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_content_paste_24dp)
                     binding.textLayoutStaticpwdId.hint = getString(R.string.otp_yubistatic_id)
@@ -300,14 +314,8 @@ class StaticPwdFragment : Fragment() {
             OtpViewModel.slotResetStatus(Slot.ONE), OtpViewModel.slotResetStatus(Slot.TWO),
         ) { viewModel.postResetStatus(it) }
 
-        viewModel.result.observe(viewLifecycleOwner) { result ->
-            if (result.isFailure) {
-                getVibrator().vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
-            }
-        }
-
         binding.btnSaveStaticpwd.setOnClickListener {
-            if (rejectIfNitrokeyConnected()) return@setOnClickListener
+            if (rejectIfUnsupportedDeviceConnected()) return@setOnClickListener
             runValidated(viewModel) {
                 val keyboard = selectedKeyboard(binding.keyboardRadio.checkedRadioButtonId)
                 var staticpwd = binding.editTextStaticpwdId.text.toString()
@@ -323,6 +331,7 @@ class StaticPwdFragment : Fragment() {
                 configuration.appendCr(binding.extrasCr.isChecked)
                 val slot = resolveSlot(binding.slotRadio.checkedRadioButtonId, R.id.radio_slot_1, R.id.radio_slot_2)
                 Log.d(TAG, "btnSaveStaticpwd — queuing program of slot $slot (${staticpwd.length} chars, keyboard=$keyboard)")
+                viewModel.setCurrentOperation(OtpOperation.SAVE)
                 viewModel.pendingAction.value = {
                     Log.i(TAG, "pendingAction — programming slot $slot")
                     putConfiguration(slot, configuration, null, null)
@@ -333,13 +342,14 @@ class StaticPwdFragment : Fragment() {
             }
         }
         binding.btnRequestStaticpwd.setOnClickListener {
-            if (rejectIfNitrokeyConnected()) return@setOnClickListener
+            if (rejectIfUnsupportedDeviceConnected()) return@setOnClickListener
             val slotTwo = binding.readSlotRadio.checkedRadioButtonId == R.id.read_radio_slot_2
             Log.d(TAG, "btnRequestStaticpwd — starting read of slot ${if (slotTwo) "TWO" else "ONE"}")
+            viewModel.setCurrentOperation(OtpOperation.READ)
             startRead(slotTwo)
         }
         binding.btnDeleteStaticpwd.setOnClickListener {
-            if (rejectIfNitrokeyConnected()) return@setOnClickListener
+            if (rejectIfUnsupportedDeviceConnected()) return@setOnClickListener
             runValidated(viewModel) {
                 val slot = resolveSlot(binding.slotRadioReset.checkedRadioButtonId, R.id.reset_slot_1, R.id.reset_slot_2)
                 showStaticPasswordResetConfirmationDialog(slot)
@@ -347,16 +357,26 @@ class StaticPwdFragment : Fragment() {
         }
     }
 
+    private fun updateProgressVisibility(state: OtpUiState, isBusy: Boolean? = null) {
+        val busy = isBusy ?: (viewModel.pendingAction.value != null)
+        val op = state.currentOperation
+        binding.progressSave.visibility = if (busy && op == OtpOperation.SAVE) View.VISIBLE else View.GONE
+        binding.progressRead.visibility = if (busy && op == OtpOperation.READ) View.VISIBLE else View.GONE
+        binding.progressWipe.visibility = if (busy && op == OtpOperation.RESET) View.VISIBLE else View.GONE
+    }
+
+    private fun updateButtonStates(isBusy: Boolean? = null) {
+        val busy = isBusy ?: (viewModel.pendingAction.value != null)
+        binding.btnSaveStaticpwd.isEnabled = !busy && binding.editTextStaticpwdId.text.toString().isNotEmpty()
+        binding.btnRequestStaticpwd.isEnabled = !busy
+        binding.btnDeleteStaticpwd.isEnabled = !busy
+    }
+
     private fun hideIme() {
         WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
     }
 
     private fun View.hideImeOnClick() = setOnClickListener { hideIme() }
-
-    private fun getVibrator(): Vibrator {
-        val vibratorManager = requireContext().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-        return vibratorManager.defaultVibrator
-    }
 
     private fun showStaticPasswordDialog(password: String) {
         val context = context ?: return
@@ -398,6 +418,7 @@ class StaticPwdFragment : Fragment() {
                     val scancodes = Keyboard.encode(staticpwd, keyboard)
                     val configuration = StaticPasswordSlotConfiguration(scancodes)
                     Log.d(TAG, "onConfirmed — queuing reset of slot $slot")
+                    viewModel.setCurrentOperation(OtpOperation.RESET)
                     viewModel.pendingAction.value = {
                         Log.i(TAG, "pendingAction — resetting slot $slot")
                         putConfiguration(slot, configuration, null, null)
@@ -410,9 +431,10 @@ class StaticPwdFragment : Fragment() {
         )
     }
 
-    private fun rejectIfNitrokeyConnected(): Boolean {
-        if (PgpDeviceType.isUsbNitrokey(activityViewModel.yubiKey.value)) {
-            viewModel.postResult(Result.failure(Exception(OtpViewModel.NITROKEY_NOT_SUPPORTED_MESSAGE)))
+    private fun rejectIfUnsupportedDeviceConnected(): Boolean {
+        val device = activityViewModel.yubiKey.value
+        if (PgpDeviceType.isUsbNitrokey(device) || PgpDeviceType.isUsbGnuk(device)) {
+            viewModel.postResult(Result.failure(Exception(OtpViewModel.STATIC_PASSWORDS_NOT_SUPPORTED)))
             return true
         }
         return false

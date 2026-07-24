@@ -55,9 +55,12 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
 
     private val _pgpCardInfo = MutableLiveData<OpenPgpCardInfo?>(null)
 
+    private val _loading = MutableLiveData(false)
+
     private val _uiState = MediatorLiveData<ManagementUiState?>().apply {
-        addSource(_connectedDevice) { value = combine(it, _pgpCardInfo.value) }
-        addSource(_pgpCardInfo) { value = combine(_connectedDevice.value, it) }
+        addSource(_connectedDevice) { value = combine(it, _pgpCardInfo.value, _loading.value ?: false) }
+        addSource(_pgpCardInfo) { value = combine(_connectedDevice.value, it, _loading.value ?: false) }
+        addSource(_loading) { value = combine(_connectedDevice.value, _pgpCardInfo.value, it ?: false) }
     }
     val uiState: LiveData<ManagementUiState?> = _uiState
 
@@ -65,6 +68,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
         _connectedDevice.postValue(null)
         _pgpCardInfo.postValue(null)
         _errorInfo.postValue(null)
+        _loading.postValue(false)
     }
 
     fun updatePinRetries(user: Int? = null, admin: Int? = null) {
@@ -97,6 +101,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
         onError: (Throwable) -> Unit,
         callback: (ManagementSession) -> Unit
     ) {
+        _loading.postValue(true)
         // True for devices (Nitrokey, GNUK) read directly via SmartCardConnection, bypassing
         // ManagementSession.create() below -- neither implements Yubico's proprietary
         // Management applet.
@@ -113,8 +118,10 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
             try {
                 callback(it.value)
             } catch (e: ApplicationNotAvailableException) {
+                _loading.postValue(false)
                 onError(e)
             } catch (e: IOException) {
+                _loading.postValue(false)
                 onError(e)
             }
         }
@@ -124,8 +131,16 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
         // Nothing to refresh automatically on the management screen.
     }
 
-    private fun combine(connected: ConnectedDeviceInfo?, pgp: OpenPgpCardInfo?): ManagementUiState? {
-        if (connected == null) return null
+    private fun combine(connected: ConnectedDeviceInfo?, pgp: OpenPgpCardInfo?, loading: Boolean): ManagementUiState? {
+        if (connected == null) return if (loading) {
+            ManagementUiState(
+                infoText = "",
+                showManagementActions = false,
+                pgpStatus = PgpStatus.None,
+                pinRetries = null,
+                loading = true
+            )
+        } else null
         val showManagementActions = !(connected.type == PgpDeviceType.NITROKEY && connected.isNfc)
         logger.debug(
             "uiState: type=${connected.type} isNfc=${connected.isNfc} " +
@@ -136,6 +151,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
             showManagementActions = showManagementActions,
             pgpStatus = computePgpStatus(connected, pgp),
             pinRetries = pgp?.let { PinRetries(user = it.userPinRetries, admin = it.adminPinRetries) },
+            loading = loading
         )
     }
 
@@ -195,28 +211,29 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                     (conn as? SmartCardConnection)?.atr ?: byteArrayOf()
                 )
                 val devInfo = DeviceUtil.readInfo(conn, usbPid)
-                _connectedDevice.postValue(
-                    ConnectedDeviceInfo(
-                        deviceInfo = devInfo,
-                        type       = pgpType,
-                        atr        = atr,
-                        isNfc      = false,
-                        infoText   = formatDeviceInfo(
-                            name     = DeviceUtil.getName(devInfo, usbPid?.type),
-                            firmware = devInfo.version.toString(),
-                            fips     = devInfo.isFips,
-                            locked   = devInfo.isLocked,
-                        ),
-                    )
+                val info = ConnectedDeviceInfo(
+                    deviceInfo = devInfo,
+                    type       = pgpType,
+                    atr        = atr,
+                    isNfc      = false,
+                    infoText   = formatDeviceInfo(
+                        name     = DeviceUtil.getName(devInfo, usbPid?.type),
+                        firmware = devInfo.version.toString(),
+                        fips     = devInfo.isFips,
+                        locked   = devInfo.isLocked,
+                    ),
                 )
-                (conn as? SmartCardConnection)?.let { readPgpInfo(it) }
+                _connectedDevice.postValue(info)
+                (conn as? SmartCardConnection)?.let { readPgpInfo(it) } ?: _loading.postValue(false)
             } catch (e: IllegalArgumentException) {
                 _errorInfo.postValue("Failed to identify device. Is it a supported security key?")
                 _connectedDevice.postValue(null)
+                _loading.postValue(false)
                 throw e
             } catch (e: Exception) {
                 _errorInfo.postValue("Error reading device info: ${e.message}")
                 _connectedDevice.postValue(null)
+                _loading.postValue(false)
                 throw e
             }
         }
@@ -229,6 +246,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                         readInfo(it.value)
                     } else {
                         logger.debug("SmartCardConnection request failed")
+                        _loading.postValue(false)
                     }
                 }
             }
@@ -239,6 +257,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                         readInfo(it.value)
                     } else {
                         logger.debug("OtpConnection request failed")
+                        _loading.postValue(false)
                     }
                 }
             }
@@ -249,10 +268,14 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                         readInfo(it.value)
                     } else {
                         logger.debug("FidoConnection request failed")
+                        _loading.postValue(false)
                     }
                 }
             }
-            else -> throw ApplicationNotAvailableException("Cannot read device info")
+            else -> {
+                _loading.postValue(false)
+                throw ApplicationNotAvailableException("Cannot read device info")
+            }
         }
     }
 
@@ -267,6 +290,9 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                 }
         } catch (e: Exception) {
             logger.debug("readNitrokeyInfoUsb: SmartCard block failed: ${e.message}")
+            if (!device.supportsConnection(FidoConnection::class.java)) {
+                _loading.postValue(false)
+            }
         }
 
         val fwLabel = fwVersion ?: "unavailable"
@@ -282,6 +308,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
             if (!result.isSuccess) {
                 logger.debug("readNitrokeyInfoUsb: FIDO connection request failed — falling back: ${result.error?.message}")
                 _connectedDevice.postValue(buildNitrokeyInfo("Nitrokey", fwLabel))
+                _loading.postValue(false)
                 return@requestConnection
             }
             try {
@@ -290,6 +317,8 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
             } catch (e: Exception) {
                 logger.debug("readNitrokeyInfoUsb: CTAP2 session failed — falling back: ${e.message}")
                 _connectedDevice.postValue(buildNitrokeyInfo("Nitrokey", fwLabel))
+            } finally {
+                _loading.postValue(false)
             }
         }
     }
@@ -323,6 +352,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                 ),
             )
         )
+        _loading.postValue(false)
     }
 
     private fun formatDeviceInfo(
@@ -356,6 +386,8 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
             }
         } catch (e: Exception) {
             postNfcReadFailure(e)
+        } finally {
+            _loading.postValue(false)
         }
     }
 
@@ -434,14 +466,15 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
     }
 
     private fun readPgpInfo(conn: SmartCardConnection, knownFirmwareVersion: String? = null) {
-        _pgpCardInfo.postValue(
-            try {
-                buildPgpCardInfo(OpenPgpSession(conn), knownFirmwareVersion)
-            } catch (e: Exception) {
-                logger.debug("OpenPGP info not available: ${e::class.simpleName}: ${e.message}")
-                null
-            }
-        )
+        try {
+            val info = buildPgpCardInfo(OpenPgpSession(conn), knownFirmwareVersion)
+            _pgpCardInfo.postValue(info)
+        } catch (e: Exception) {
+            logger.debug("OpenPGP info not available: ${e::class.simpleName}: ${e.message}")
+            _pgpCardInfo.postValue(null)
+        } finally {
+            _loading.postValue(false)
+        }
     }
 
     private fun buildPgpCardInfo(

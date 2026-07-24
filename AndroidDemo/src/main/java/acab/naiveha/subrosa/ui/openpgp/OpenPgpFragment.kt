@@ -60,24 +60,28 @@ class OpenPgpFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.btnSave.isEnabled = false
 
-        viewModel.pendingImportUri.observe(viewLifecycleOwner) { uri ->
-            if (uri != null) {
-                handleImportedFileUri(uri)
+        viewModel.uiState.observe(viewLifecycleOwner) { state ->
+            if (state.pendingImportUri != null) {
+                handleImportedFileUri(state.pendingImportUri)
             }
-        }
 
-        viewModel.importedKeyInfo.observe(viewLifecycleOwner) { info ->
-            if (info != null) {
-                showKeyInfo(info)
-                binding.btnSave.isEnabled = viewModel.currentOperation.value != OpenPgpOperation.SAVE
+            if (state.importedKeyInfo != null) {
+                showKeyInfo(state.importedKeyInfo)
             } else {
                 hideKeyInfo()
-                binding.btnSave.isEnabled = false
             }
-        }
 
-        viewModel.importedKeyArmor.observe(viewLifecycleOwner) { armor ->
-            rawKeyArmor = armor
+            rawKeyArmor = state.importedKeyArmor
+
+            Log.i(TAG, "Connected device: type=${state.connectedDevice.type} firmware=${state.connectedDevice.firmwareVersion}")
+
+            if (state.cardInfo != null) {
+                viewModel.clearCardInfo()
+                showCardInfoDialog(state.cardInfo)
+            }
+
+            updateButtonStates(state)
+            updateProgressVisibility(state)
         }
 
         val onFilePickerClick = View.OnClickListener {
@@ -96,7 +100,7 @@ class OpenPgpFragment : Fragment() {
         }
 
         binding.keyInfoSection.setOnClickListener {
-            val info = viewModel.importedKeyInfo.value
+            val info = viewModel.uiState.value?.importedKeyInfo
             if (info != null) {
                 showSubkeyDetailsDialog(info)
             } else {
@@ -104,7 +108,7 @@ class OpenPgpFragment : Fragment() {
             }
         }
         binding.keyInfoSection.setOnLongClickListener {
-            val info = viewModel.importedKeyInfo.value
+            val info = viewModel.uiState.value?.importedKeyInfo
             if (info != null) {
                 showSubkeyDetailsDialog(info)
                 true
@@ -114,28 +118,17 @@ class OpenPgpFragment : Fragment() {
         }
 
         viewModel.pendingAction.observe(viewLifecycleOwner) { action ->
-            val busy = action != null
-            val op = viewModel.currentOperation.value ?: OpenPgpOperation.NONE
-            Log.d(TAG, "pendingAction → busy=$busy operation=$op")
+            val state = viewModel.uiState.value ?: OpenPgpUiState()
+            updateProgressVisibility(state, action != null)
+            updateButtonStates(state, action != null)
 
-            binding.progressSave.visibility = if (busy && op == OpenPgpOperation.SAVE) View.VISIBLE else View.GONE
-            binding.progressRead.visibility = if (busy && op == OpenPgpOperation.READ) View.VISIBLE else View.GONE
-            binding.progressWipe.visibility = if (busy && op == OpenPgpOperation.WIPE) View.VISIBLE else View.GONE
-
-            binding.btnSave.isEnabled = !busy && validatedBundle != null
-            binding.btnTestAction.isEnabled = !busy
-            binding.btnDeleteOpenpgp.isEnabled = !busy
-
-            if (!busy && op != OpenPgpOperation.NONE) {
-                if (op == OpenPgpOperation.SAVE) {
+            if (action == null && state.currentOperation != OpenPgpOperation.NONE) {
+                if (state.currentOperation == OpenPgpOperation.SAVE) {
                     Log.i(TAG, "Save completed — resetting UI")
                     resetKeyState()
                 }
-                viewModel.currentOperation.value = OpenPgpOperation.NONE
+                viewModel.setCurrentOperation(OpenPgpOperation.NONE)
             }
-        }
-        viewModel.connectedDevice.observe(viewLifecycleOwner) { device ->
-            Log.i(TAG, "Connected device: type=${device.type} firmware=${device.firmwareVersion}")
         }
 
         bindAutoClearStatus(viewModel.writeStatus, binding.writeStatus, OpenPgpWriter.WRITE_COMPLETE_STATUS) {
@@ -148,20 +141,13 @@ class OpenPgpFragment : Fragment() {
             viewModel.postWipeStatus(it)
         }
 
-        viewModel.cardInfo.observe(viewLifecycleOwner) { info ->
-            if (info != null) {
-                viewModel.clearCardInfo()
-                showCardInfoDialog(info)
-            }
-        }
-
         binding.btnSave.setOnClickListener {
             val bundle = validatedBundle ?: run {
                 Log.w(TAG, "Save tapped but validatedBundle is null")
                 viewModel.postResult(Result.failure(IllegalStateException(getString(R.string.openpgp_no_key_loaded))))
                 return@setOnClickListener
             }
-            Log.d(TAG, "Save tapped — device=${viewModel.connectedDevice.value?.type} " +
+            Log.d(TAG, "Save tapped — device=${viewModel.uiState.value?.connectedDevice?.type} " +
                 "(writer decided once a device is connected)")
 
             lifecycleScope.launch(Dispatchers.Main) {
@@ -178,7 +164,7 @@ class OpenPgpFragment : Fragment() {
                     clearTextByDefault = true,
                 ) ?: run { adminPin.fill('\u0000'); return@launch }
 
-                viewModel.currentOperation.value = OpenPgpOperation.SAVE
+                viewModel.setCurrentOperation(OpenPgpOperation.SAVE)
                 viewModel.pendingAction.value = {
                     val writer = viewModel.currentDeviceType.writer()
                     Log.i(TAG, "pendingAction — device=${viewModel.currentDeviceType} " +
@@ -189,8 +175,8 @@ class OpenPgpFragment : Fragment() {
         }
 
         binding.btnTestAction.setOnClickListener {
-            Log.d(TAG, "Read tapped — device=${viewModel.connectedDevice.value?.type}")
-            viewModel.currentOperation.value = OpenPgpOperation.READ
+            Log.d(TAG, "Read tapped — device=${viewModel.uiState.value?.connectedDevice?.type}")
+            viewModel.setCurrentOperation(OpenPgpOperation.READ)
             viewModel.pendingAction.value = {
                 val info = OpenPgpReader.read(
                     this,
@@ -207,6 +193,21 @@ class OpenPgpFragment : Fragment() {
         }
     }
 
+    private fun updateProgressVisibility(state: OpenPgpUiState, isBusy: Boolean? = null) {
+        val busy = isBusy ?: (viewModel.pendingAction.value != null)
+        val op = state.currentOperation
+        binding.progressSave.visibility = if (busy && op == OpenPgpOperation.SAVE) View.VISIBLE else View.GONE
+        binding.progressRead.visibility = if (busy && op == OpenPgpOperation.READ) View.VISIBLE else View.GONE
+        binding.progressWipe.visibility = if (busy && op == OpenPgpOperation.WIPE) View.VISIBLE else View.GONE
+    }
+
+    private fun updateButtonStates(state: OpenPgpUiState, isBusy: Boolean? = null) {
+        val busy = isBusy ?: (viewModel.pendingAction.value != null)
+        binding.btnSave.isEnabled = !busy && validatedBundle != null && state.currentOperation != OpenPgpOperation.SAVE
+        binding.btnTestAction.isEnabled = !busy
+        binding.btnDeleteOpenpgp.isEnabled = !busy
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         validatedBundle?.destroy()
@@ -215,8 +216,8 @@ class OpenPgpFragment : Fragment() {
 
     private fun showResetConfirmationDialog() {
         showOpenPgpAppletResetDialog(TAG, onConfirmed = {
-            Log.i(TAG, "Reset confirmed — device=${viewModel.connectedDevice.value?.type}")
-            viewModel.currentOperation.value = OpenPgpOperation.WIPE
+            Log.i(TAG, "Reset confirmed — device=${viewModel.uiState.value?.connectedDevice?.type}")
+            viewModel.setCurrentOperation(OpenPgpOperation.WIPE)
             viewModel.pendingAction.value = {
                 val writer = viewModel.currentDeviceType.writer()
                 Log.i(TAG, "wipe — device=${viewModel.currentDeviceType} " +
@@ -421,7 +422,7 @@ class OpenPgpFragment : Fragment() {
             }
 
             validatedBundle = bundle
-            binding.btnSave.isEnabled = viewModel.pendingAction.value == null && validatedBundle != null
+            updateButtonStates(viewModel.uiState.value ?: OpenPgpUiState())
         }
     }
 

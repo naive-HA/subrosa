@@ -19,6 +19,7 @@ package acab.naiveha.subrosa.ui
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
 import java.io.Closeable
 
@@ -58,4 +59,10 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
     }
 
     open fun onDeviceDisconnected() {}
+
+    protected fun transportLabel(device: YubiKeyDevice): String =
+        if (device is NfcYubiKeyDevice) "NFC" else "USB"
+
+    protected fun shouldIgnoreTap(device: YubiKeyDevice): Boolean =
+        device is NfcYubiKeyDevice && pendingAction.value == null
 }

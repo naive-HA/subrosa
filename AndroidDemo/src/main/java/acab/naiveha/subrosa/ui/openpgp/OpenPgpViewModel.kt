@@ -1,16 +1,17 @@
 package acab.naiveha.subrosa.ui.openpgp
 
 import android.net.Uri
+import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import acab.naiveha.subrosa.ui.PgpDeviceType
 import acab.naiveha.subrosa.ui.StatusChannel
 import acab.naiveha.subrosa.ui.YubiKeyViewModel
+import acab.naiveha.subrosa.ui.describeChain
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.application.ApplicationNotAvailableException
-import com.yubico.yubikit.core.smartcard.ApduException
 import com.yubico.yubikit.core.smartcard.SmartCardConnection
 import com.yubico.yubikit.openpgp.OpenPgpSession
 import org.slf4j.LoggerFactory
@@ -25,20 +26,28 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
 
     private val logger = LoggerFactory.getLogger(OpenPgpViewModel::class.java)
 
-    private val _status = MutableLiveData<String?>()
-    val status: LiveData<String?> = _status
+    @Volatile
+    private var state = OpenPgpUiState()
 
-    private val _pendingImportUri = MutableLiveData<Uri?>(null)
-    val pendingImportUri: LiveData<Uri?> = _pendingImportUri
+    private val _uiState = MutableLiveData(state)
+    val uiState: LiveData<OpenPgpUiState> = _uiState
+
+    @Synchronized
+    private fun updateUi(update: (OpenPgpUiState) -> OpenPgpUiState) {
+        state = update(state)
+        if (Looper.getMainLooper().thread == Thread.currentThread()) {
+            _uiState.value = state
+        } else {
+            _uiState.postValue(state)
+        }
+    }
+
     fun onImportIntent(uri: Uri) {
-        _pendingImportUri.value = uri
+        updateUi { it.copy(pendingImportUri = uri) }
     }
     fun consumeImportUri() {
-        _pendingImportUri.value = null
+        updateUi { it.copy(pendingImportUri = null) }
     }
-
-    private val _connectedDevice = MutableLiveData(ConnectedPgpDevice.NONE)
-    val connectedDevice: LiveData<ConnectedPgpDevice> = _connectedDevice
 
     @Volatile
     var currentDeviceFirmwareVersion: String? = null
@@ -48,33 +57,32 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
     var currentDeviceType: PgpDeviceType? = null
         private set
 
-    val currentOperation = MutableLiveData(OpenPgpOperation.NONE)
-
-    private val _cardInfo = MutableLiveData<OpenPgpCardInfo?>(null)
-    val cardInfo: LiveData<OpenPgpCardInfo?> = _cardInfo
     fun onCardRead(info: OpenPgpCardInfo) {
-        _cardInfo.postValue(info)
+        updateUi { it.copy(cardInfo = info) }
     }
     fun clearCardInfo() {
-        _cardInfo.postValue(null)
+        updateUi { it.copy(cardInfo = null) }
     }
     fun requestClearUi() {
-        clearCardInfo()
-        clearImportedKey()
+        updateUi {
+            it.copy(
+                cardInfo = null,
+                importedKeyArmor = null,
+                importedKeyInfo = null
+            )
+        }
         clearResult()
     }
-    private val _importedKeyInfo = MutableLiveData<OpenPgpKeyInfo?>(null)
-    val importedKeyInfo: LiveData<OpenPgpKeyInfo?> = _importedKeyInfo
-    private val _importedKeyArmor = MutableLiveData<String?>(null)
-    val importedKeyArmor: LiveData<String?> = _importedKeyArmor
     fun onImportedKey(armor: String, info: OpenPgpKeyInfo) {
         logger.info("onImportedKey: user='${info.userId}' keys=${info.keyCount}")
-        _importedKeyArmor.value = armor
-        _importedKeyInfo.value = info
+        updateUi { it.copy(importedKeyArmor = armor, importedKeyInfo = info) }
     }
     fun clearImportedKey() {
-        _importedKeyArmor.value = null
-        _importedKeyInfo.value = null
+        updateUi { it.copy(importedKeyArmor = null, importedKeyInfo = null) }
+    }
+
+    fun setCurrentOperation(op: OpenPgpOperation) {
+        updateUi { it.copy(currentOperation = op) }
     }
 
     private val writeStatusChannel = StatusChannel()
@@ -122,7 +130,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
                 if (nitrokeyVersion != null) {
                     logger.info("Nitrokey detected over NFC (admin firmware $nitrokeyVersion) — " +
                         "OpenPGP applet is not reachable over this transport, not attempting it")
-                    _connectedDevice.postValue(ConnectedPgpDevice(PgpDeviceType.NITROKEY, nitrokeyVersion))
+                    updateUi { it.copy(connectedDevice = ConnectedPgpDevice(PgpDeviceType.NITROKEY, nitrokeyVersion)) }
                     onError(IOException(NitrokeyAdminVersion.NFC_NOT_SUPPORTED_MESSAGE))
                     return@requestConnection
                 }
@@ -137,22 +145,13 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
             "unknown (non-YubiKey device)"
         else
             version.toString()
-        _status.postValue("OpenPGP version: $versionLabel")
-    }
-
-    private fun shouldIgnoreTap(device: YubiKeyDevice): Boolean {
-        if (device is NfcYubiKeyDevice && pendingAction.value == null) {
-            logger.debug("NFC tag detected but no pendingAction queued — ignoring tap " +
-                "(press Read/Save/Wipe first, then tap)")
-            return true
-        }
-        return false
+        updateUi { it.copy(status = "OpenPGP version: $versionLabel") }
     }
 
     private fun reportPreliminaryUsbType(device: YubiKeyDevice) {
         if (device !is UsbYubiKeyDevice) return
         val type = PgpDeviceType.fromUsbDescriptor(device)
-        _connectedDevice.postValue(ConnectedPgpDevice(type, firmwareVersion = null))
+        updateUi { it.copy(connectedDevice = ConnectedPgpDevice(type, firmwareVersion = null)) }
         logger.info("USB device (preliminary): $type " +
             "(vendorId=0x${device.usbDevice.vendorId.toString(16)} pid=${device.pid})")
     }
@@ -190,7 +189,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
 
             currentDeviceFirmwareVersion = firmwareVersion
             currentDeviceType = type
-            _connectedDevice.postValue(ConnectedPgpDevice(type, firmwareVersion))
+            updateUi { it.copy(connectedDevice = ConnectedPgpDevice(type, firmwareVersion)) }
             callback(session)
         } catch (e: Throwable) {
             logger.error("Failed to open OpenPgpSession over ${transportLabel(device)}: ${e.describeChain()}", e)
@@ -214,23 +213,5 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
             }
         }
         return type
-    }
-
-    private fun transportLabel(device: YubiKeyDevice): String =
-        if (device is NfcYubiKeyDevice) "NFC" else "USB"
-
-    private fun Throwable.describeChain(maxDepth: Int = 8): String {
-        val chain = StringBuilder()
-        var cause: Throwable? = this
-        var depth = 0
-        while (cause != null && depth < maxDepth) {
-            chain.append("\n  [$depth] ${cause::class.simpleName}: ${cause.message}")
-            if (cause is ApduException) {
-                chain.append(" (SW=0x${"%04X".format(cause.sw)})")
-            }
-            cause = cause.cause
-            depth++
-        }
-        return chain.toString()
     }
 }

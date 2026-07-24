@@ -68,7 +68,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
     private lateinit var openPgpPrompt: YubiKeyPromptDialog
 
     override fun shouldClearOnDisconnect(): Boolean =
-        openPgpViewModel.currentOperation.value == OpenPgpOperation.NONE
+        (openPgpViewModel.uiState.value?.currentOperation ?: OpenPgpOperation.NONE) == OpenPgpOperation.NONE
 
     override fun onCreateView(
             inflater: LayoutInflater,
@@ -82,6 +82,8 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
     @SuppressLint("SetTextI18n")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        openPgpPrompt = YubiKeyPromptDialog(requireContext()) { openPgpViewModel.pendingAction.value = null }
 
         viewModel.errorInfo.observe(viewLifecycleOwner) { errorString ->
             errorString?.let { binding.info.text = "Error:\n$it" }
@@ -100,6 +102,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             binding.info.text = state.infoText
             binding.connectedContent.visibility = View.VISIBLE
             binding.managementActions.visibility = if (state.showManagementActions) View.VISIBLE else View.GONE
+            binding.progressLoading.visibility = if (state.loading) View.VISIBLE else View.GONE
 
             renderPgpStatus(state.pgpStatus)
 
@@ -129,11 +132,9 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             }
         }
 
-        openPgpPrompt = YubiKeyPromptDialog(requireContext()) { openPgpViewModel.pendingAction.value = null }
-
         openPgpViewModel.pendingAction.observe(viewLifecycleOwner) {
             val busy = it != null
-            val op = openPgpViewModel.currentOperation.value ?: OpenPgpOperation.NONE
+            val op = openPgpViewModel.uiState.value?.currentOperation ?: OpenPgpOperation.NONE
             val adminBusy = busy && (op == OpenPgpOperation.CHANGE_ADMIN_PIN || op == OpenPgpOperation.RESET_ADMIN_PIN)
             val userBusy = busy && (op == OpenPgpOperation.CHANGE_USER_PIN || op == OpenPgpOperation.RESET_USER_PIN)
             binding.progressChangeAdminPin.visibility = if (adminBusy) View.VISIBLE else View.GONE
@@ -257,7 +258,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         val operation = if (isAdmin) OpenPgpOperation.CHANGE_ADMIN_PIN else OpenPgpOperation.CHANGE_USER_PIN
 
         Log.d(TAG, "Change $label PIN tapped")
-        openPgpViewModel.currentOperation.value = operation
+        openPgpViewModel.setCurrentOperation(operation)
 
         lifecycleScope.launch(Dispatchers.Main) {
             val currentPin = (
@@ -267,7 +268,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                     collectUserPin("Enter current Device User PIN", tag = TAG, logLabel = "Current User PIN")
                 }
             ) ?: run {
-                openPgpViewModel.currentOperation.value = OpenPgpOperation.NONE
+                openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
                 return@launch
             }
 
@@ -275,7 +276,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 ?: run {
                     Log.d(TAG, "Change $label PIN cancelled (new PIN)")
                     currentPin.fill('\u0000')
-                    openPgpViewModel.currentOperation.value = OpenPgpOperation.NONE
+                    openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
                     return@launch
                 }
 
@@ -301,7 +302,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
 
     private fun onResetUserPinClicked() {
         Log.d(TAG, "Reset blocked User PIN tapped")
-        openPgpViewModel.currentOperation.value = OpenPgpOperation.RESET_USER_PIN
+        openPgpViewModel.setCurrentOperation(OpenPgpOperation.RESET_USER_PIN)
 
         lifecycleScope.launch(Dispatchers.Main) {
             val adminPin = collectAdminPin(
@@ -309,7 +310,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 tag = TAG,
                 logLabel = "Admin PIN (for User PIN reset)",
             ) ?: run {
-                openPgpViewModel.currentOperation.value = OpenPgpOperation.NONE
+                openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
                 return@launch
             }
 
@@ -317,7 +318,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 ?: run {
                     Log.d(TAG, "Reset User PIN cancelled (new PIN)")
                     adminPin.fill('\u0000')
-                    openPgpViewModel.currentOperation.value = OpenPgpOperation.NONE
+                    openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
                     return@launch
                 }
 
@@ -353,11 +354,15 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             } catch (e: Exception) {
                 Log.w(TAG, "$logLabel failed: ${e.message}")
 
-                if (e is InvalidPinException) {
-                    onWrongPin(e.attemptsRemaining)
-                    lifecycleScope.launch(Dispatchers.Main) {
+                lifecycleScope.launch(Dispatchers.Main) {
+                    errorVibrate()
+                    if (e is InvalidPinException) {
                         Toast.makeText(requireContext(), wrongPinToastMessage, Toast.LENGTH_SHORT).show()
                     }
+                }
+
+                if (e is InvalidPinException) {
+                    onWrongPin(e.attemptsRemaining)
                 }
 
                 openPgpViewModel.postPinChangeStatus(e.message ?: failureFallback)
@@ -365,14 +370,14 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             } finally {
                 pins.forEach { it.fill('\u0000') }
                 Log.d(TAG, "$logLabel — PIN(s) zeroed")
-                lifecycleScope.launch(Dispatchers.Main) { openPgpViewModel.currentOperation.value = OpenPgpOperation.NONE }
+                lifecycleScope.launch(Dispatchers.Main) { openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE) }
             }
         }
     }
 
     private fun onResetOpenPgpClicked() {
         Log.d(TAG, "Reset OpenPGP applet tapped (Admin PIN retries exhausted)")
-        openPgpViewModel.currentOperation.value = OpenPgpOperation.RESET_ADMIN_PIN
+        openPgpViewModel.setCurrentOperation(OpenPgpOperation.RESET_ADMIN_PIN)
         showOpenPgpResetConfirmationDialog()
     }
 
@@ -380,7 +385,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         showOpenPgpAppletResetDialog(
             TAG,
             onConfirmed = {
-                Log.i(TAG, "OpenPGP applet reset confirmed — device=${openPgpViewModel.connectedDevice.value?.type}")
+                Log.i(TAG, "OpenPGP applet reset confirmed — device=${openPgpViewModel.uiState.value?.connectedDevice?.type}")
                 openPgpViewModel.pendingAction.value = {
                     try {
                         val writer = openPgpViewModel.currentDeviceType.writer()
@@ -393,11 +398,11 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                         openPgpViewModel.postPinChangeStatus(e.message ?: "Failed to reset OpenPGP applet")
                         null
                     } finally {
-                        lifecycleScope.launch(Dispatchers.Main) { openPgpViewModel.currentOperation.value = OpenPgpOperation.NONE }
+                        lifecycleScope.launch(Dispatchers.Main) { openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE) }
                     }
                 }
             },
-            onCancelled = { openPgpViewModel.currentOperation.value = OpenPgpOperation.NONE },
+            onCancelled = { openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE) },
         )
     }
 }

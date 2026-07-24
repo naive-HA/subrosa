@@ -32,4 +32,5 @@ data class ManagementUiState(
     val showManagementActions: Boolean,
     val pgpStatus: PgpStatus,
     val pinRetries: PinRetries?,
+    val loading: Boolean = false,
 )
