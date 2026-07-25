@@ -43,14 +43,10 @@
                     android:id="@+id/edit_text_staticpwd_id"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:focusedByDefault="true"
                     android:imeActionId="6"
                     android:inputType="textPassword"
                     android:maxLength="38"
-                    tools:text="Type or paste from clipboard">
-
-                    <requestFocus />
-                </com.google.android.material.textfield.TextInputEditText>
+                    tools:text="Type or paste from clipboard" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <CheckBox

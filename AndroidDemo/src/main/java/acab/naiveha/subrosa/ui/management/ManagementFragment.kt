@@ -95,6 +95,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             if (state == null) {
+                binding.progressLoading.visibility = View.GONE
                 binding.emptyView.text = viewModel.errorInfo.value ?: getString(R.string.need_key_generic)
                 binding.info.setText("\n\n\n")
                 binding.pgpInfo.setText("\n\n")

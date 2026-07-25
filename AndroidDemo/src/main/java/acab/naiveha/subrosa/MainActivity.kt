@@ -16,11 +16,17 @@
 
 package acab.naiveha.subrosa
 
+import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
+import android.nfc.NfcAdapter
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.Menu
@@ -33,6 +39,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
 import androidx.core.net.toUri
 import androidx.core.view.GravityCompat
@@ -71,9 +78,62 @@ class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     private lateinit var yubikit: YubiKitManager
-    private val nfcConfiguration = NfcConfiguration().timeout(15000)
+    private val nfcConfiguration = NfcConfiguration().timeout(6000)
 
     private var hasNfc by Delegates.notNull<Boolean>()
+
+    private val nfcAdapterStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val state = intent.getIntExtra(NfcAdapter.EXTRA_ADAPTER_STATE, NfcAdapter.STATE_OFF)
+            logger.info("NFC adapter state broadcast received: state=$state, handleYubiKey=${viewModel.handleYubiKey.value}")
+            if (viewModel.handleYubiKey.value != true) return
+            if (state == NfcAdapter.STATE_ON) {
+                logger.info("NFC adapter turned on — claiming foreground dispatch")
+                enableNfcDiscovery(source = "broadcast")
+            }
+        }
+    }
+
+    private val nfcPollHandler = Handler(Looper.getMainLooper())
+    private var nfcWasEnabledAtLastPoll = false
+    private val nfcPollRunnable = object : Runnable {
+        override fun run() {
+            val enabled = NfcAdapter.getDefaultAdapter(this@MainActivity)?.isEnabled() == true
+            if (enabled && !nfcWasEnabledAtLastPoll && viewModel.handleYubiKey.value == true) {
+                logger.info("NFC adapter turned on (detected via poll) — claiming foreground dispatch")
+                enableNfcDiscovery(source = "poll")
+            }
+            nfcWasEnabledAtLastPoll = enabled
+            nfcPollHandler.postDelayed(this, 1000)
+        }
+    }
+
+    private fun enableNfcDiscovery(source: String) {
+        try {
+            yubikit.startNfcDiscovery(nfcConfiguration, this) { device ->
+                if (viewModel.yubiKey.value is UsbYubiKeyDevice) {
+                    logger.info("Ignoring NFC device connected because USB device is already connected")
+                    return@startNfcDiscovery
+                }
+                logger.info("NFC device connected {}", device)
+                viewModel.yubiKey.apply {
+                    runOnUiThread {
+                        value = device
+                        postValue(null)
+                    }
+                }
+            }
+            hasNfc = true
+            logger.info("NFC foreground dispatch claimed (source=$source)")
+        } catch (e: NfcNotAvailable) {
+            hasNfc = e.isDisabled()
+            if (e.isDisabled()) {
+                logger.info("NFC is currently disabled — will claim it once the user turns it on (source=$source)")
+            } else {
+                logger.info("Device has no NFC hardware (source=$source)")
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -168,25 +228,7 @@ class MainActivity : AppCompatActivity() {
                         viewModel.yubiKey.postValue(null)
                     }
                 }
-                try {
-                    yubikit.startNfcDiscovery(nfcConfiguration, this) { device ->
-                        if (viewModel.yubiKey.value is UsbYubiKeyDevice) {
-                            logger.info("Ignoring NFC device connected because USB device is already connected")
-                            return@startNfcDiscovery
-                        }
-                        logger.info("NFC device connected {}", device)
-                        viewModel.yubiKey.apply {
-                            runOnUiThread {
-                                value = device
-                                postValue(null)
-                            }
-                        }
-                    }
-                    hasNfc = true
-                } catch (e: NfcNotAvailable) {
-                    hasNfc = false
-                    logger.error("Error starting NFC listening", e)
-                }
+                enableNfcDiscovery(source = "handleYubiKey")
             } else {
                 logger.info("Disable listening")
                 yubikit.stopNfcDiscovery(this)
@@ -303,28 +345,24 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        logger.info("onResume — registering NFC adapter-state receiver and starting poll")
+        ContextCompat.registerReceiver(
+            this,
+            nfcAdapterStateReceiver,
+            IntentFilter(NfcAdapter.ACTION_ADAPTER_STATE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        nfcWasEnabledAtLastPoll = NfcAdapter.getDefaultAdapter(this)?.isEnabled() == true
+        nfcPollHandler.post(nfcPollRunnable)
         if (viewModel.handleYubiKey.value == true && hasNfc) {
-            try {
-                yubikit.startNfcDiscovery(nfcConfiguration, this) { device ->
-                    if (viewModel.yubiKey.value is UsbYubiKeyDevice) {
-                        logger.info("Ignoring NFC device connected because USB device is already connected")
-                        return@startNfcDiscovery
-                    }
-                    logger.info("NFC device connected {}", device)
-                    viewModel.yubiKey.apply {
-                        runOnUiThread {
-                            value = device
-                            postValue(null)
-                        }
-                    }
-                }
-            } catch (e: NfcNotAvailable) {
-                logger.error("NFC is not available", e)
-            }
+            enableNfcDiscovery(source = "onResume")
         }
     }
 
     override fun onPause() {
+        logger.info("onPause — unregistering NFC adapter-state receiver and stopping poll")
+        nfcPollHandler.removeCallbacks(nfcPollRunnable)
+        unregisterReceiver(nfcAdapterStateReceiver)
         yubikit.stopNfcDiscovery(this)
         super.onPause()
     }

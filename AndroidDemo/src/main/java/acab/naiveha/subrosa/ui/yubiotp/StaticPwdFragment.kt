@@ -193,6 +193,10 @@ class StaticPwdFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.btnSaveStaticpwd.isEnabled = false
 
+        if (savedInstanceState == null) {
+            binding.editTextStaticpwdId.requestFocus()
+        }
+
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             if (state == null) return@observe
             updateButtonStates()
@@ -343,6 +347,8 @@ class StaticPwdFragment : Fragment() {
         }
         binding.btnRequestStaticpwd.setOnClickListener {
             if (rejectIfUnsupportedDeviceConnected()) return@setOnClickListener
+            hideIme()
+            binding.editTextStaticpwdId.clearFocus()
             val slotTwo = binding.readSlotRadio.checkedRadioButtonId == R.id.read_radio_slot_2
             Log.d(TAG, "btnRequestStaticpwd — starting read of slot ${if (slotTwo) "TWO" else "ONE"}")
             viewModel.setCurrentOperation(OtpOperation.READ)
