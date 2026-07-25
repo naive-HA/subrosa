@@ -61,6 +61,9 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
 
         activityViewModel.yubiKey.observe(viewLifecycleOwner) {
             if (it != null) {
+                if (isYubiKeyTapSuspended()) {
+                    return@observe
+                }
                 lastDevice = it
                 onYubiKey(it)
             } else {
@@ -110,6 +113,8 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
     }
 
     protected open fun shouldClearOnDisconnect(): Boolean = true
+
+    protected open fun isYubiKeyTapSuspended(): Boolean = false
 
     protected fun errorVibrate() {
         getVibrator().vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))

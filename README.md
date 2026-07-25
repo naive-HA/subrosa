@@ -158,7 +158,7 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
         <td>Librem Key</td>
 		</tr>
 	<tr>
-		<td>OpenKeychain supported algortihm</td>
+		<td>OpenKeychain supported algorithm</td>
 		<td>RSA 2048</td>
 		<td>✅</td>
 		<td>✅</td>

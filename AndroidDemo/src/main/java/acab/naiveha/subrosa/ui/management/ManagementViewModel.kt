@@ -102,9 +102,6 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
         callback: (ManagementSession) -> Unit
     ) {
         _loading.postValue(true)
-        // True for devices (Nitrokey, GNUK) read directly via SmartCardConnection, bypassing
-        // ManagementSession.create() below -- neither implements Yubico's proprietary
-        // Management applet.
         val handledDirectly = try {
             _pgpCardInfo.postValue(null)
             readDeviceInfo(device)
@@ -151,7 +148,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
             showManagementActions = showManagementActions,
             pgpStatus = computePgpStatus(connected, pgp),
             pinRetries = pgp?.let { PinRetries(user = it.userPinRetries, admin = it.adminPinRetries) },
-            loading = loading
+            loading = false
         )
     }
 

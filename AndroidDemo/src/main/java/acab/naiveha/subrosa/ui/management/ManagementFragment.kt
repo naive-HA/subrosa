@@ -45,6 +45,7 @@ import acab.naiveha.subrosa.ui.openpgp.OpenPgpWriter
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpWriterUtils
 import acab.naiveha.subrosa.ui.openpgp.writer
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
+import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.application.InvalidPinException
 import com.yubico.yubikit.management.ManagementSession
@@ -69,6 +70,9 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
 
     override fun shouldClearOnDisconnect(): Boolean =
         (openPgpViewModel.uiState.value?.currentOperation ?: OpenPgpOperation.NONE) == OpenPgpOperation.NONE
+
+    override fun isYubiKeyTapSuspended(): Boolean =
+        (openPgpViewModel.uiState.value?.currentOperation ?: OpenPgpOperation.NONE) != OpenPgpOperation.NONE
 
     override fun onCreateView(
             inflater: LayoutInflater,
@@ -98,11 +102,11 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 return@observe
             }
 
+            binding.progressLoading.visibility = if (state.loading) View.VISIBLE else View.GONE
             binding.emptyView.setText("")
             binding.info.text = state.infoText
             binding.connectedContent.visibility = View.VISIBLE
             binding.managementActions.visibility = if (state.showManagementActions) View.VISIBLE else View.GONE
-            binding.progressLoading.visibility = if (state.loading) View.VISIBLE else View.GONE
 
             renderPgpStatus(state.pgpStatus)
 
@@ -237,6 +241,13 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         }
     }
 
+    private fun cancelPinOperation() {
+        openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
+        if (activityViewModel.yubiKey.value !is UsbYubiKeyDevice) {
+            viewModel.onDeviceDisconnected()
+        }
+    }
+
     private fun onOpenPgpDevice(device: YubiKeyDevice) {
         if (openPgpPrompt.isShowing) {
             openPgpPrompt.dismiss()
@@ -246,7 +257,14 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             withContext(activityViewModel.singleDispatcher) {
                 openPgpViewModel.onYubiKeyDevice(device)
                 if (device is NfcYubiKeyDevice) {
-                    device.remove {}
+                    device.remove {
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            val clear = shouldClearOnDisconnect()
+                            if (clear) {
+                                viewModel.onDeviceDisconnected()
+                            }
+                        }
+                    }
                 }
                 Unit
             }
@@ -268,7 +286,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                     collectUserPin("Enter current Device User PIN", tag = TAG, logLabel = "Current User PIN")
                 }
             ) ?: run {
-                openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
+                cancelPinOperation()
                 return@launch
             }
 
@@ -276,7 +294,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 ?: run {
                     Log.d(TAG, "Change $label PIN cancelled (new PIN)")
                     currentPin.fill('\u0000')
-                    openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
+                    cancelPinOperation()
                     return@launch
                 }
 
@@ -310,7 +328,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 tag = TAG,
                 logLabel = "Admin PIN (for User PIN reset)",
             ) ?: run {
-                openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
+                cancelPinOperation()
                 return@launch
             }
 
@@ -318,7 +336,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 ?: run {
                     Log.d(TAG, "Reset User PIN cancelled (new PIN)")
                     adminPin.fill('\u0000')
-                    openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
+                    cancelPinOperation()
                     return@launch
                 }
 
@@ -370,7 +388,9 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             } finally {
                 pins.forEach { it.fill('\u0000') }
                 Log.d(TAG, "$logLabel — PIN(s) zeroed")
-                lifecycleScope.launch(Dispatchers.Main) { openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE) }
+                lifecycleScope.launch(Dispatchers.Main) {
+                    openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
+                }
             }
         }
     }
@@ -402,7 +422,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                     }
                 }
             },
-            onCancelled = { openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE) },
+            onCancelled = { cancelPinOperation() },
         )
     }
 }

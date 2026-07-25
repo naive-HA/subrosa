@@ -1,6 +1,7 @@
 package acab.naiveha.subrosa.ui.openpgp
 
 import android.net.Uri
+import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -32,13 +33,19 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
     private val _uiState = MutableLiveData(state)
     val uiState: LiveData<OpenPgpUiState> = _uiState
 
-    @Synchronized
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     private fun updateUi(update: (OpenPgpUiState) -> OpenPgpUiState) {
-        state = update(state)
+        val apply = {
+            synchronized(this) {
+                state = update(state)
+                _uiState.value = state
+            }
+        }
         if (Looper.getMainLooper().thread == Thread.currentThread()) {
-            _uiState.value = state
+            apply()
         } else {
-            _uiState.postValue(state)
+            mainHandler.post(apply)
         }
     }
 
