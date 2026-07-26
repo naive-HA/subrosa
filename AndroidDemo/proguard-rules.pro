@@ -13,6 +13,8 @@
 -keep class com.yubico.yubikit.yubiotp.** { *; }
 -keep class com.yubico.yubikit.support.** { *; }
 
+-keep class acab.naiveha.subrosa.** { *; }
+
 -keep class com.yubico.yubikit.core.Version { *; }
 -keep class com.yubico.yubikit.core.application.Feature** { *; }
 
