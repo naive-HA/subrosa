@@ -29,10 +29,6 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 
 # How does *sub rosa* support various hardware security keys?
 <table>
-	<colgroup width="115"></colgroup>
-	<colgroup width="85"></colgroup>
-	<colgroup width="132"></colgroup>
-	<colgroup span="4"></colgroup>
 	<tr>
 		<td height="34"><br></td>
 		<td></td>
