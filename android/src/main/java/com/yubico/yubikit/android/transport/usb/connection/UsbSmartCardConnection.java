@@ -130,8 +130,7 @@ public class UsbSmartCardConnection extends UsbYubiKeyConnection implements Smar
       } catch (IOException e) {
         lastError = e;
         if (attempt < MAX_POWER_ON_ATTEMPTS) {
-          Logger.debug(
-              logger, "Power on attempt {} failed, retrying: {}", attempt, e.getMessage());
+          Logger.debug(logger, "Power on attempt {} failed, retrying: {}", attempt, e.getMessage());
           try {
             Thread.sleep(POWER_ON_RETRY_DELAY_MS);
           } catch (InterruptedException ie) {
