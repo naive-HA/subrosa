@@ -146,7 +146,7 @@ class StaticPwdFragment : Fragment() {
 
     private fun decodeAndShow(scancodes: ByteArray) {
         val password = try {
-            Keyboard.decode(scancodes, selectedKeyboard(binding.readKeyboardRadio.checkedRadioButtonId))
+            Keyboard.decode(scancodes, selectedKeyboard(binding.readKeyboardRadio.checkedChipId))
         } catch (e: IllegalStateException) {
             Log.w(TAG, "decodeAndShow — Keyboard.decode failed: ${e.message}")
             viewModel.postResult(Result.failure(Exception(describeError(e), e)))
@@ -286,8 +286,9 @@ class StaticPwdFragment : Fragment() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
             }
         })
-        binding.keyboardRadio.setOnCheckedChangeListener { _, checkedId ->
+        binding.keyboardRadio.setOnCheckedStateChangeListener { _, checkedIds ->
             hideIme()
+            val checkedId = checkedIds.firstOrNull() ?: View.NO_ID
             val extrasEnabled = checkedId != R.id.keyoard_modhex
             binding.extrasTabFront.isChecked = false
             binding.extrasTabFront.isEnabled = extrasEnabled
@@ -299,7 +300,7 @@ class StaticPwdFragment : Fragment() {
         binding.extrasTabFront.hideImeOnClick()
         binding.extrasTabEnd.hideImeOnClick()
         binding.extrasCr.hideImeOnClick()
-        binding.slotRadio.setOnCheckedChangeListener { _, _ -> hideIme() }
+        binding.slotRadio.setOnCheckedStateChangeListener { _, _ -> hideIme() }
 
         bindAutoClearStatus(
             viewModel.writeStatus, binding.saveStatus,
@@ -321,7 +322,7 @@ class StaticPwdFragment : Fragment() {
         binding.btnSaveStaticpwd.setOnClickListener {
             if (rejectIfUnsupportedDeviceConnected()) return@setOnClickListener
             runValidated(viewModel) {
-                val keyboard = selectedKeyboard(binding.keyboardRadio.checkedRadioButtonId)
+                val keyboard = selectedKeyboard(binding.keyboardRadio.checkedChipId)
                 var staticpwd = binding.editTextStaticpwdId.text.toString()
                 requireWithinMaxLength(staticpwd)
                 if (binding.extrasTabFront.isChecked){
@@ -333,7 +334,7 @@ class StaticPwdFragment : Fragment() {
                 val scancodes = Keyboard.encode(staticpwd, keyboard)
                 val configuration = StaticPasswordSlotConfiguration(scancodes)
                 configuration.appendCr(binding.extrasCr.isChecked)
-                val slot = resolveSlot(binding.slotRadio.checkedRadioButtonId, R.id.radio_slot_1, R.id.radio_slot_2)
+                val slot = resolveSlot(binding.slotRadio.checkedChipId, R.id.radio_slot_1, R.id.radio_slot_2)
                 Log.d(TAG, "btnSaveStaticpwd — queuing program of slot $slot (${staticpwd.length} chars, keyboard=$keyboard)")
                 viewModel.setCurrentOperation(OtpOperation.SAVE)
                 viewModel.pendingAction.value = {
@@ -349,7 +350,7 @@ class StaticPwdFragment : Fragment() {
             if (rejectIfUnsupportedDeviceConnected()) return@setOnClickListener
             hideIme()
             binding.editTextStaticpwdId.clearFocus()
-            val slotTwo = binding.readSlotRadio.checkedRadioButtonId == R.id.read_radio_slot_2
+            val slotTwo = binding.readSlotRadio.checkedChipId == R.id.read_radio_slot_2
             Log.d(TAG, "btnRequestStaticpwd — starting read of slot ${if (slotTwo) "TWO" else "ONE"}")
             viewModel.setCurrentOperation(OtpOperation.READ)
             startRead(slotTwo)
@@ -357,7 +358,7 @@ class StaticPwdFragment : Fragment() {
         binding.btnDeleteStaticpwd.setOnClickListener {
             if (rejectIfUnsupportedDeviceConnected()) return@setOnClickListener
             runValidated(viewModel) {
-                val slot = resolveSlot(binding.slotRadioReset.checkedRadioButtonId, R.id.reset_slot_1, R.id.reset_slot_2)
+                val slot = resolveSlot(binding.slotRadioReset.checkedChipId, R.id.reset_slot_1, R.id.reset_slot_2)
                 showStaticPasswordResetConfirmationDialog(slot)
             }
         }

@@ -62,54 +62,56 @@
                 android:layout_marginTop="@dimen/activity_margin"
                 android:text="@string/opt_keyboard_selection_desc" />
 
-            <RadioGroup
+            <com.google.android.material.chip.ChipGroup
                 android:id="@+id/keyboard_radio"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                app:singleSelection="true"
+                app:selectionRequired="true">
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/keyoard_us"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
                     android:checked="true"
                     android:text="@string/otp_keyboard_us_desc" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/keyoard_uk"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
                     android:text="@string/otp_keyboard_uk_desc" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/keyoard_de"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
                     android:text="@string/otp_keyboard_de_desc" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/keyoard_fr"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
                     android:text="@string/otp_keyboard_fr_desc" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/keyoard_it"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
                     android:text="@string/otp_keyboard_it_desc" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/keyoard_modhex"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/otp_keyboard_modhex_desc" />
-            </RadioGroup>
+            </com.google.android.material.chip.ChipGroup>
 
             <TextView
                 android:id="@+id/yubi_extras_id"
@@ -118,30 +120,32 @@
                 android:layout_marginTop="@dimen/activity_margin"
                 android:text="@string/otp_extras_desc" />
 
-            <RadioGroup
+            <com.google.android.material.chip.ChipGroup
                 android:id="@+id/extras_radio"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:layout_height="wrap_content">
 
-                <CheckBox
+                <com.google.android.material.chip.Chip
                     android:id="@+id/extras_tab_front"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/opt_extras_tab1_desc" />
 
-                <CheckBox
+                <com.google.android.material.chip.Chip
                     android:id="@+id/extras_tab_end"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/opt_extras_tab2_desc" />
 
-                <CheckBox
+                <com.google.android.material.chip.Chip
                     android:id="@+id/extras_cr"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/otp_extras_cr_desc" />
-            </RadioGroup>
+            </com.google.android.material.chip.ChipGroup>
 
             <TextView
                 android:id="@+id/yubi_slot_id"
@@ -150,26 +154,29 @@
                 android:layout_marginTop="@dimen/activity_margin"
                 android:text="@string/otp_yubistatic_slot_desc" />
 
-            <RadioGroup
+            <com.google.android.material.chip.ChipGroup
                 android:id="@+id/slot_radio"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                app:singleSelection="true"
+                app:selectionRequired="true">
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/radio_slot_1"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="10dp"
                     android:checked="true"
                     android:text="@string/otp_slot_1" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/radio_slot_2"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/otp_slot_2" />
-            </RadioGroup>
+            </com.google.android.material.chip.ChipGroup>
 
             <FrameLayout
                 android:layout_width="match_parent"
@@ -222,54 +229,56 @@
                 android:layout_marginTop="@dimen/activity_margin"
                 android:text="@string/opt_keyboard_selection_desc" />
 
-            <RadioGroup
+            <com.google.android.material.chip.ChipGroup
                 android:id="@+id/read_keyboard_radio"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                app:singleSelection="true"
+                app:selectionRequired="true">
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/read_keyoard_us"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
                     android:checked="true"
                     android:text="@string/otp_keyboard_us_desc" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/read_keyoard_uk"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
                     android:text="@string/otp_keyboard_uk_desc" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/read_keyoard_de"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
                     android:text="@string/otp_keyboard_de_desc" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/read_keyoard_fr"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
                     android:text="@string/otp_keyboard_fr_desc" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/read_keyoard_it"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
                     android:text="@string/otp_keyboard_it_desc" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/read_keyoard_modhex"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/otp_keyboard_modhex_desc" />
-            </RadioGroup>
+            </com.google.android.material.chip.ChipGroup>
 
             <TextView
                 android:id="@+id/read_slot_id"
@@ -278,26 +287,29 @@
                 android:layout_marginTop="@dimen/activity_margin"
                 android:text="@string/otp_yubistatic_slot_desc" />
 
-            <RadioGroup
+            <com.google.android.material.chip.ChipGroup
                 android:id="@+id/read_slot_radio"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                app:singleSelection="true"
+                app:selectionRequired="true">
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/read_radio_slot_1"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="10dp"
                     android:checked="true"
                     android:text="@string/otp_slot_1" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/read_radio_slot_2"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/otp_slot_2" />
-            </RadioGroup>
+            </com.google.android.material.chip.ChipGroup>
 
             <FrameLayout
                 android:layout_width="match_parent"
@@ -343,26 +355,29 @@
                 android:layout_marginBottom="@dimen/activity_margin"
                 android:text="@string/reset_yubikey_static_password" />
 
-            <RadioGroup
+            <com.google.android.material.chip.ChipGroup
                 android:id="@+id/slot_radio_reset"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                app:singleSelection="true"
+                app:selectionRequired="true">
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/reset_slot_1"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="10dp"
                     android:checked="true"
                     android:text="@string/otp_slot_1" />
 
-                <RadioButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/reset_slot_2"
+                    style="@style/AppTheme.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/otp_slot_2" />
-            </RadioGroup>
+            </com.google.android.material.chip.ChipGroup>
 
             <FrameLayout
                 android:layout_width="match_parent"

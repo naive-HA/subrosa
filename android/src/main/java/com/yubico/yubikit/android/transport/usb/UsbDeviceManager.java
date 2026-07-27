@@ -75,13 +75,18 @@ public final class UsbDeviceManager {
   static final Set<Integer> ACCEPTED_VENDOR_IDS =
       new HashSet<>(Arrays.asList(YUBICO_VENDOR_ID, NITROKEY_VENDOR_ID, PURISM_VENDOR_ID));
 
+  @SuppressLint("UnspecifiedRegisterReceiverFlag")
   private synchronized void addUsbListener(Context context, UsbDeviceListener listener) {
     if (deviceListeners.isEmpty()) {
       UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
       Collection<UsbDevice> usbDevices = usbManager.getDeviceList().values();
       IntentFilter intentFilter = new IntentFilter(UsbManager.ACTION_USB_DEVICE_ATTACHED);
       intentFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
-      context.registerReceiver(broadcastReceiver, intentFilter);
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        context.registerReceiver(broadcastReceiver, intentFilter, Context.RECEIVER_EXPORTED);
+      } else {
+        context.registerReceiver(broadcastReceiver, intentFilter);
+      }
       for (UsbDevice usbDevice : usbDevices) {
         if (ACCEPTED_VENDOR_IDS.contains(usbDevice.getVendorId())) {
           onDeviceAttach(usbDevice);

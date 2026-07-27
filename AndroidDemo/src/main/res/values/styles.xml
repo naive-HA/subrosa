@@ -11,6 +11,13 @@
         <item name="colorOnSurface">#000000</item>
         <item name="colorOnBackground">#000000</item>
         <item name="materialAlertDialogTheme">@style/AppTheme.MaterialAlertDialog</item>
+        <item name="chipStyle">@style/AppTheme.Chip</item>
+    </style>
+
+    <style name="AppTheme.Chip" parent="Widget.MaterialComponents.Chip.Choice">
+        <item name="chipBackgroundColor">@color/chip_background_color</item>
+        <item name="android:textColor">@color/chip_text_color</item>
+        <item name="rippleColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="AppTheme.MaterialAlertDialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">

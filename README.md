@@ -2,7 +2,7 @@
 
 # sub rosa by naiveHA
 Uncomplicatedly simple: if you manage your long, complex, and secure passwords in a password manager app (like KeePassDroid) on your Android device, 
-you can now “type” them easily on any other device—phone, tablet, or PC—running Windows, Linux, or macOS.
+you can now “type” them easily, in public, without worrying about surveillance cameras or shoulder surfing, on any other device—phone, tablet, or PC—running Windows, Linux, or macOS.
 
 *sub rosa* also lets you program the static password on your YubiKey, so you can “type” the password with the touch of a finger.
 When you’re done “typing” your long, complex, and secure password, be sure to wipe your YubiKey clean. 
