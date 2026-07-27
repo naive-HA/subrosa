@@ -13,27 +13,28 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.databinding.FragmentOpenpgpBinding
+import acab.naiveha.subrosa.ui.YubiKeyFragment
 import acab.naiveha.subrosa.ui.bindAutoClearStatus
 import acab.naiveha.subrosa.ui.collectAdminPin
 import acab.naiveha.subrosa.ui.collectUserPin
 import acab.naiveha.subrosa.ui.getSecret
 import acab.naiveha.subrosa.ui.showOpenPgpAppletResetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.yubico.yubikit.openpgp.OpenPgpSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.bouncycastle.openpgp.PGPSecretKeyRing
 
-class OpenPgpFragment : Fragment() {
+class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
     private companion object {
         private const val TAG = "OpenPgpFragment"
     }
-    private val viewModel: OpenPgpViewModel by activityViewModels()
+    override val viewModel: OpenPgpViewModel by activityViewModels()
     private lateinit var binding: FragmentOpenpgpBinding
     private var rawKeyArmor: String? = null
     private var validatedBundle: ImportBundle? = null
