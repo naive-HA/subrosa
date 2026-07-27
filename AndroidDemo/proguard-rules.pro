@@ -54,23 +54,23 @@
 -dontwarn javax.annotation.**
 -dontwarn org.checkerframework.**
 
-#-assumenosideeffects class android.util.Log {
-#    public static int v(...);
-#    public static int d(...);
-#    public static int i(...);
-#    public static int w(...);
-#}
-#
-#-assumenosideeffects class org.slf4j.Logger {
-#    public void trace(...);
-#    public void debug(...);
-#    public void info(...);
-#    public void warn(...);
-#}
-#
-#-assumenosideeffects class com.yubico.yubikit.core.internal.Logger {
-#    public static void trace(...);
-#    public static void debug(...);
-#    public static void info(...);
-#    public static void warn(...);
-#}
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+    public static int w(...);
+}
+
+-assumenosideeffects class org.slf4j.Logger {
+    public void trace(...);
+    public void debug(...);
+    public void info(...);
+    public void warn(...);
+}
+
+-assumenosideeffects class com.yubico.yubikit.core.internal.Logger {
+    public static void trace(...);
+    public static void debug(...);
+    public static void info(...);
+    public static void warn(...);
+}

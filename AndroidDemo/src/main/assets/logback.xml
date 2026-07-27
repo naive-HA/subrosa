@@ -25,8 +25,8 @@
     </appender>
 
     <!-- Restricted logging for RELEASE builds -->
-<!--    <root level="ERROR">-->
-    <root level="TRACE">
+    <root level="ERROR">
+<!--    <root level="TRACE">-->
         <appender-ref ref="logcat" />
     </root>
 </configuration>
