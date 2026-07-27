@@ -36,7 +36,6 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
     }
     override val viewModel: OpenPgpViewModel by activityViewModels()
     private lateinit var binding: FragmentOpenpgpBinding
-    private var rawKeyArmor: String? = null
     private var validatedBundle: ImportBundle? = null
 
     private var importInProgress = false
@@ -71,8 +70,6 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             } else {
                 hideKeyInfo()
             }
-
-            rawKeyArmor = state.importedKeyArmor
 
             Log.i(TAG, "Connected device: type=${state.connectedDevice.type} firmware=${state.connectedDevice.firmwareVersion}")
 

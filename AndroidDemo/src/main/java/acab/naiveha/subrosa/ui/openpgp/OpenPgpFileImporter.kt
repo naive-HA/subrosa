@@ -112,8 +112,7 @@ object OpenPgpFileImporter {
                 is PGPLiteralData -> {
                     Log.d(TAG, "Unwrapping PGPLiteralData (filename='${obj.fileName}')…")
                     val literalBytes = obj.inputStream.readBytes()
-                    Log.d(TAG, "LiteralData content (${literalBytes.size} B):\n" +
-                               String(literalBytes, Charsets.UTF_8).take(800))
+                    Log.d(TAG, "LiteralData content (${literalBytes.size} B)")
 
                     for (block in splitArmoredBlocks(literalBytes)) {
                         val inner = PGPObjectFactory(

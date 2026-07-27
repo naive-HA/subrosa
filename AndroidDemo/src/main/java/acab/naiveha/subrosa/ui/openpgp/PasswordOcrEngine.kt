@@ -90,10 +90,10 @@ class PasswordOcrEngine(private val context: Context) {
                     api.pageSegMode = TessBaseAPI.PageSegMode.PSM_SINGLE_LINE
                 }
 
-                Log.d(TAG, "OCR raw result: '$rawText', confidence: $confidence")
+                Log.d(TAG, "OCR raw result length=${rawText.length}, confidence: $confidence")
 
                 val cleaned = sanitize(rawText)
-                Log.d(TAG, "OCR cleaned result: '$cleaned'")
+                Log.d(TAG, "OCR cleaned result length=${cleaned.length}")
 
                 if (cleaned.isEmpty()) {
                     Log.w(TAG, "OCR failed: No digits recognized in selected region")

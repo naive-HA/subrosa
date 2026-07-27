@@ -136,7 +136,7 @@ suspend fun collectPin(
         ) ?: run { Log.d(tag, "$logLabel cancelled"); return null }
 
         if (entered.size < minLength) {
-            Log.w(tag, "$logLabel too short (${entered.size} < $minLength) — re-showing dialog")
+            Log.d(tag, "$logLabel too short — re-showing dialog")
             Toast.makeText(context, tooShortRes, Toast.LENGTH_SHORT).show()
             entered.fill('\u0000')
             continue

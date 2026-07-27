@@ -74,7 +74,6 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         updateUi {
             it.copy(
                 cardInfo = null,
-                importedKeyArmor = null,
                 importedKeyInfo = null
             )
         }
@@ -82,10 +81,10 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
     }
     fun onImportedKey(armor: String, info: OpenPgpKeyInfo) {
         logger.info("onImportedKey: user='${info.userId}' keys=${info.keyCount}")
-        updateUi { it.copy(importedKeyArmor = armor, importedKeyInfo = info) }
+        updateUi { it.copy(importedKeyInfo = info) }
     }
     fun clearImportedKey() {
-        updateUi { it.copy(importedKeyArmor = null, importedKeyInfo = null) }
+        updateUi { it.copy(importedKeyInfo = null) }
     }
 
     fun setCurrentOperation(op: OpenPgpOperation) {

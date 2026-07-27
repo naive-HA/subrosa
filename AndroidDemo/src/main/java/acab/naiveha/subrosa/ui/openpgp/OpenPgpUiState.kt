@@ -33,7 +33,6 @@ data class OpenPgpUiState(
     val connectedDevice: ConnectedPgpDevice = ConnectedPgpDevice.NONE,
     val cardInfo: OpenPgpCardInfo? = null,
     val currentOperation: OpenPgpOperation = OpenPgpOperation.NONE,
-    val importedKeyArmor: String? = null,
     val importedKeyInfo: OpenPgpKeyInfo? = null,
     val pendingImportUri: Uri? = null,
 )
