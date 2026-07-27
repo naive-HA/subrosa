@@ -20,5 +20,9 @@
             android:id="@+id/nav_licenses"
             android:icon="@drawable/copyright_24px"
             android:title="@string/menu_licenses" />
+        <item
+            android:id="@+id/nav_about"
+            android:icon="@drawable/ic_baseline_account_box_24"
+            android:title="@string/about" />
     </group>
 </menu>

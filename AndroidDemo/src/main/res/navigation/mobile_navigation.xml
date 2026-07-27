@@ -29,6 +29,12 @@
         tools:layout="@layout/fragment_licenses" />
 
     <fragment
+        android:id="@+id/nav_about"
+        android:name="acab.naiveha.subrosa.ui.about.AboutFragment"
+        android:label="@string/about"
+        tools:layout="@layout/fragment_about" />
+
+    <fragment
         android:id="@+id/passwordOcrFragment"
         android:name="acab.naiveha.subrosa.ui.openpgp.PasswordOcrFragment"
         android:label="Extract Password"

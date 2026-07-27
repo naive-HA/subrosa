@@ -17,8 +17,6 @@
 package acab.naiveha.subrosa
 
 import android.content.BroadcastReceiver
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -28,13 +26,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -52,14 +46,12 @@ import androidx.navigation.ui.NavigationUI
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.navigation.NavigationView
 import com.yubico.yubikit.android.YubiKitManager
 import com.yubico.yubikit.android.transport.nfc.NfcConfiguration
 import com.yubico.yubikit.android.transport.nfc.NfcNotAvailable
 import com.yubico.yubikit.android.transport.usb.UsbConfiguration
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
-import acab.naiveha.subrosa.databinding.DialogAboutBinding
 import acab.naiveha.subrosa.ui.management.ManagementViewModel
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpViewModel
 import acab.naiveha.subrosa.ui.yubiotp.OtpViewModel
@@ -151,7 +143,7 @@ class MainActivity : AppCompatActivity() {
         appBarConfiguration = AppBarConfiguration(
             setOf(
                 R.id.nav_management, R.id.nav_yubiotp,
-                R.id.nav_openpgp, R.id.nav_licenses
+                R.id.nav_openpgp, R.id.nav_licenses, R.id.nav_about
             ),
             drawerLayout
         )
@@ -304,40 +296,6 @@ class MainActivity : AppCompatActivity() {
         ViewModelProvider(this)[OpenPgpViewModel::class.java].onImportIntent(uri)
         
         setIntent(Intent())
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.main, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            R.id.action_about -> {
-                val binding = DialogAboutBinding.inflate(LayoutInflater.from(this))
-                MaterialAlertDialogBuilder(this)
-                    .setView(binding.root)
-                    .create().apply {
-                        setOnShowListener {
-                            binding.version.text =  getString(R.string.version, BuildConfig.VERSION_NAME)
-                            binding.aboutDescription.setOnClickListener {
-                                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-                                val clip = ClipData.newPlainText(
-                                    "BTC address",
-                                    "1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh"
-                                )
-                                clipboard.setPrimaryClip(clip)
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "Copied to clipboard: 1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    }.show()
-            }
-        }
-        return super.onOptionsItemSelected(item)
     }
 
     override fun onSupportNavigateUp(): Boolean =
