@@ -95,14 +95,12 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             onDisconnected = { viewModel.onDeviceDisconnected() },
         )
 
-        viewModel.errorInfo.observe(viewLifecycleOwner) { errorString ->
-            errorString?.let { binding.info.text = "Error:\n$it" }
-        }
-
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
-            if (state == null) {
+            state.errorInfo?.let { binding.info.text = "Error:\n$it" }
+
+            if (!state.isDeviceConnected && !state.loading) {
                 binding.progressLoading.visibility = View.GONE
-                binding.emptyView.text = viewModel.errorInfo.value ?: getString(R.string.need_key_generic)
+                binding.emptyView.text = state.errorInfo ?: getString(R.string.need_key_generic)
                 binding.info.setText("\n\n\n")
                 binding.pgpInfo.setText("\n\n")
                 binding.connectedContent.visibility = View.GONE
