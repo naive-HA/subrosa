@@ -566,6 +566,14 @@ object Keyboard {
         }
     }
 
+    fun encode(password: CharArray, keyboard: String): ByteArray {
+        val keyboardMap = keyboards[keyboard] ?: throw UnknownKeyboardException(keyboard)
+        return ByteArray(password.size) { i ->
+            val char = password[i]
+            (keyboardMap[char] ?: throw IllegalCharacterException(char, keyboard)).toByte()
+        }
+    }
+
     fun decode(scancodes: ByteArray, keyboard: String): String {
         val keyboardMap = keyboards[keyboard] ?: throw UnknownKeyboardException(keyboard)
         val scancodeToChar = keyboardMap.entries.associate { (char, code) -> code to char }

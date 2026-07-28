@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
+import android.text.TextUtils
 import android.text.TextWatcher
 import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
@@ -15,12 +16,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContract
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import acab.naiveha.subrosa.MainViewModel
 import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.databinding.FragmentStaticpwdBinding
 import acab.naiveha.subrosa.ui.PgpDeviceType
+import acab.naiveha.subrosa.ui.YubiKeyFragment
 import acab.naiveha.subrosa.ui.YubiKeyPromptDialog
 import acab.naiveha.subrosa.ui.bindAutoClearStatus
 import acab.naiveha.subrosa.ui.showConfirmationDialog
@@ -43,7 +44,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
-class StaticPwdFragment : Fragment() {
+class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
     companion object {
         private const val TAG = "StaticPwdFragment"
 
@@ -157,11 +158,13 @@ class StaticPwdFragment : Fragment() {
         viewModel.postReadStatus(OtpViewModel.READ_COMPLETE_STATUS)
     }
 
-    private fun requireWithinMaxLength(text: String) {
-        if (text.length > MAX_STATIC_PASSWORD_LENGTH) {
+    private fun requireWithinMaxLength(length: Int) {
+        if (length > MAX_STATIC_PASSWORD_LENGTH) {
             throw IllegalStateException(getString(R.string.otp_static_password_too_long, MAX_STATIC_PASSWORD_LENGTH))
         }
     }
+
+    private fun requireWithinMaxLength(text: String) = requireWithinMaxLength(text.length)
 
     private val keyboardByRadioId = mapOf(
         R.id.keyoard_us to "en_US", R.id.read_keyoard_us to "en_US",
@@ -174,8 +177,10 @@ class StaticPwdFragment : Fragment() {
     private fun selectedKeyboard(checkedRadioButtonId: Int): String =
         keyboardByRadioId[checkedRadioButtonId] ?: "en_US"
     private val activityViewModel: MainViewModel by activityViewModels()
-    private val viewModel: OtpViewModel by activityViewModels()
+    override val viewModel: OtpViewModel by activityViewModels()
     private lateinit var binding: FragmentStaticpwdBinding
+
+    override fun isYubiKeyTapSuspended(): Boolean = pendingReadSlotTwo != null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         binding = FragmentStaticpwdBinding.inflate(inflater, container, false)
@@ -323,26 +328,37 @@ class StaticPwdFragment : Fragment() {
             if (rejectIfUnsupportedDeviceConnected()) return@setOnClickListener
             runValidated(viewModel) {
                 val keyboard = selectedKeyboard(binding.keyboardRadio.checkedChipId)
-                var staticpwd = binding.editTextStaticpwdId.text.toString()
-                requireWithinMaxLength(staticpwd)
-                if (binding.extrasTabFront.isChecked){
-                    staticpwd = '\t' + staticpwd
+                val text = binding.editTextStaticpwdId.text
+                val rawLength = text?.length ?: 0
+                requireWithinMaxLength(rawLength)
+
+                val tabFront = binding.extrasTabFront.isChecked
+                val tabEnd = binding.extrasTabEnd.isChecked
+                val staticpwd = CharArray(rawLength + (if (tabFront) 1 else 0) + (if (tabEnd) 1 else 0))
+                var offset = 0
+                if (tabFront) staticpwd[offset++] = '\t'
+                if (text != null) {
+                    TextUtils.getChars(text, 0, rawLength, staticpwd, offset)
+                    offset += rawLength
                 }
-                if (binding.extrasTabEnd.isChecked){
-                    staticpwd += '\t'
-                }
-                val scancodes = Keyboard.encode(staticpwd, keyboard)
-                val configuration = StaticPasswordSlotConfiguration(scancodes)
-                configuration.appendCr(binding.extrasCr.isChecked)
-                val slot = resolveSlot(binding.slotRadio.checkedChipId, R.id.radio_slot_1, R.id.radio_slot_2)
-                Log.d(TAG, "btnSaveStaticpwd — queuing program of slot $slot (${staticpwd.length} chars, keyboard=$keyboard)")
-                viewModel.setCurrentOperation(OtpOperation.SAVE)
-                viewModel.pendingAction.value = {
-                    Log.i(TAG, "pendingAction — programming slot $slot")
-                    putConfiguration(slot, configuration, null, null)
-                    Log.i(TAG, "pendingAction — slot $slot programmed")
-                    viewModel.postWriteStatus(OtpViewModel.slotProgrammedStatus(slot))
-                    null
+                if (tabEnd) staticpwd[offset] = '\t'
+
+                try {
+                    val scancodes = Keyboard.encode(staticpwd, keyboard)
+                    val configuration = StaticPasswordSlotConfiguration(scancodes)
+                    configuration.appendCr(binding.extrasCr.isChecked)
+                    val slot = resolveSlot(binding.slotRadio.checkedChipId, R.id.radio_slot_1, R.id.radio_slot_2)
+                    Log.d(TAG, "btnSaveStaticpwd — queuing program of slot $slot (${staticpwd.size} chars, keyboard=$keyboard)")
+                    viewModel.setCurrentOperation(OtpOperation.SAVE)
+                    viewModel.pendingAction.value = {
+                        Log.i(TAG, "pendingAction — programming slot $slot")
+                        putConfiguration(slot, configuration, null, null)
+                        Log.i(TAG, "pendingAction — slot $slot programmed")
+                        viewModel.postWriteStatus(OtpViewModel.slotProgrammedStatus(slot))
+                        null
+                    }
+                } finally {
+                    staticpwd.fill('\u0000')
                 }
             }
         }

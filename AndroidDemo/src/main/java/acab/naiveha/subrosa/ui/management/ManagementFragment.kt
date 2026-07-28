@@ -34,6 +34,7 @@ import acab.naiveha.subrosa.databinding.FragmentManagementBinding
 import acab.naiveha.subrosa.ui.YubiKeyFragment
 import acab.naiveha.subrosa.ui.YubiKeyPromptDialog
 import acab.naiveha.subrosa.ui.bindAutoClearStatus
+import acab.naiveha.subrosa.ui.bindDeviceActions
 import acab.naiveha.subrosa.ui.collectAdminPin
 import acab.naiveha.subrosa.ui.collectNewAdminPin
 import acab.naiveha.subrosa.ui.collectNewUserPin
@@ -44,15 +45,12 @@ import acab.naiveha.subrosa.ui.openpgp.OpenPgpViewModel
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpWriter
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpWriterUtils
 import acab.naiveha.subrosa.ui.openpgp.writer
-import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
-import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.application.InvalidPinException
 import com.yubico.yubikit.management.ManagementSession
 import com.yubico.yubikit.openpgp.OpenPgpSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewModel>() {
     private companion object {
@@ -88,6 +86,14 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         super.onViewCreated(view, savedInstanceState)
 
         openPgpPrompt = YubiKeyPromptDialog(requireContext()) { openPgpViewModel.pendingAction.value = null }
+
+        bindDeviceActions(
+            viewModel = openPgpViewModel,
+            activityViewModel = activityViewModel,
+            prompt = openPgpPrompt,
+            shouldClearOnDisconnect = { shouldClearOnDisconnect() },
+            onDisconnected = { viewModel.onDeviceDisconnected() },
+        )
 
         viewModel.errorInfo.observe(viewLifecycleOwner) { errorString ->
             errorString?.let { binding.info.text = "Error:\n$it" }
@@ -146,21 +152,6 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             binding.progressChangeUserPin.visibility = if (userBusy) View.VISIBLE else View.GONE
             binding.btnChangeAdminPin.isEnabled = !busy
             binding.btnChangeUserPin.isEnabled = !busy
-            if (busy) {
-                val device = activityViewModel.yubiKey.value
-                if (device != null) {
-                    onOpenPgpDevice(device)
-                } else {
-                    openPgpPrompt.setHelpText(getString(R.string.yubikit_prompt_plug_in_or_tap))
-                    openPgpPrompt.show()
-                }
-            }
-        }
-
-        activityViewModel.yubiKey.observe(viewLifecycleOwner) { device ->
-            if (device != null && openPgpViewModel.pendingAction.value != null) {
-                onOpenPgpDevice(device)
-            }
         }
 
         bindAutoClearStatus(
@@ -246,29 +237,6 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
         if (activityViewModel.yubiKey.value !is UsbYubiKeyDevice) {
             viewModel.onDeviceDisconnected()
-        }
-    }
-
-    private fun onOpenPgpDevice(device: YubiKeyDevice) {
-        if (openPgpPrompt.isShowing) {
-            openPgpPrompt.dismiss()
-        }
-
-        lifecycleScope.launch {
-            withContext(activityViewModel.singleDispatcher) {
-                openPgpViewModel.onYubiKeyDevice(device)
-                if (device is NfcYubiKeyDevice) {
-                    device.remove {
-                        lifecycleScope.launch(Dispatchers.Main) {
-                            val clear = shouldClearOnDisconnect()
-                            if (clear) {
-                                viewModel.onDeviceDisconnected()
-                            }
-                        }
-                    }
-                }
-                Unit
-            }
         }
     }
 

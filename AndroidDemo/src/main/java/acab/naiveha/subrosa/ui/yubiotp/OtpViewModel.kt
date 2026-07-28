@@ -26,7 +26,6 @@ import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.application.ApplicationNotAvailableException
 import com.yubico.yubikit.yubiotp.Slot
 import com.yubico.yubikit.yubiotp.YubiOtpSession
-import org.bouncycastle.util.encoders.Hex
 import org.slf4j.LoggerFactory
 
 
@@ -135,7 +134,5 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         fun slotProgrammedStatus(slot: Slot): String = "Slot $slot programmed"
 
         fun slotResetStatus(slot: Slot): String = "Slot $slot reset"
-
-        fun calculatedResponseStatus(response: ByteArray): String = "Calculated response: ${String(Hex.encode(response))}"
     }
 }

@@ -22,20 +22,10 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.view.View
-import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.lifecycle.lifecycleScope
 import acab.naiveha.subrosa.MainViewModel
-import acab.naiveha.subrosa.R
-import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
-import com.yubico.yubikit.core.YubiKeyDevice
-import com.yubico.yubikit.core.application.ApplicationNotAvailableException
-
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 import org.slf4j.LoggerFactory
 
@@ -49,31 +39,20 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
     protected abstract val viewModel: VM
 
     private lateinit var yubiKeyPrompt: YubiKeyPromptDialog
-//    private lateinit var emptyText: TextView
-
-    private var lastDevice: YubiKeyDevice? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-//        emptyText = view.findViewById(R.id.empty_view)
-//        emptyText.visibility = View.VISIBLE
 
         yubiKeyPrompt = YubiKeyPromptDialog(requireContext()) { viewModel.pendingAction.value = null }
 
-        activityViewModel.yubiKey.observe(viewLifecycleOwner) {
-            if (it != null) {
-                if (isYubiKeyTapSuspended()) {
-                    return@observe
-                }
-                lastDevice = it
-                onYubiKey(it)
-            } else {
-//                emptyText.setText(R.string.need_key)
-                if (lastDevice != null && lastDevice !is NfcYubiKeyDevice) {
-                    viewModel.onDeviceDisconnected()
-                }
-                lastDevice = null
-            }
-        }
+        bindDeviceActions(
+            viewModel = viewModel,
+            activityViewModel = activityViewModel,
+            prompt = yubiKeyPrompt,
+            alwaysReadOnConnect = true,
+            isTapSuspended = { isYubiKeyTapSuspended() },
+            shouldClearOnDisconnect = { shouldClearOnDisconnect() },
+            onDisconnected = { viewModel.onDeviceDisconnected() },
+        )
 
         viewModel.result.observe(viewLifecycleOwner) { result ->
             result.onSuccess {
@@ -84,24 +63,8 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
                 logger.error("Error:", it)
                 errorVibrate()
                 Toast.makeText(context, it.message ?: "No message", Toast.LENGTH_SHORT).show()
-//                if (it is ApplicationNotAvailableException) {
-//                    emptyText.setText(R.string.app_missing)
-//                }
             }
             viewModel.clearResult()
-        }
-
-        viewModel.pendingAction.observe(viewLifecycleOwner) {
-            if (it != null) {
-                activityViewModel.yubiKey.value.let { device ->
-                    if (device != null) {
-                        onYubiKey(device)
-                    } else {
-                        yubiKeyPrompt.setHelpText(getString(R.string.yubikit_prompt_plug_in_or_tap))
-                        yubiKeyPrompt.show()
-                    }
-                }
-            }
         }
     }
 
@@ -123,35 +86,5 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
     private fun getVibrator(): Vibrator {
         val vibratorManager = requireContext().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
         return vibratorManager.defaultVibrator
-    }
-
-    private fun onYubiKey(it: YubiKeyDevice) {
-        val wasPromptShowing = yubiKeyPrompt.isShowing
-        if (wasPromptShowing) {
-            yubiKeyPrompt.dismiss()
-        }
-
-        lifecycleScope.launch {
-            withContext(activityViewModel.singleDispatcher) {
-                viewModel.onYubiKeyDevice(it)
-
-                if (it is NfcYubiKeyDevice) {
-                    if (!wasPromptShowing) {
-                        withContext(Dispatchers.Main) {
-//                            emptyText.setText("") //R.string.remove_key)
-                        }
-                    }
-                    it.remove {
-                        lifecycleScope.launch(Dispatchers.Main) {
-//                            emptyText.setText(R.string.need_key)
-                            if (shouldClearOnDisconnect()) {
-                                viewModel.onDeviceDisconnected()
-                            }
-                        }
-                    }
-                }
-                Unit
-            }
-        }
     }
 }
