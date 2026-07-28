@@ -113,56 +113,46 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
         callback: (ManagementSession) -> Unit
     ) {
         updateUi { it.copy(loading = true) }
-        val handledDirectly = try {
-            updateUi { it.copy(pgpCardInfo = null) }
-            readDeviceInfo(device)
-        } catch (ignored: ApplicationNotAvailableException) {
-            false
-        }
-
-        if (handledDirectly) return
-
-        ManagementSession.create(device) {
-            try {
-                callback(it.value)
-            } catch (e: ApplicationNotAvailableException) {
-                updateUi { s -> s.copy(loading = false) }
-                onError(e)
-            } catch (e: IOException) {
-                updateUi { s -> s.copy(loading = false) }
-                onError(e)
-            }
-        }
+        updateUi { it.copy(pgpCardInfo = null) }
+        readDeviceInfo(device, onError, callback)
     }
 
     override fun ManagementSession.updateState() {
         // Nothing to refresh automatically on the management screen.
     }
 
-    private fun readDeviceInfo(device: YubiKeyDevice): Boolean {
+    private fun readDeviceInfo(
+        device: YubiKeyDevice,
+        onError: (Throwable) -> Unit,
+        callback: (ManagementSession) -> Unit,
+    ) {
 
         val usbPid: UsbPid? = (device as? UsbYubiKeyDevice)?.pid
 
         if (PgpDeviceType.isUsbNitrokey(device)) {
             readNitrokeyInfoUsb(device)
-            return true
+            return
         }
 
         if (PgpDeviceType.isUsbGnuk(device)) {
             readGnukInfoUsb(device)
-            return true
+            return
         }
 
         if (device is NfcYubiKeyDevice) {
             readNfcDevice(device)
-            return true
+            return
         }
 
-        readYubicoInfo(device, usbPid)
-        return false
+        readYubicoInfo(device, usbPid, onError, callback)
     }
 
-    private fun readYubicoInfo(device: YubiKeyDevice, usbPid: UsbPid?) {
+    private fun readYubicoInfo(
+        device: YubiKeyDevice,
+        usbPid: UsbPid?,
+        onError: (Throwable) -> Unit,
+        callback: (ManagementSession) -> Unit,
+    ) {
         val pgpType = if (device is UsbYubiKeyDevice) {
             PgpDeviceType.fromUsbDescriptor(device)
         } else {
@@ -188,12 +178,28 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                 )
                 updateUi { it.copy(connectedDevice = info) }
                 (conn as? SmartCardConnection)?.let { readPgpInfo(it) } ?: updateUi { it.copy(loading = false) }
+
+                try {
+                    val managementSession = when (conn) {
+                        is SmartCardConnection -> ManagementSession(conn)
+                        is OtpConnection -> ManagementSession(conn)
+                        is FidoConnection -> ManagementSession(conn)
+                        else -> throw ApplicationNotAvailableException("Unsupported connection type")
+                    }
+                    callback(managementSession)
+                } catch (e: ApplicationNotAvailableException) {
+                    updateUi { s -> s.copy(loading = false) }
+                    onError(e)
+                } catch (e: IOException) {
+                    updateUi { s -> s.copy(loading = false) }
+                    onError(e)
+                }
             } catch (e: IllegalArgumentException) {
                 updateUi { it.copy(errorInfo = "Failed to identify device. Is it a supported security key?", connectedDevice = null, loading = false) }
-                throw e
+                onError(e)
             } catch (e: Exception) {
                 updateUi { it.copy(errorInfo = "Error reading device info: ${e.message}", connectedDevice = null, loading = false) }
-                throw e
+                onError(e)
             }
         }
 
@@ -206,6 +212,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                     } else {
                         logger.debug("SmartCardConnection request failed")
                         updateUi { s -> s.copy(loading = false) }
+                        onError(it.error ?: IOException("SmartCardConnection request failed"))
                     }
                 }
             }
@@ -217,6 +224,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                     } else {
                         logger.debug("OtpConnection request failed")
                         updateUi { s -> s.copy(loading = false) }
+                        onError(it.error ?: IOException("OtpConnection request failed"))
                     }
                 }
             }
@@ -228,12 +236,13 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
                     } else {
                         logger.debug("FidoConnection request failed")
                         updateUi { s -> s.copy(loading = false) }
+                        onError(it.error ?: IOException("FidoConnection request failed"))
                     }
                 }
             }
             else -> {
                 updateUi { it.copy(loading = false) }
-                throw ApplicationNotAvailableException("Cannot read device info")
+                onError(ApplicationNotAvailableException("Cannot read device info"))
             }
         }
     }
