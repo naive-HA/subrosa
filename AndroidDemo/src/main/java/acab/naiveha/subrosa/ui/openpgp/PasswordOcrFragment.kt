@@ -102,10 +102,7 @@ class PasswordOcrFragment : Fragment() {
             renderState(state)
         }
 
-        confirmButton.setOnClickListener {
-            viewModel.pendingAction = { runOcrOnSelection() }
-            viewModel.pendingAction?.invoke()
-        }
+        confirmButton.setOnClickListener { runOcrOnSelection() }
     }
 
     private suspend fun decodeUri(uri: Uri): Bitmap? =

@@ -13,8 +13,6 @@ class PasswordOcrViewModel : ViewModel() {
     private val _ocrState = MutableLiveData<OcrUiState>(OcrUiState.AwaitingSelection)
     val ocrState: LiveData<OcrUiState> = _ocrState
 
-    var pendingAction: (() -> Unit)? = null
-
     fun setImportedBitmap(bitmap: Bitmap?) {
         _importedBitmap.value = bitmap
         _ocrState.value = OcrUiState.AwaitingSelection

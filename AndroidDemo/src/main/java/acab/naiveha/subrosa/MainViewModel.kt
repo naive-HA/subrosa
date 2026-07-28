@@ -46,4 +46,9 @@ class MainViewModel : ViewModel() {
     fun consumeOcrUri() {
         _pendingOcrUri.value = null
     }
+
+    override fun onCleared() {
+        singleDispatcher.close()
+        super.onCleared()
+    }
 }
