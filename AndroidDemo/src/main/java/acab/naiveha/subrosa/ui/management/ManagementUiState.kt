@@ -17,8 +17,6 @@ sealed class PgpStatus {
 
     data class Nitrokey(val programmed: Boolean?, val nfcUnsupported: Boolean) : PgpStatus()
 
-    // staticPasswordSupported is null when genuinely unknown (PgpDeviceType.UNKNOWN) --
-    // only GNUK sets it explicitly to false, since it's spec-known (no Yubico OTP applet) there.
     data class OtherDevice(val programmed: Boolean, val staticPasswordSupported: Boolean? = null) : PgpStatus()
 
     object AwaitingSecondTap : PgpStatus()
@@ -28,12 +26,6 @@ sealed class PgpStatus {
 
 data class PinRetries(val user: Int, val admin: Int)
 
-/**
- * Single source of truth for the Management screen. Holds the raw inputs (connected device,
- * PGP card info, loading/error flags) and exposes the screen's derived fields as computed
- * properties, so they can never drift out of sync with one another the way independently
- * updated LiveData fields could.
- */
 data class ManagementUiState(
     val connectedDevice: ConnectedDeviceInfo? = null,
     val pgpCardInfo: OpenPgpCardInfo? = null,

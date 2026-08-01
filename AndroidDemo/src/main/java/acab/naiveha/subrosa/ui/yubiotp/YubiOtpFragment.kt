@@ -14,7 +14,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.fragment.app.activityViewModels
@@ -41,7 +40,6 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -79,9 +77,6 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
     private val requestOtp = registerForActivityResult(OtpContract()) { result ->
         if (!isAdded) return@registerForActivityResult
         activityViewModel.setYubiKeyListenerEnabled(true)
-        // slotTwo reflects the read-slot radio at the time OtpActivity was launched, which for USB
-        // is frozen/meaningless (see isAnySlotProgrammed()'s comment) — kept only for logging here,
-        // never for deciding which slot's programmed-ness explains a failure.
         val slotTwo = lastUsbReadSlotTwo
         lastUsbReadSlotTwo = null
         if (result == null) {
@@ -97,12 +92,8 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                 Log.w(TAG, "requestOtp — OtpActivity failed (read-slot radio showed " +
                     "${if (slotTwo == true) "TWO" else if (slotTwo == false) "ONE" else "?"}): ${e.message}", e)
                 if (!isAnySlotProgrammed()) {
-                    // Only surface our specific message when we're sure neither slot holds
-                    // anything — we can't know which slot the touch actually landed on, so
-                    // blaming "the radio-selected slot" here could as easily mask a genuine
-                    // failure on the slot that really is configured.
                     Log.d(TAG, "requestOtp — neither slot programmed, reporting as such instead of raw error")
-                    viewModel.postResult(Result.failure(Exception(YubiOtpViewModel.SLOT_NOT_PROGRAMMED)))
+                    viewModel.postResult(Result.failure(Exception(YubiOtpViewModel.NO_SLOT_CONFIGURED)))
                 } else {
                     viewModel.postResult(Result.failure(e))
                 }
@@ -126,12 +117,6 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         }
     }
 
-    // Over USB there's no way for the app to pick which slot gets read — the read-slot radio is
-    // disabled once a USB device is connected (see updateButtonStates/onDeviceConnected below) and
-    // stays frozen at whatever it last held, while the actual slot is decided entirely by how long
-    // the user physically touches the key (short = slot one, long = slot two). So a USB read must
-    // only be blocked up front when there is genuinely nothing on either slot to read; which slot
-    // the touch lands on is left for the hardware to decide, same as it always has been.
     private fun isAnySlotProgrammed(): Boolean {
         val state = viewModel.uiState.value
         if (state == null) {
@@ -170,9 +155,6 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                         val configured = session.configurationState.isConfigured(slot)
                         Log.d(TAG, "onNfcDeviceForRead — freshly-tapped device reports slot $slot configured=$configured")
                         if (!configured) {
-                            // Fail fast here rather than attempting setNdefConfiguration/readNdef
-                            // against an empty slot, which would otherwise surface as an opaque
-                            // NDEF/IO failure instead of this specific, actionable message.
                             throw Exception(YubiOtpViewModel.SLOT_NOT_PROGRAMMED)
                         }
                         session.setNdefConfiguration(slot, null, null)
@@ -418,13 +400,9 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             val deviceConnected = activityViewModel.yubiKey.value != null
             Log.d(TAG, "btnRequestStaticpwd — clicked (read-slot radio shows ${if (slotTwo) "TWO" else "ONE"}, " +
                 "irrelevant for USB), deviceConnected=$deviceConnected")
-            // deviceConnected is only ever true here for a persistent USB connection — NFC devices
-            // aren't "connected" until the moment of a tap, so this branch is effectively USB-only.
-            // Gate on isAnySlotProgrammed(), not the (disabled, frozen) radio-selected slot: see
-            // isAnySlotProgrammed()'s comment for why the radio can't be trusted here.
             if (deviceConnected && !isAnySlotProgrammed()) {
                 Log.d(TAG, "btnRequestStaticpwd — neither slot programmed, skipping read")
-                viewModel.postResult(Result.failure(Exception(YubiOtpViewModel.SLOT_NOT_PROGRAMMED)))
+                viewModel.postResult(Result.failure(Exception(YubiOtpViewModel.NO_SLOT_CONFIGURED)))
                 return@setOnClickListener
             }
             hideIme()
@@ -534,14 +512,6 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             twoId -> Slot.TWO
             else -> throw IllegalStateException(getString(R.string.otp_no_slot_selected))
         }
-
-    private fun TextInputLayout.bindRandomGenerator(editText: EditText, generator: () -> String) {
-        fun regenerate() {
-            editText.setText(generator())
-        }
-        setEndIconOnClickListener { regenerate() }
-        regenerate()
-    }
 
     private fun describeError(e: Exception): String = when (e) {
         is Keyboard.UnknownKeyboardException -> getString(R.string.otp_unknown_keyboard_desc, e.keyboard)

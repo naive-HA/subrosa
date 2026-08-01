@@ -89,11 +89,6 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
     }
 
     fun refreshPinRetries(session: OpenPgpSession) {
-        // session.pinStatus must be read synchronously, right here -- this is called from
-        // inside the pendingAction lambda while the device connection is still open. updateUi
-        // may defer its block to the main thread (mainHandler.post), and by the time that runs
-        // the connection has already been closed by the caller, so the I/O has to happen before
-        // we hand anything to updateUi, not inside it.
         val current = state.pgpCardInfo ?: return
         val updated = try {
             val pw = session.pinStatus

@@ -17,8 +17,6 @@ object GnukPgpWriter : OpenPgpWriter {
         return ManualApduKeyWriter.program(
             session, bundle, adminPin, userPin, TAG, status,
             clearSlotBeforeWrite = false,
-            // Gnuk derives Q itself and rejects the write if a public key is present at all
-            // for NIST curves (confirmed against a real scdaemon keytocard capture).
             omitEcPublicKeyForNistCurves = true,
         )
     }

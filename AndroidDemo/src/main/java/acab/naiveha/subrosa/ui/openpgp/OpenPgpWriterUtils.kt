@@ -93,13 +93,6 @@ internal object OpenPgpWriterUtils {
         status: (String) -> Unit = {},
     ) {
         Log.d(tag, "changeAdminPin() — changing Admin PIN (currentLength=${currentPin.size}, newLength=${newPin.size})…")
-        // CHANGE REFERENCE DATA sends currentPin+newPin as one undelimited blob; the card finds
-        // the boundary using its OWN stored PIN length, not currentPin.size. If the real Admin PIN
-        // is e.g. 8 chars and the user mistypes a 9-char "current" PIN whose first 8 chars happen
-        // to match, the card accepts those 8 as verification and silently folds the leftover
-        // character(s) into the new PIN instead of rejecting the attempt. Verifying currentPin by
-        // itself first sidesteps this: VERIFY's Lc is exactly currentPin.size, so any wrong-length
-        // (or wrong-value) current PIN fails cleanly before we ever touch the new PIN.
         status("Verifying Admin PIN…")
         session.verifyAdminPin(currentPin)
         status("Changing Admin PIN…")
@@ -116,8 +109,6 @@ internal object OpenPgpWriterUtils {
         status: (String) -> Unit = {},
     ) {
         Log.d(tag, "changeUserPin() — changing User PIN (currentLength=${currentPin.size}, newLength=${newPin.size})…")
-        // See changeAdminPin() above: verify currentPin on its own first so a mistyped, over-long
-        // current PIN can't have its extra characters silently absorbed into the new PIN.
         status("Verifying User PIN…")
         session.verifyUserPin(currentPin, false)
         status("Changing User PIN…")

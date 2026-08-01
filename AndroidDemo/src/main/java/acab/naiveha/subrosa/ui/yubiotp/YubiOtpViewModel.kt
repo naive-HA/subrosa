@@ -138,6 +138,8 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
 
         const val SLOT_NOT_PROGRAMMED = "Slot not programmed"
 
+        const val NO_SLOT_CONFIGURED = "No slot configured"
+
         const val READ_COMPLETE_STATUS = "Read complete"
 
         fun slotProgrammedStatus(slot: Slot): String = "Slot $slot programmed"

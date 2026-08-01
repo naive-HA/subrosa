@@ -137,8 +137,6 @@ internal object ManualApduKeyWriter {
 
     private fun buildRsaKeyTemplate(ref: KeyRef, rsa: PrivateKeyValues.Rsa): ByteArray {
         val byteLength = rsa.bitLength / 8 / 2
-        // e/p/q are freshly derived here (not aliases of caller-owned data), so it's safe to
-        // wipe them locally once they've been copied into headerBytes/valueBytes below.
         val eBytes = ByteUtils.intToLength(rsa.publicExponent, RSA_PUBLIC_EXPONENT_LEN_BITS / 8)
         val pBytes = ByteUtils.intToLength(rsa.primeP, byteLength)
         val qBytes = ByteUtils.intToLength(rsa.primeQ, byteLength)
@@ -167,8 +165,6 @@ internal object ManualApduKeyWriter {
     ): ByteArray {
         return when (ec.curveParams) {
             EllipticCurveValues.Ed25519 -> {
-                // `secret` aliases ec.secret (owned by ImportBundle, wiped by its destroy()) —
-                // not wiped here. publicKeyBytes is a fresh local, safe to wipe once consumed.
                 val secret = require32ByteSecret(ec.secret)
                 val publicKeyBytes = byteArrayOf(EC_PUBLIC_KEY_HEADER) +
                     Ed25519PrivateKeyParameters(secret).generatePublicKey().encoded
@@ -204,23 +200,12 @@ internal object ManualApduKeyWriter {
         }
     }
 
-    /**
-     * NIST curves (P-256/P-521): most OpenPGP-card implementations (genuine YubiKey, Gnuk) can
-     * derive Q from the private scalar and accept a private-key-only Extended Header List. The
-     * Nitrokey 3's OpenPGP applet does not — it rejects a private-only template for these curves
-     * with SW=6A80, so the public point has to be computed and included explicitly, the same way
-     * the Ed25519/X25519 branches above already do. Gnuk (Librem Key) is the opposite: an earlier
-     * fix (confirmed against a real scdaemon capture) found it rejects the write if a public key
-     * is present at all, so callers that target Gnuk pass omitEcPublicKeyForNistCurves=true.
-     */
     private fun buildNistEcTemplate(
         ref: KeyRef,
         secret: ByteArray,
         bcCurveName: String,
         omitEcPublicKeyForNistCurves: Boolean,
     ): ByteArray {
-        // Unlike the Ed25519/X25519 case, `scalar` is a fresh derivation (BigInteger → bytes),
-        // not an alias of caller-owned data — safe to wipe once it's been consumed below.
         val scalar = nistScalar(secret, bcCurveName)
         try {
             return if (omitEcPublicKeyForNistCurves) {
@@ -276,7 +261,6 @@ internal object ManualApduKeyWriter {
         return ByteUtils.intToLength(d, scalarLength)
     }
 
-    /** Computes the uncompressed public point Q = d*G (0x04 || X || Y) for a NIST curve. */
     private fun nistPublicKeyBytes(scalar: ByteArray, bcCurveName: String): ByteArray {
         val curve = SECNamedCurves.getByName(bcCurveName)
         val d = BigInteger(1, scalar)

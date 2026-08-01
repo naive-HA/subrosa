@@ -51,11 +51,6 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
                 pendingAction.postValue(null)
             }
 
-            // Deliberately isolated from the pendingAction result above: a failure here must
-            // never be reported as (or silently clobber) the outcome of the action that just
-            // ran. Without this try/catch, an exception here propagates out of this lambda and
-            // is caught by getSession's *session-open* error handler instead, misreporting it
-            // as a connection failure and discarding whatever result the action above produced.
             try {
                 session.updateState()
             } catch (e: Throwable) {

@@ -177,12 +177,6 @@ fun Fragment.bindAutoClearStatus(
     }
 }
 
-/**
- * A destructive-action confirm/cancel dialog, with the confirm/cancel/dismiss outcome logged
- * under [logLabel]. Shared by every "are you sure" dialog in the app so wording, button
- * placement, and logging stay consistent — see [showOpenPgpAppletResetDialog] for a themed
- * wrapper example.
- */
 fun Fragment.showConfirmationDialog(
     tag: String,
     logLabel: String,

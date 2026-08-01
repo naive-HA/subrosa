@@ -21,9 +21,6 @@ object OpenPgpFileImporter {
     private const val TAG = "OpenPgpFileImporter"
     fun decrypt(bytes: ByteArray, passphrase: CharArray): PGPSecretKeyRing {
         Log.d(TAG, "decrypt() — fileSize=${bytes.size} B passphraseLength=${passphrase.size}")
-        // Declared here (not inside the `if` branch below) so the finally block can zero it —
-        // it can't be wiped any earlier since findSecretKeyRing() reads lazily from a stream
-        // wrapping this array for the rest of the function.
         var clearBytes: ByteArray? = null
         try {
             val decoderStream = PGPUtil.getDecoderStream(ByteArrayInputStream(bytes))

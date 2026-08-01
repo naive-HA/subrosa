@@ -558,14 +558,6 @@ object Keyboard {
     class UnknownScanCodeException(val code: Int, val keyboard: String) :
         IllegalStateException("Unknown scan code 0x${code.toString(16)} for selected keyboard $keyboard")
 
-    fun encode(password: String, keyboard: String): ByteArray {
-        val keyboardMap = keyboards[keyboard] ?: throw UnknownKeyboardException(keyboard)
-        return ByteArray(password.length) { i ->
-            val char = password[i]
-            (keyboardMap[char] ?: throw IllegalCharacterException(char, keyboard)).toByte()
-        }
-    }
-
     fun encode(password: CharArray, keyboard: String): ByteArray {
         val keyboardMap = keyboards[keyboard] ?: throw UnknownKeyboardException(keyboard)
         return ByteArray(password.size) { i ->
