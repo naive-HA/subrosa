@@ -54,7 +54,7 @@ import com.yubico.yubikit.android.transport.usb.UsbConfiguration
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import acab.naiveha.subrosa.ui.management.ManagementViewModel
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpViewModel
-import acab.naiveha.subrosa.ui.yubiotp.OtpViewModel
+import acab.naiveha.subrosa.ui.yubiotp.YubiOtpViewModel
 import android.os.Build
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.slf4j.LoggerFactory
@@ -108,11 +108,8 @@ class MainActivity : AppCompatActivity() {
                     return@startNfcDiscovery
                 }
                 logger.info("NFC device connected {}", device)
-                viewModel.yubiKey.apply {
-                    runOnUiThread {
-                        value = device
-                        postValue(null)
-                    }
+                runOnUiThread {
+                    viewModel.onNfcDeviceConnected(device)
                 }
             }
             hasNfc = true
@@ -156,10 +153,10 @@ class MainActivity : AppCompatActivity() {
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
             ViewModelProvider(this)[OpenPgpViewModel::class.java].requestClearUi()
-            ViewModelProvider(this)[OtpViewModel::class.java].requestClearUi()
+            ViewModelProvider(this)[YubiOtpViewModel::class.java].requestClearUi()
             ViewModelProvider(this)[ManagementViewModel::class.java].requestClearUi()
             if (destination.id == R.id.nav_management) {
-                viewModel.yubiKey.value?.let {viewModel.yubiKey.postValue(it)}
+                viewModel.refreshCurrentDevice()
             }
         }
 
@@ -214,10 +211,10 @@ class MainActivity : AppCompatActivity() {
                 logger.info("Enable listening")
                 yubikit.startUsbDiscovery(UsbConfiguration()) { device ->
                     logger.info("USB device attached {}, current: {}", device, viewModel.yubiKey.value)
-                    viewModel.yubiKey.postValue(device)
+                    viewModel.onUsbDeviceAttached(device)
                     device.setOnClosed {
                         logger.info("Device removed {}", device)
-                        viewModel.yubiKey.postValue(null)
+                        viewModel.onUsbDeviceDetached()
                     }
                 }
                 enableNfcDiscovery(source = "handleYubiKey")
@@ -326,7 +323,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        viewModel.yubiKey.value = null
+        viewModel.onUsbDeviceDetached()
         yubikit.stopUsbDiscovery()
         super.onDestroy()
     }

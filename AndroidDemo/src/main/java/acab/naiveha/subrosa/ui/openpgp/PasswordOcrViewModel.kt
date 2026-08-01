@@ -5,21 +5,22 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 
+data class PasswordOcrUiState(
+    val bitmap: Bitmap? = null,
+    val ocrState: PasswordOcrViewModel.OcrUiState = PasswordOcrViewModel.OcrUiState.AwaitingSelection,
+)
+
 class PasswordOcrViewModel : ViewModel() {
 
-    private val _importedBitmap = MutableLiveData<Bitmap?>()
-    val importedBitmap: LiveData<Bitmap?> = _importedBitmap
-
-    private val _ocrState = MutableLiveData<OcrUiState>(OcrUiState.AwaitingSelection)
-    val ocrState: LiveData<OcrUiState> = _ocrState
+    private val _uiState = MutableLiveData(PasswordOcrUiState())
+    val uiState: LiveData<PasswordOcrUiState> = _uiState
 
     fun setImportedBitmap(bitmap: Bitmap?) {
-        _importedBitmap.value = bitmap
-        _ocrState.value = OcrUiState.AwaitingSelection
+        _uiState.value = _uiState.value?.copy(bitmap = bitmap, ocrState = OcrUiState.AwaitingSelection)
     }
 
     fun setState(state: OcrUiState) {
-        _ocrState.value = state
+        _uiState.value = _uiState.value?.copy(ocrState = state)
     }
 
     sealed class OcrUiState {

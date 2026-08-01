@@ -34,7 +34,25 @@ class MainViewModel : ViewModel() {
         _handleYubiKey.postValue(enabled)
     }
 
-    val yubiKey = MutableLiveData<YubiKeyDevice?>()
+    private val _yubiKey = MutableLiveData<YubiKeyDevice?>()
+    val yubiKey: LiveData<YubiKeyDevice?> = _yubiKey
+
+    fun onUsbDeviceAttached(device: YubiKeyDevice) {
+        _yubiKey.postValue(device)
+    }
+
+    fun onUsbDeviceDetached() {
+        _yubiKey.postValue(null)
+    }
+
+    fun onNfcDeviceConnected(device: YubiKeyDevice) {
+        _yubiKey.value = device
+        _yubiKey.postValue(null)
+    }
+
+    fun refreshCurrentDevice() {
+        _yubiKey.value?.let { _yubiKey.postValue(it) }
+    }
 
     private val _pendingOcrUri = MutableLiveData<Uri?>(null)
     val pendingOcrUri: LiveData<Uri?> = _pendingOcrUri

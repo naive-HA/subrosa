@@ -66,7 +66,7 @@ object OpenPgpReader {
                 adminPinRetries = pw.attemptsAdmin,
             )
 
-            Log.i(TAG, "read() complete — v=${info.version} name='${info.cardholderName}' " +
+            Log.i(TAG, "read() complete — v=${info.version} hasName=${info.cardholderName != "—"} " +
                        "slots=${slots.count { it.hasKey }} key(s)")
             status(READ_COMPLETE_STATUS)
             succeeded = true

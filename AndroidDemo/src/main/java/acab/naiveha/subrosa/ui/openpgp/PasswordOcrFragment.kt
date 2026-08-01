@@ -42,6 +42,7 @@ class PasswordOcrFragment : Fragment() {
     private val viewModel: PasswordOcrViewModel by viewModels()
     private val activityViewModel: MainViewModel by activityViewModels()
     private lateinit var ocrEngine: PasswordOcrEngine
+    private var lastDisplayedBitmap: Bitmap? = null
 
     private lateinit var imageView: ImageView
     private lateinit var cropOverlay: CropSelectionView
@@ -94,12 +95,12 @@ class PasswordOcrFragment : Fragment() {
             }
         })
 
-        viewModel.importedBitmap.observe(viewLifecycleOwner) { bitmap ->
-            bitmap?.let { displayBitmap(it) }
-        }
-
-        viewModel.ocrState.observe(viewLifecycleOwner) { state ->
-            renderState(state)
+        viewModel.uiState.observe(viewLifecycleOwner) { state ->
+            if (state.bitmap != null && state.bitmap !== lastDisplayedBitmap) {
+                lastDisplayedBitmap = state.bitmap
+                displayBitmap(state.bitmap)
+            }
+            renderState(state.ocrState)
         }
 
         confirmButton.setOnClickListener { runOcrOnSelection() }
@@ -144,7 +145,7 @@ class PasswordOcrFragment : Fragment() {
     }
 
     private fun runOcrOnSelection() {
-        val bitmap = viewModel.importedBitmap.value
+        val bitmap = viewModel.uiState.value?.bitmap
         if (bitmap == null) {
             Toast.makeText(requireContext(), "No image imported", Toast.LENGTH_SHORT).show()
             return
@@ -211,7 +212,7 @@ class PasswordOcrFragment : Fragment() {
         val clipboardManager =
             requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
-        val clip = ClipData.newPlainText("OpenKeychain export password", password)
+        val clip = ClipData.newPlainText("Static password", password)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val extras = PersistableBundle()

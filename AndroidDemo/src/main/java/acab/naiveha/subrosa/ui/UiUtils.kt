@@ -73,6 +73,7 @@ suspend fun getSecret(
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.primaryClip?.getItemAt(0)?.text?.let {
                     editText.setText(it)
+                    clipboard.clearPrimaryClip()
                 }
             }
         } else {

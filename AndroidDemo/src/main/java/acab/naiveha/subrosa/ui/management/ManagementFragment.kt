@@ -17,9 +17,6 @@
 package acab.naiveha.subrosa.ui.management
 
 import android.annotation.SuppressLint
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -38,6 +35,7 @@ import acab.naiveha.subrosa.ui.bindDeviceActions
 import acab.naiveha.subrosa.ui.collectAdminPin
 import acab.naiveha.subrosa.ui.collectNewAdminPin
 import acab.naiveha.subrosa.ui.collectNewUserPin
+import acab.naiveha.subrosa.ui.setupCoffeeTipsClipboard
 import acab.naiveha.subrosa.ui.collectUserPin
 import acab.naiveha.subrosa.ui.showOpenPgpAppletResetDialog
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpOperation
@@ -181,13 +179,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             }
         }
 
-        binding.coffeeTipsContainer.setOnClickListener {
-            val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val btcAddress = getString(R.string.btc_address)
-            val clip = ClipData.newPlainText("BTC address", btcAddress)
-            clipboard.setPrimaryClip(clip)
-            Toast.makeText(requireContext(), getString(R.string.copied_to_clipboard_msg, btcAddress), Toast.LENGTH_SHORT).show()
-        }
+        setupCoffeeTipsClipboard(binding.coffeeTipsContainer)
     }
 
     override fun onPause() {
@@ -375,7 +367,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 Log.i(TAG, "OpenPGP applet reset confirmed — device=${openPgpViewModel.uiState.value?.connectedDevice?.type}")
                 openPgpViewModel.pendingAction.value = {
                     try {
-                        val writer = openPgpViewModel.currentDeviceType.writer()
+                        val writer = openPgpViewModel.uiState.value?.connectedDevice?.type.writer()
                         Log.i(TAG, "pendingAction — resetting OpenPGP applet, writer=${writer::class.simpleName}")
                         writer.wipe(this, status = openPgpViewModel::postPinChangeStatus)
                         viewModel.updatePinRetries(user = 3, admin = 3)

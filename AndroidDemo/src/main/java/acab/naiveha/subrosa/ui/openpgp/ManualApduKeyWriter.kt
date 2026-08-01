@@ -54,10 +54,14 @@ internal object ManualApduKeyWriter {
             st("Algorithm attributes set for ${slot.ref.name}")
 
             val template = buildKeyTemplate(slot.ref, slot.privateKeyValues, omitEcPublicKeyForNistCurves)
-            Log.d(t, "  putRawKeyTemplate(${slot.ref.name}, ${template.size} bytes)…")
-            s.putRawKeyTemplate(template)
-            Log.d(t, "  putRawKeyTemplate(${slot.ref.name}) done")
-            st("Key material written for ${slot.ref.name}")
+            try {
+                Log.d(t, "  putRawKeyTemplate(${slot.ref.name}, ${template.size} bytes)…")
+                s.putRawKeyTemplate(template)
+                Log.d(t, "  putRawKeyTemplate(${slot.ref.name}) done")
+                st("Key material written for ${slot.ref.name}")
+            } finally {
+                template.fill(0)
+            }
         }
 
     fun wipe(session: OpenPgpSession, tag: String, status: (String) -> Unit): String? {
@@ -133,16 +137,27 @@ internal object ManualApduKeyWriter {
 
     private fun buildRsaKeyTemplate(ref: KeyRef, rsa: PrivateKeyValues.Rsa): ByteArray {
         val byteLength = rsa.bitLength / 8 / 2
+        // e/p/q are freshly derived here (not aliases of caller-owned data), so it's safe to
+        // wipe them locally once they've been copied into headerBytes/valueBytes below.
         val eBytes = ByteUtils.intToLength(rsa.publicExponent, RSA_PUBLIC_EXPONENT_LEN_BITS / 8)
         val pBytes = ByteUtils.intToLength(rsa.primeP, byteLength)
         val qBytes = ByteUtils.intToLength(rsa.primeQ, byteLength)
-
-        val headerBytes = tlvHeaderBytes(0x91, eBytes) +
-            tlvHeaderBytes(0x92, pBytes) +
-            tlvHeaderBytes(0x93, qBytes)
-        val valueBytes = eBytes + pBytes + qBytes
-
-        return wrapExtendedHeaderList(ref, headerBytes, valueBytes)
+        try {
+            val headerBytes = tlvHeaderBytes(0x91, eBytes) +
+                tlvHeaderBytes(0x92, pBytes) +
+                tlvHeaderBytes(0x93, qBytes)
+            val valueBytes = eBytes + pBytes + qBytes
+            try {
+                return wrapExtendedHeaderList(ref, headerBytes, valueBytes)
+            } finally {
+                headerBytes.fill(0)
+                valueBytes.fill(0)
+            }
+        } finally {
+            eBytes.fill(0)
+            pBytes.fill(0)
+            qBytes.fill(0)
+        }
     }
 
     private fun buildEcKeyTemplate(
@@ -152,16 +167,31 @@ internal object ManualApduKeyWriter {
     ): ByteArray {
         return when (ec.curveParams) {
             EllipticCurveValues.Ed25519 -> {
+                // `secret` aliases ec.secret (owned by ImportBundle, wiped by its destroy()) —
+                // not wiped here. publicKeyBytes is a fresh local, safe to wipe once consumed.
                 val secret = require32ByteSecret(ec.secret)
                 val publicKeyBytes = byteArrayOf(EC_PUBLIC_KEY_HEADER) +
                     Ed25519PrivateKeyParameters(secret).generatePublicKey().encoded
-                buildPrivateAndPublicTemplate(ref, secret, publicKeyBytes)
+                try {
+                    buildPrivateAndPublicTemplate(ref, secret, publicKeyBytes)
+                } finally {
+                    publicKeyBytes.fill(0)
+                }
             }
             EllipticCurveValues.X25519 -> {
                 val secret = require32ByteSecret(ec.secret)
-                val publicKeyBytes = byteArrayOf(EC_PUBLIC_KEY_HEADER) +
-                    X25519PrivateKeyParameters(secret.reversedArray()).generatePublicKey().encoded
-                buildPrivateAndPublicTemplate(ref, secret, publicKeyBytes)
+                val reversedSecret = secret.reversedArray()
+                val publicKeyBytes = try {
+                    byteArrayOf(EC_PUBLIC_KEY_HEADER) +
+                        X25519PrivateKeyParameters(reversedSecret).generatePublicKey().encoded
+                } finally {
+                    reversedSecret.fill(0)
+                }
+                try {
+                    buildPrivateAndPublicTemplate(ref, secret, publicKeyBytes)
+                } finally {
+                    publicKeyBytes.fill(0)
+                }
             }
             EllipticCurveValues.SECP256R1 ->
                 buildNistEcTemplate(ref, ec.secret, "secp256r1", omitEcPublicKeyForNistCurves)
@@ -189,11 +219,22 @@ internal object ManualApduKeyWriter {
         bcCurveName: String,
         omitEcPublicKeyForNistCurves: Boolean,
     ): ByteArray {
+        // Unlike the Ed25519/X25519 case, `scalar` is a fresh derivation (BigInteger → bytes),
+        // not an alias of caller-owned data — safe to wipe once it's been consumed below.
         val scalar = nistScalar(secret, bcCurveName)
-        return if (omitEcPublicKeyForNistCurves) {
-            buildPrivateOnlyTemplate(ref, scalar)
-        } else {
-            buildPrivateAndPublicTemplate(ref, scalar, nistPublicKeyBytes(scalar, bcCurveName))
+        try {
+            return if (omitEcPublicKeyForNistCurves) {
+                buildPrivateOnlyTemplate(ref, scalar)
+            } else {
+                val publicKeyBytes = nistPublicKeyBytes(scalar, bcCurveName)
+                try {
+                    buildPrivateAndPublicTemplate(ref, scalar, publicKeyBytes)
+                } finally {
+                    publicKeyBytes.fill(0)
+                }
+            }
+        } finally {
+            scalar.fill(0)
         }
     }
 
@@ -204,12 +245,21 @@ internal object ManualApduKeyWriter {
     ): ByteArray {
         val headerBytes = tlvHeaderBytes(0x92, secretScalar) + tlvHeaderBytes(0x99, publicKeyBytes)
         val valueBytes = secretScalar + publicKeyBytes
-        return wrapExtendedHeaderList(ref, headerBytes, valueBytes)
+        try {
+            return wrapExtendedHeaderList(ref, headerBytes, valueBytes)
+        } finally {
+            headerBytes.fill(0)
+            valueBytes.fill(0)
+        }
     }
 
     private fun buildPrivateOnlyTemplate(ref: KeyRef, secretScalar: ByteArray): ByteArray {
         val headerBytes = tlvHeaderBytes(0x92, secretScalar)
-        return wrapExtendedHeaderList(ref, headerBytes, secretScalar)
+        try {
+            return wrapExtendedHeaderList(ref, headerBytes, secretScalar)
+        } finally {
+            headerBytes.fill(0)
+        }
     }
 
     private fun require32ByteSecret(secret: ByteArray): ByteArray {
@@ -244,6 +294,12 @@ internal object ManualApduKeyWriter {
         val tmpl7f48 = Tlv(0x7F48, headerBytes).bytes
         val data5f48 = Tlv(0x5F48, valueBytes).bytes
         val body = crt + tmpl7f48 + data5f48
-        return Tlv(0x4D, body).bytes
+        try {
+            return Tlv(0x4D, body).bytes
+        } finally {
+            tmpl7f48.fill(0)
+            data5f48.fill(0)
+            body.fill(0)
+        }
     }
 }

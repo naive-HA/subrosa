@@ -574,15 +574,16 @@ object Keyboard {
         }
     }
 
-    fun decode(scancodes: ByteArray, keyboard: String): String {
+    fun decode(scancodes: ByteArray, keyboard: String): CharArray {
         val keyboardMap = keyboards[keyboard] ?: throw UnknownKeyboardException(keyboard)
         val scancodeToChar = keyboardMap.entries.associate { (char, code) -> code to char }
-        val decoded = StringBuilder()
+        val decoded = CharArray(scancodes.size)
+        var length = 0
         for (b in scancodes) {
             val code = b.toInt() and 0xFF
             if (code == 0x00) break
-            decoded.append(scancodeToChar[code] ?: throw UnknownScanCodeException(code, keyboard))
+            decoded[length++] = scancodeToChar[code] ?: throw UnknownScanCodeException(code, keyboard)
         }
-        return decoded.toString()
+        return decoded.copyOf(length)
     }
 }

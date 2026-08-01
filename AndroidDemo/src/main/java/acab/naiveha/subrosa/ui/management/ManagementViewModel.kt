@@ -57,14 +57,11 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // All updates funnel through here so that connectedDevice/pgpCardInfo/loading/errorInfo are
-    // always read and copied together as one atomic snapshot -- device-I/O callbacks arrive from
-    // background threads at unpredictable times, and posting to independent LiveData fields let
-    // observers see transitional, incoherent combinations of that state.
     private fun updateUi(update: (ManagementUiState) -> ManagementUiState) {
         val apply = {
             synchronized(this) {
-                state = update(state)
+                val next = update(state)
+                state = if (next.connectedDevice != null) next.copy(loading = false) else next
                 _uiState.value = state
             }
         }
@@ -80,9 +77,9 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
     }
 
     fun updatePinRetries(user: Int? = null, admin: Int? = null) {
-        val current = state.pgpCardInfo ?: return
-        updateUi {
-            it.copy(
+        updateUi { s ->
+            val current = s.pgpCardInfo ?: return@updateUi s
+            s.copy(
                 pgpCardInfo = current.copy(
                     userPinRetries = user ?: current.userPinRetries,
                     adminPinRetries = admin ?: current.adminPinRetries
@@ -92,6 +89,11 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
     }
 
     fun refreshPinRetries(session: OpenPgpSession) {
+        // session.pinStatus must be read synchronously, right here -- this is called from
+        // inside the pendingAction lambda while the device connection is still open. updateUi
+        // may defer its block to the main thread (mainHandler.post), and by the time that runs
+        // the connection has already been closed by the caller, so the I/O has to happen before
+        // we hand anything to updateUi, not inside it.
         val current = state.pgpCardInfo ?: return
         val updated = try {
             val pw = session.pinStatus
@@ -112,8 +114,7 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
         onError: (Throwable) -> Unit,
         callback: (ManagementSession) -> Unit
     ) {
-        updateUi { it.copy(loading = true) }
-        updateUi { it.copy(pgpCardInfo = null) }
+        updateUi { it.copy(loading = true, pgpCardInfo = null) }
         readDeviceInfo(device, onError, callback)
     }
 
@@ -203,48 +204,33 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
             }
         }
 
-        when {
-            device.supportsConnection(SmartCardConnection::class.java) -> {
-                device.requestConnection(SmartCardConnection::class.java) {
-                    if (it.isSuccess) {
-                        logger.debug("readInfo on SmartCardConnection")
-                        readInfo(it.value)
-                    } else {
-                        logger.debug("SmartCardConnection request failed")
-                        updateUi { s -> s.copy(loading = false) }
-                        onError(it.error ?: IOException("SmartCardConnection request failed"))
-                    }
-                }
-            }
-            device.supportsConnection(OtpConnection::class.java) -> {
-                device.requestConnection(OtpConnection::class.java) {
-                    if (it.isSuccess) {
-                        logger.debug("readInfo on OtpConnection")
-                        readInfo(it.value)
-                    } else {
-                        logger.debug("OtpConnection request failed")
-                        updateUi { s -> s.copy(loading = false) }
-                        onError(it.error ?: IOException("OtpConnection request failed"))
-                    }
-                }
-            }
-            device.supportsConnection(FidoConnection::class.java) -> {
-                device.requestConnection(FidoConnection::class.java) {
-                    if (it.isSuccess) {
-                        logger.debug("readInfo on FidoConnection")
-                        readInfo(it.value)
-                    } else {
-                        logger.debug("FidoConnection request failed")
-                        updateUi { s -> s.copy(loading = false) }
-                        onError(it.error ?: IOException("FidoConnection request failed"))
-                    }
-                }
-            }
-            else -> {
-                updateUi { it.copy(loading = false) }
-                onError(ApplicationNotAvailableException("Cannot read device info"))
+        val tried = tryConnection(device, SmartCardConnection::class.java, readInfo, onError)
+            || tryConnection(device, OtpConnection::class.java, readInfo, onError)
+            || tryConnection(device, FidoConnection::class.java, readInfo, onError)
+        if (!tried) {
+            updateUi { it.copy(loading = false) }
+            onError(ApplicationNotAvailableException("Cannot read device info"))
+        }
+    }
+
+    private fun <C : YubiKeyConnection> tryConnection(
+        device: YubiKeyDevice,
+        connClass: Class<C>,
+        readInfo: (YubiKeyConnection) -> Unit,
+        onError: (Throwable) -> Unit,
+    ): Boolean {
+        if (!device.supportsConnection(connClass)) return false
+        device.requestConnection(connClass) {
+            if (it.isSuccess) {
+                logger.debug("readInfo on ${connClass.simpleName}")
+                readInfo(it.value)
+            } else {
+                logger.debug("${connClass.simpleName} request failed")
+                updateUi { s -> s.copy(loading = false) }
+                onError(it.error ?: IOException("${connClass.simpleName} request failed"))
             }
         }
+        return true
     }
 
     private fun readNitrokeyInfoUsb(device: YubiKeyDevice) {

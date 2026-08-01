@@ -21,9 +21,12 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
+import org.slf4j.LoggerFactory
 import java.io.Closeable
 
 abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
+    private val logger = LoggerFactory.getLogger(YubiKeyViewModel::class.java)
+
     private val _result = MutableLiveData<Result<String?>>(Result.success(null))
     val result: LiveData<Result<String?>> = _result
 
@@ -33,16 +36,31 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
     abstract fun Session.updateState()
 
     fun onYubiKeyDevice(device: YubiKeyDevice) {
+        logger.debug("onYubiKeyDevice — pendingAction=${if (pendingAction.value != null) "present" else "none"}")
         getSession(device, onError = {
+            logger.error("onYubiKeyDevice — getSession failed: ${it.message}", it)
             _result.postValue(Result.failure(it))
             pendingAction.postValue(null)
         }) { session ->
             pendingAction.value?.let {
-                _result.postValue(Result.runCatching { it(session) })
+                val actionResult = Result.runCatching { it(session) }
+                actionResult.exceptionOrNull()?.let { e ->
+                    logger.error("onYubiKeyDevice — pendingAction failed: ${e.message}", e)
+                }
+                _result.postValue(actionResult)
                 pendingAction.postValue(null)
             }
 
-            session.updateState()
+            // Deliberately isolated from the pendingAction result above: a failure here must
+            // never be reported as (or silently clobber) the outcome of the action that just
+            // ran. Without this try/catch, an exception here propagates out of this lambda and
+            // is caught by getSession's *session-open* error handler instead, misreporting it
+            // as a connection failure and discarding whatever result the action above produced.
+            try {
+                session.updateState()
+            } catch (e: Throwable) {
+                logger.error("onYubiKeyDevice — session.updateState() failed: ${e.message}", e)
+            }
         }
     }
 

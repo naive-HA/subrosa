@@ -14,12 +14,13 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.fragment.app.activityViewModels
 import acab.naiveha.subrosa.MainViewModel
 import acab.naiveha.subrosa.R
-import acab.naiveha.subrosa.databinding.FragmentStaticpwdBinding
+import acab.naiveha.subrosa.databinding.FragmentYubiotpBinding
 import acab.naiveha.subrosa.ui.PgpDeviceType
 import acab.naiveha.subrosa.ui.YubiKeyFragment
 import acab.naiveha.subrosa.ui.YubiKeyPromptDialog
@@ -40,17 +41,16 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
-class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
+class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
     companion object {
-        private const val TAG = "StaticPwdFragment"
+        private const val TAG = "YubiOtpFragment"
 
         private const val MAX_STATIC_PASSWORD_LENGTH = 38
-
-        private const val SLOT_RESET_FILLER_PASSWORD = "Hello kitty"
     }
 
     private class OtpContract : ActivityResultContract<Unit, Result<ByteArray>?>() {
@@ -79,16 +79,39 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
     private val requestOtp = registerForActivityResult(OtpContract()) { result ->
         if (!isAdded) return@registerForActivityResult
         activityViewModel.setYubiKeyListenerEnabled(true)
-        if (result == null) return@registerForActivityResult
+        // slotTwo reflects the read-slot radio at the time OtpActivity was launched, which for USB
+        // is frozen/meaningless (see isAnySlotProgrammed()'s comment) — kept only for logging here,
+        // never for deciding which slot's programmed-ness explains a failure.
+        val slotTwo = lastUsbReadSlotTwo
+        lastUsbReadSlotTwo = null
+        if (result == null) {
+            Log.d(TAG, "requestOtp — OtpActivity returned no result (cancelled)")
+            return@registerForActivityResult
+        }
         result.fold(
-            onSuccess = { scancodes -> decodeAndShow(scancodes) },
+            onSuccess = { scancodes ->
+                Log.d(TAG, "requestOtp — OtpActivity succeeded (${scancodes.size} scancode bytes)")
+                decodeAndShow(scancodes)
+            },
             onFailure = { e ->
-                viewModel.postResult(Result.failure(e))
+                Log.w(TAG, "requestOtp — OtpActivity failed (read-slot radio showed " +
+                    "${if (slotTwo == true) "TWO" else if (slotTwo == false) "ONE" else "?"}): ${e.message}", e)
+                if (!isAnySlotProgrammed()) {
+                    // Only surface our specific message when we're sure neither slot holds
+                    // anything — we can't know which slot the touch actually landed on, so
+                    // blaming "the radio-selected slot" here could as easily mask a genuine
+                    // failure on the slot that really is configured.
+                    Log.d(TAG, "requestOtp — neither slot programmed, reporting as such instead of raw error")
+                    viewModel.postResult(Result.failure(Exception(YubiOtpViewModel.SLOT_NOT_PROGRAMMED)))
+                } else {
+                    viewModel.postResult(Result.failure(e))
+                }
             },
         )
     }
 
     private var pendingReadSlotTwo: Boolean? = null
+    private var lastUsbReadSlotTwo: Boolean? = null
     private lateinit var readPrompt: YubiKeyPromptDialog
 
     private fun startRead(slotTwo: Boolean) {
@@ -103,13 +126,30 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
         }
     }
 
+    // Over USB there's no way for the app to pick which slot gets read — the read-slot radio is
+    // disabled once a USB device is connected (see updateButtonStates/onDeviceConnected below) and
+    // stays frozen at whatever it last held, while the actual slot is decided entirely by how long
+    // the user physically touches the key (short = slot one, long = slot two). So a USB read must
+    // only be blocked up front when there is genuinely nothing on either slot to read; which slot
+    // the touch lands on is left for the hardware to decide, same as it always has been.
+    private fun isAnySlotProgrammed(): Boolean {
+        val state = viewModel.uiState.value
+        if (state == null) {
+            Log.d(TAG, "isAnySlotProgrammed — no cached uiState yet, assuming programmed")
+            return true
+        }
+        Log.d(TAG, "isAnySlotProgrammed — slotOne=${state.slotOneProgrammed} slotTwo=${state.slotTwoProgrammed}")
+        return state.slotOneProgrammed || state.slotTwoProgrammed
+    }
+
     private fun dispatchRead(device: YubiKeyDevice) {
-        if (pendingReadSlotTwo == null) return
+        val slotTwo = pendingReadSlotTwo ?: return
         if (readPrompt.isShowing) readPrompt.dismiss()
         if (device is NfcYubiKeyDevice) {
             onNfcDeviceForRead(device)
         } else {
-            Log.d(TAG, "dispatchRead — USB device available, launching OtpActivity")
+            Log.d(TAG, "dispatchRead — USB device available, launching OtpActivity for slot ${if (slotTwo) "TWO" else "ONE"}")
+            lastUsbReadSlotTwo = slotTwo
             pendingReadSlotTwo = null
             activityViewModel.setYubiKeyListenerEnabled(false)
             requestOtp.launch(Unit)
@@ -119,14 +159,23 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
     private fun onNfcDeviceForRead(device: NfcYubiKeyDevice) {
         val slotTwo = pendingReadSlotTwo ?: return
         pendingReadSlotTwo = null
+        val slot = if (slotTwo) Slot.TWO else Slot.ONE
         Log.d(TAG, "onNfcDeviceForRead — reading slot ${if (slotTwo) "TWO" else "ONE"} over NFC")
 
         viewLifecycleOwner.lifecycleScope.launch {
             val result = withContext(activityViewModel.singleDispatcher) {
                 runCatching {
                     device.openConnection(SmartCardConnection::class.java).use { connection ->
-                        YubiOtpSession(connection)
-                            .setNdefConfiguration(if (slotTwo) Slot.TWO else Slot.ONE, null, null)
+                        val session = YubiOtpSession(connection)
+                        val configured = session.configurationState.isConfigured(slot)
+                        Log.d(TAG, "onNfcDeviceForRead — freshly-tapped device reports slot $slot configured=$configured")
+                        if (!configured) {
+                            // Fail fast here rather than attempting setNdefConfiguration/readNdef
+                            // against an empty slot, which would otherwise surface as an opaque
+                            // NDEF/IO failure instead of this specific, actionable message.
+                            throw Exception(YubiOtpViewModel.SLOT_NOT_PROGRAMMED)
+                        }
+                        session.setNdefConfiguration(slot, null, null)
                     }
                     NdefUtils.getNdefPayloadBytes(device.readNdef())
                 }
@@ -137,7 +186,7 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
                     decodeAndShow(scancodes)
                 },
                 onFailure = { e ->
-                    Log.w(TAG, "onNfcDeviceForRead — failed: ${e.message}")
+                    Log.w(TAG, "onNfcDeviceForRead — failed: ${e.message}", e)
                     viewModel.postResult(Result.failure(e))
                 },
             )
@@ -153,9 +202,9 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
             viewModel.postResult(Result.failure(Exception(describeError(e), e)))
             return
         }
-        Log.d(TAG, "decodeAndShow — decoded ${password.length} character password")
+        Log.d(TAG, "decodeAndShow — decoded ${password.size} character password")
         showStaticPasswordDialog(password)
-        viewModel.postReadStatus(OtpViewModel.READ_COMPLETE_STATUS)
+        viewModel.postReadStatus(YubiOtpViewModel.READ_COMPLETE_STATUS)
     }
 
     private fun requireWithinMaxLength(length: Int) {
@@ -177,13 +226,13 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
     private fun selectedKeyboard(checkedRadioButtonId: Int): String =
         keyboardByRadioId[checkedRadioButtonId] ?: "en_US"
     private val activityViewModel: MainViewModel by activityViewModels()
-    override val viewModel: OtpViewModel by activityViewModels()
-    private lateinit var binding: FragmentStaticpwdBinding
+        override val viewModel: YubiOtpViewModel by activityViewModels()
+    private lateinit var binding: FragmentYubiotpBinding
 
     override fun isYubiKeyTapSuspended(): Boolean = pendingReadSlotTwo != null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        binding = FragmentStaticpwdBinding.inflate(inflater, container, false)
+        binding = FragmentYubiotpBinding.inflate(inflater, container, false)
         return binding.root
     }
 
@@ -309,22 +358,23 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
 
         bindAutoClearStatus(
             viewModel.writeStatus, binding.saveStatus,
-            OtpViewModel.slotProgrammedStatus(Slot.ONE), OtpViewModel.slotProgrammedStatus(Slot.TWO),
+            YubiOtpViewModel.slotProgrammedStatus(Slot.ONE), YubiOtpViewModel.slotProgrammedStatus(Slot.TWO),
         ) { viewModel.postWriteStatus(it) }
         viewModel.writeStatus.observe(viewLifecycleOwner) { message ->
             if (message.isNotEmpty()) binding.editTextStaticpwdId.setText("")
         }
 
         bindAutoClearStatus(
-            viewModel.readStatus, binding.readStatus, OtpViewModel.READ_COMPLETE_STATUS,
+            viewModel.readStatus, binding.readStatus, YubiOtpViewModel.READ_COMPLETE_STATUS,
         ) { viewModel.postReadStatus(it) }
 
         bindAutoClearStatus(
             viewModel.resetStatus, binding.deleteStatus,
-            OtpViewModel.slotResetStatus(Slot.ONE), OtpViewModel.slotResetStatus(Slot.TWO),
+            YubiOtpViewModel.slotResetStatus(Slot.ONE), YubiOtpViewModel.slotResetStatus(Slot.TWO),
         ) { viewModel.postResetStatus(it) }
 
         binding.btnSaveStaticpwd.setOnClickListener {
+            hideIme()
             if (rejectIfUnsupportedDeviceConnected()) return@setOnClickListener
             runValidated(viewModel) {
                 val keyboard = selectedKeyboard(binding.keyboardRadio.checkedChipId)
@@ -354,7 +404,7 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
                         Log.i(TAG, "pendingAction — programming slot $slot")
                         putConfiguration(slot, configuration, null, null)
                         Log.i(TAG, "pendingAction — slot $slot programmed")
-                        viewModel.postWriteStatus(OtpViewModel.slotProgrammedStatus(slot))
+                        viewModel.postWriteStatus(YubiOtpViewModel.slotProgrammedStatus(slot))
                         null
                     }
                 } finally {
@@ -364,9 +414,21 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
         }
         binding.btnRequestStaticpwd.setOnClickListener {
             if (rejectIfUnsupportedDeviceConnected()) return@setOnClickListener
+            val slotTwo = binding.readSlotRadio.checkedChipId == R.id.read_radio_slot_2
+            val deviceConnected = activityViewModel.yubiKey.value != null
+            Log.d(TAG, "btnRequestStaticpwd — clicked (read-slot radio shows ${if (slotTwo) "TWO" else "ONE"}, " +
+                "irrelevant for USB), deviceConnected=$deviceConnected")
+            // deviceConnected is only ever true here for a persistent USB connection — NFC devices
+            // aren't "connected" until the moment of a tap, so this branch is effectively USB-only.
+            // Gate on isAnySlotProgrammed(), not the (disabled, frozen) radio-selected slot: see
+            // isAnySlotProgrammed()'s comment for why the radio can't be trusted here.
+            if (deviceConnected && !isAnySlotProgrammed()) {
+                Log.d(TAG, "btnRequestStaticpwd — neither slot programmed, skipping read")
+                viewModel.postResult(Result.failure(Exception(YubiOtpViewModel.SLOT_NOT_PROGRAMMED)))
+                return@setOnClickListener
+            }
             hideIme()
             binding.editTextStaticpwdId.clearFocus()
-            val slotTwo = binding.readSlotRadio.checkedChipId == R.id.read_radio_slot_2
             Log.d(TAG, "btnRequestStaticpwd — starting read of slot ${if (slotTwo) "TWO" else "ONE"}")
             viewModel.setCurrentOperation(OtpOperation.READ)
             startRead(slotTwo)
@@ -380,7 +442,7 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
         }
     }
 
-    private fun updateProgressVisibility(state: OtpUiState, isBusy: Boolean? = null) {
+    private fun updateProgressVisibility(state: YubiOtpUiState, isBusy: Boolean? = null) {
         val busy = isBusy ?: (viewModel.pendingAction.value != null)
         val op = state.currentOperation
         binding.progressSave.visibility = if (busy && op == OtpOperation.SAVE) View.VISIBLE else View.GONE
@@ -401,11 +463,12 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
 
     private fun View.hideImeOnClick() = setOnClickListener { hideIme() }
 
-    private fun showStaticPasswordDialog(password: String) {
+    private fun showStaticPasswordDialog(password: CharArray) {
         val context = context ?: return
 
         val text = buildString {
-            appendLine(password.replace("\u0000", ""))
+            for (c in password) if (c != '\u0000') append(c)
+            appendLine()
         }
 
         val builder = MaterialAlertDialogBuilder(context)
@@ -420,6 +483,7 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
         builder.setTitle(R.string.otp_yubistatic)
             .setView(view)
             .setPositiveButton(android.R.string.ok, null)
+            .setOnDismissListener { password.fill('\u0000') }
             .show()
             .apply {
                 focusCatcher.requestFocus()
@@ -436,17 +500,18 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
             confirmText = R.string.staticpwd_reset_confirm,
             onConfirmed = {
                 runValidated(viewModel) {
-                    val staticpwd = SLOT_RESET_FILLER_PASSWORD
-                    val keyboard = "en_US"
-                    val scancodes = Keyboard.encode(staticpwd, keyboard)
-                    val configuration = StaticPasswordSlotConfiguration(scancodes)
                     Log.d(TAG, "onConfirmed — queuing reset of slot $slot")
                     viewModel.setCurrentOperation(OtpOperation.RESET)
                     viewModel.pendingAction.value = {
-                        Log.i(TAG, "pendingAction — resetting slot $slot")
-                        putConfiguration(slot, configuration, null, null)
-                        Log.i(TAG, "pendingAction — slot $slot reset")
-                        viewModel.postResetStatus(OtpViewModel.slotResetStatus(slot))
+                        if (configurationState.isConfigured(slot)) {
+                            Log.i(TAG, "pendingAction — deleting slot $slot")
+                            deleteConfiguration(slot, null)
+                            Log.i(TAG, "pendingAction — slot $slot deleted, device now reports " +
+                                "isConfigured=${configurationState.isConfigured(slot)}")
+                        } else {
+                            Log.i(TAG, "pendingAction — slot $slot already not programmed, nothing to delete")
+                        }
+                        viewModel.postResetStatus(YubiOtpViewModel.slotResetStatus(slot))
                         null
                     }
                 }
@@ -457,9 +522,39 @@ class StaticPwdFragment : YubiKeyFragment<YubiOtpSession, OtpViewModel>() {
     private fun rejectIfUnsupportedDeviceConnected(): Boolean {
         val device = activityViewModel.yubiKey.value
         if (PgpDeviceType.isUsbNitrokey(device) || PgpDeviceType.isUsbGnuk(device)) {
-            viewModel.postResult(Result.failure(Exception(OtpViewModel.STATIC_PASSWORDS_NOT_SUPPORTED)))
+            viewModel.postResult(Result.failure(Exception(YubiOtpViewModel.STATIC_PASSWORDS_NOT_SUPPORTED)))
             return true
         }
         return false
+    }
+
+    private fun resolveSlot(checkedId: Int, oneId: Int, twoId: Int): Slot =
+        when (checkedId) {
+            oneId -> Slot.ONE
+            twoId -> Slot.TWO
+            else -> throw IllegalStateException(getString(R.string.otp_no_slot_selected))
+        }
+
+    private fun TextInputLayout.bindRandomGenerator(editText: EditText, generator: () -> String) {
+        fun regenerate() {
+            editText.setText(generator())
+        }
+        setEndIconOnClickListener { regenerate() }
+        regenerate()
+    }
+
+    private fun describeError(e: Exception): String = when (e) {
+        is Keyboard.UnknownKeyboardException -> getString(R.string.otp_unknown_keyboard_desc, e.keyboard)
+        is Keyboard.IllegalCharacterException -> getString(R.string.otp_illegal_char_desc, e.char.toString())
+        is Keyboard.UnknownScanCodeException -> getString(R.string.otp_unknown_scan_code_desc)
+        else -> e.message ?: e.toString()
+    }
+
+    private inline fun runValidated(viewModel: YubiOtpViewModel, block: () -> Unit) {
+        try {
+            block()
+        } catch (e: Exception) {
+            viewModel.postResult(Result.failure(Exception(describeError(e), e)))
+        }
     }
 }

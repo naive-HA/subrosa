@@ -16,7 +16,14 @@
 
 package acab.naiveha.subrosa.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.view.View
+import android.widget.Toast
+import androidx.fragment.app.Fragment
 import com.yubico.yubikit.core.smartcard.ApduException
+import acab.naiveha.subrosa.R
 
 fun Throwable.describeChain(maxDepth: Int = 8): String {
     val chain = StringBuilder()
@@ -31,4 +38,13 @@ fun Throwable.describeChain(maxDepth: Int = 8): String {
         depth++
     }
     return chain.toString()
+}
+
+fun Fragment.setupCoffeeTipsClipboard(container: View) {
+    container.setOnClickListener {
+        val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val btcAddress = getString(R.string.btc_address)
+        clipboard.setPrimaryClip(ClipData.newPlainText("BTC address", btcAddress))
+        Toast.makeText(requireContext(), getString(R.string.copied_to_clipboard_msg, btcAddress), Toast.LENGTH_SHORT).show()
+    }
 }

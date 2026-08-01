@@ -164,8 +164,9 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
 
                 viewModel.setCurrentOperation(OpenPgpOperation.SAVE)
                 viewModel.pendingAction.value = {
-                    val writer = viewModel.currentDeviceType.writer()
-                    Log.i(TAG, "pendingAction — device=${viewModel.currentDeviceType} " +
+                    val deviceType = viewModel.uiState.value?.connectedDevice?.type
+                    val writer = deviceType.writer()
+                    Log.i(TAG, "pendingAction — device=$deviceType " +
                         "writer=${writer::class.simpleName}")
                     writer.program(this, bundle, adminPin, userPin, status = viewModel::postWriteStatus)
                 }
@@ -178,7 +179,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             viewModel.pendingAction.value = {
                 val info = OpenPgpReader.read(
                     this,
-                    knownFirmwareVersion = viewModel.currentDeviceFirmwareVersion,
+                    knownFirmwareVersion = viewModel.uiState.value?.connectedDevice?.firmwareVersion,
                     status = viewModel::postReadStatus,
                 )
                 viewModel.onCardRead(info)
@@ -217,8 +218,9 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             Log.i(TAG, "Reset confirmed — device=${viewModel.uiState.value?.connectedDevice?.type}")
             viewModel.setCurrentOperation(OpenPgpOperation.WIPE)
             viewModel.pendingAction.value = {
-                val writer = viewModel.currentDeviceType.writer()
-                Log.i(TAG, "wipe — device=${viewModel.currentDeviceType} " +
+                val deviceType = viewModel.uiState.value?.connectedDevice?.type
+                val writer = deviceType.writer()
+                Log.i(TAG, "wipe — device=$deviceType " +
                     "writer=${writer::class.simpleName}")
                 writer.wipe(this, status = viewModel::postWipeStatus)
             }
@@ -297,7 +299,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
 
                 OpenPgpKeyParser.parse(armor)
                     .onSuccess { info ->
-                        Log.i(TAG, "File import parsed: userId='${info.userId}'")
+                        Log.i(TAG, "File import parsed: hasUserId=${info.userId.isNotBlank()}")
                         viewModel.onImportedKey(armor, info)
                         validateAndStoreBundle(armor, info)
                     }
@@ -361,7 +363,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         Log.d(TAG, "Parsing key metadata…")
         OpenPgpKeyParser.parse(rawText)
             .onSuccess { info ->
-                Log.i(TAG, "Parsed — userId='${info.userId}' protected=${info.isPassphraseProtected}")
+                Log.i(TAG, "Parsed — hasUserId=${info.userId.isNotBlank()} protected=${info.isPassphraseProtected}")
                 viewModel.onImportedKey(rawText, info)
                 validateAndStoreBundle(rawText, info)
             }

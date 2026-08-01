@@ -112,12 +112,12 @@ public class NfcYubiKeyDevice implements YubiKeyDevice {
   public byte[] readNdef() throws IOException {
     try (Ndef ndef = Ndef.get(tag)) {
       if (ndef == null) {
-        throw new IOException("NDEF data missing or invalid");
+        throw new IOException("Invalid NDEF data. Try again");
       }
       ndef.connect();
       NdefMessage message = ndef.getNdefMessage();
       if (message == null) {
-        throw new IOException("NDEF data missing or invalid");
+        throw new IOException("Invalid NDEF data. Try again");
       }
       return message.toByteArray();
     } catch (FormatException e) {

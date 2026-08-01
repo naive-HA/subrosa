@@ -29,17 +29,17 @@ import com.yubico.yubikit.yubiotp.YubiOtpSession
 import org.slf4j.LoggerFactory
 
 
-class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
-    private val logger = LoggerFactory.getLogger(OtpViewModel::class.java)
+class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
+    private val logger = LoggerFactory.getLogger(YubiOtpViewModel::class.java)
 
     @Volatile
-    private var state = OtpUiState(false, false)
+    private var state = YubiOtpUiState(false, false)
 
-    private val _uiState = MutableLiveData<OtpUiState?>(state)
-    val uiState: LiveData<OtpUiState?> = _uiState
+    private val _uiState = MutableLiveData<YubiOtpUiState?>(state)
+    val uiState: LiveData<YubiOtpUiState?> = _uiState
 
     @Synchronized
-    private fun updateUi(update: (OtpUiState) -> OtpUiState) {
+    private fun updateUi(update: (YubiOtpUiState) -> YubiOtpUiState) {
         val newState = update(state)
         state = newState
         if (Looper.getMainLooper().thread == Thread.currentThread()) {
@@ -67,7 +67,7 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     fun requestClearUi() {
         _clearUiTrigger.postValue(true)
         _clearUiTrigger.postValue(false)
-        updateUi { OtpUiState(false, false) }
+        updateUi { YubiOtpUiState(false, false) }
         postWriteStatus("")
         postReadStatus("")
         postResetStatus("")
@@ -79,7 +79,7 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
 
     override fun onDeviceDisconnected() {
         logger.debug("onDeviceDisconnected — clearing slot status")
-        updateUi { OtpUiState(false, false) }
+        updateUi { YubiOtpUiState(false, false) }
     }
 
     override fun getSession(
@@ -116,18 +116,27 @@ class OtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     }
 
     override fun YubiOtpSession.updateState() {
+        val previousSlotOne = state.slotOneProgrammed
+        val previousSlotTwo = state.slotTwoProgrammed
+        val slotOne = configurationState.isConfigured(Slot.ONE)
+        val slotTwo = configurationState.isConfigured(Slot.TWO)
+        logger.debug(
+            "updateState — device reports slotOne=$slotOne slotTwo=$slotTwo " +
+                "(cached UI state before this read was slotOne=$previousSlotOne slotTwo=$previousSlotTwo)"
+        )
         updateUi {
             it.copy(
-                slotOneProgrammed = configurationState.isConfigured(Slot.ONE),
-                slotTwoProgrammed = configurationState.isConfigured(Slot.TWO),
+                slotOneProgrammed = slotOne,
+                slotTwoProgrammed = slotTwo,
             )
         }
-        logger.debug("updateState — slotOne=${state.slotOneProgrammed} slotTwo=${state.slotTwoProgrammed}")
     }
 
     companion object {
         const val STATIC_PASSWORDS_NOT_SUPPORTED =
             "Static passwords are not supported on this device"
+
+        const val SLOT_NOT_PROGRAMMED = "Slot not programmed"
 
         const val READ_COMPLETE_STATUS = "Read complete"
 

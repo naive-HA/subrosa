@@ -47,12 +47,15 @@ internal object NitrokeyAdminVersion {
     }
 
     private fun sendFull(conn: SmartCardConnection, apdu: ByteArray): ByteArray {
+        val buf = java.io.ByteArrayOutputStream()
         var resp = conn.sendAndReceive(apdu)
         while (resp.size >= 2 && (resp[resp.size - 2].toInt() and 0xFF) == 0x61) {
+            buf.write(resp, 0, resp.size - 2)
             val le = resp[resp.size - 1].toInt() and 0xFF
             resp = conn.sendAndReceive(byteArrayOf(0x00, 0xc0.toByte(), 0x00, 0x00, le.toByte()))
         }
-        return resp
+        buf.write(resp)
+        return buf.toByteArray()
     }
 
     private fun sw(resp: ByteArray): Int {

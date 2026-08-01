@@ -21,6 +21,10 @@ object OpenPgpFileImporter {
     private const val TAG = "OpenPgpFileImporter"
     fun decrypt(bytes: ByteArray, passphrase: CharArray): PGPSecretKeyRing {
         Log.d(TAG, "decrypt() — fileSize=${bytes.size} B passphraseLength=${passphrase.size}")
+        // Declared here (not inside the `if` branch below) so the finally block can zero it —
+        // it can't be wiped any earlier since findSecretKeyRing() reads lazily from a stream
+        // wrapping this array for the rest of the function.
+        var clearBytes: ByteArray? = null
         try {
             val decoderStream = PGPUtil.getDecoderStream(ByteArrayInputStream(bytes))
             val factory = PGPObjectFactory(decoderStream, BcKeyFingerprintCalculator())
@@ -44,8 +48,9 @@ object OpenPgpFileImporter {
                     passphrase, BcPGPDigestCalculatorProvider()
                 )
 
-                val clearBytes = pbeData.getDataStream(decryptorFactory).readBytes()
-                Log.d(TAG, "Decrypted ${clearBytes.size} B")
+                val decrypted = pbeData.getDataStream(decryptorFactory).readBytes()
+                clearBytes = decrypted
+                Log.d(TAG, "Decrypted ${decrypted.size} B")
 
                 if (pbeData.isIntegrityProtected) {
                     if (!pbeData.verify()) {
@@ -58,7 +63,7 @@ object OpenPgpFileImporter {
                     Log.w(TAG, "File has no MDC — integrity cannot be verified")
                 }
 
-                PGPObjectFactory(ByteArrayInputStream(clearBytes), BcKeyFingerprintCalculator())
+                PGPObjectFactory(ByteArrayInputStream(decrypted), BcKeyFingerprintCalculator())
 
             } else {
                 Log.w(TAG, "File is not symmetrically encrypted — attempting direct parse")
@@ -76,7 +81,8 @@ object OpenPgpFileImporter {
 
         } finally {
             passphrase.fill('\u0000')
-            Log.d(TAG, "Passphrase zeroed in finally")
+            clearBytes?.fill(0)
+            Log.d(TAG, "Passphrase" + (if (clearBytes != null) " and decrypted buffer" else "") + " zeroed in finally")
         }
     }
 

@@ -44,7 +44,7 @@ object OpenPgpKeyParser {
             ?: error("Decoded object is not a PGP secret key ring")
         val primaryPublicKey = ring.secretKey.publicKey
         val userId = primaryPublicKey.userIDs.asSequence().firstOrNull() ?: "<no user ID>"
-        Log.d(TAG, "Primary key userId='$userId' algorithm=${primaryPublicKey.algorithm} " +
+        Log.d(TAG, "Primary key hasUserId=${userId != "<no user ID>"} algorithm=${primaryPublicKey.algorithm} " +
                    "bitStrength=${primaryPublicKey.bitStrength}")
         val creationDate = primaryPublicKey.creationTime
         val validSeconds = primaryPublicKey.validSeconds

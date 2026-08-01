@@ -56,14 +56,6 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         updateUi { it.copy(pendingImportUri = null) }
     }
 
-    @Volatile
-    var currentDeviceFirmwareVersion: String? = null
-        private set
-
-    @Volatile
-    var currentDeviceType: PgpDeviceType? = null
-        private set
-
     fun onCardRead(info: OpenPgpCardInfo) {
         updateUi { it.copy(cardInfo = info) }
     }
@@ -80,7 +72,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         clearResult()
     }
     fun onImportedKey(armor: String, info: OpenPgpKeyInfo) {
-        logger.info("onImportedKey: user='${info.userId}' keys=${info.keyCount}")
+        logger.info("onImportedKey: hasUserId=${info.userId.isNotBlank()} keys=${info.keyCount}")
         updateUi { it.copy(importedKeyInfo = info) }
     }
     fun clearImportedKey() {
@@ -193,9 +185,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
                 else -> null
             }
 
-            currentDeviceFirmwareVersion = firmwareVersion
-            currentDeviceType = type
-            updateUi { it.copy(connectedDevice = ConnectedPgpDevice(type, firmwareVersion)) }
+            updateUi { it.copy(connectedDevice = it.connectedDevice.copy(type = type, firmwareVersion = firmwareVersion)) }
             callback(session)
         } catch (e: Throwable) {
             logger.error("Failed to open OpenPgpSession over ${transportLabel(device)}: ${e.describeChain()}", e)
