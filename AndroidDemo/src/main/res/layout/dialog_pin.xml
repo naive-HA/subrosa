@@ -22,6 +22,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="textPassword"
+            android:importantForAutofill="no"
             android:textColor="@color/pin_input_text_color" />
     </com.google.android.material.textfield.TextInputLayout>
 </LinearLayout>

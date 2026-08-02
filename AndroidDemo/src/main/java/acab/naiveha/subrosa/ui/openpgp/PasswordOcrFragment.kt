@@ -37,6 +37,8 @@ import kotlinx.coroutines.withContext
 class PasswordOcrFragment : Fragment() {
     companion object {
         private const val TAG = "PasswordOcrFragment"
+
+        private const val MAX_OCR_IMAGE_DIMENSION = 4096
     }
 
     private val viewModel: PasswordOcrViewModel by viewModels()
@@ -73,10 +75,7 @@ class PasswordOcrFragment : Fragment() {
             Log.d(TAG, "pendingOcrUri observer: $uri")
             if (uri != null) {
                 activityViewModel.consumeOcrUri()
-                lifecycleScope.launch {
-                    val bitmap = decodeUri(uri)
-                    viewModel.setImportedBitmap(bitmap)
-                }
+                decodeAndImport(uri)
             }
         }
 
@@ -106,9 +105,39 @@ class PasswordOcrFragment : Fragment() {
         confirmButton.setOnClickListener { runOcrOnSelection() }
     }
 
+    private fun decodeAndImport(uri: Uri) {
+        lifecycleScope.launch {
+            val bitmap = decodeUri(uri)
+            if (bitmap == null) {
+                Toast.makeText(requireContext(), "That image couldn't be read — try a smaller photo", Toast.LENGTH_LONG).show()
+            }
+            viewModel.setImportedBitmap(bitmap)
+        }
+    }
+
     private suspend fun decodeUri(uri: Uri): Bitmap? =
         withContextIo {
-            requireContext().applicationContext.contentResolver.openInputStream(uri)?.use { stream ->
+            val resolver = requireContext().applicationContext.contentResolver
+
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            resolver.openInputStream(uri)?.use { stream ->
+                BitmapFactory.decodeStream(stream, null, bounds)
+            }
+
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                Log.w(TAG, "decodeUri: unreadable or zero-size image, rejecting")
+                return@withContextIo null
+            }
+            if (bounds.outWidth > MAX_OCR_IMAGE_DIMENSION || bounds.outHeight > MAX_OCR_IMAGE_DIMENSION) {
+                Log.w(
+                    TAG,
+                    "decodeUri: image ${bounds.outWidth}x${bounds.outHeight} exceeds " +
+                        "${MAX_OCR_IMAGE_DIMENSION}px, rejecting"
+                )
+                return@withContextIo null
+            }
+
+            resolver.openInputStream(uri)?.use { stream ->
                 BitmapFactory.decodeStream(stream)
             }
         }

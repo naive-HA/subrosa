@@ -166,7 +166,7 @@
                         android:fontFamily="monospace"
                         android:gravity="center_horizontal"
                         android:text=""
-                        android:textColor="@android:color/darker_gray"
+                        android:textColor="@color/binary_background"
                         android:textSize="12sp"
                         android:visibility="gone"
                         tools:text="Admin PIN changed"

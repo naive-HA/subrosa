@@ -315,25 +315,39 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
     }
 
     private suspend fun decryptFileWithPassphraseRetry(fileBytes: ByteArray): PGPSecretKeyRing? {
-        var ring = withContext(Dispatchers.IO) {
-            runCatching { OpenPgpFileImporter.decrypt(fileBytes, CharArray(0)) }.getOrNull()
+        val firstAttempt = withContext(Dispatchers.IO) {
+            runCatching { OpenPgpFileImporter.decrypt(fileBytes, CharArray(0)) }
         }
+        firstAttempt.exceptionOrNull()?.let { e ->
+            if (e is PgpImportLimitExceededException) {
+                Log.w(TAG, "File import rejected: ${e.message}")
+                viewModel.postResult(Result.failure(e))
+                return null
+            }
+        }
+        var ring = firstAttempt.getOrNull()
         while (ring == null) {
             val passphrase = getSecret(requireActivity(), R.string.enter_file_passphrase, showPaste = true)
                 ?: run { Log.d(TAG, "File passphrase cancelled"); return null }
             Log.d(TAG, "File passphrase length=${passphrase.size} — decrypting…")
             binding.progressSave.visibility = View.VISIBLE
             binding.btnSave.isEnabled = false
-            ring = withContext(Dispatchers.IO) {
-                try {
-                    OpenPgpFileImporter.decrypt(fileBytes, passphrase)
-                } catch (e: Exception) {
-                    Log.e(TAG, "File decryption failed: ${e::class.simpleName}: ${e.message}", e)
-                    null
-                }
+            val attempt = withContext(Dispatchers.IO) {
+                runCatching { OpenPgpFileImporter.decrypt(fileBytes, passphrase) }
             }
             passphrase.fill('\u0000')
             binding.progressSave.visibility = View.GONE
+
+            val error = attempt.exceptionOrNull()
+            if (error is PgpImportLimitExceededException) {
+                Log.w(TAG, "File import rejected: ${error.message}")
+                viewModel.postResult(Result.failure(error))
+                return null
+            }
+            if (error != null) {
+                Log.e(TAG, "File decryption failed: ${error::class.simpleName}: ${error.message}", error)
+            }
+            ring = attempt.getOrNull()
             if (ring == null) {
                 Log.w(TAG, "Wrong file passphrase")
                 viewModel.postResult(Result.failure(Exception(getString(R.string.openpgp_file_wrong_passphrase))))

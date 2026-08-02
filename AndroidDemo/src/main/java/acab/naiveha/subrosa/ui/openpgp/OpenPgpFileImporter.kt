@@ -16,9 +16,16 @@ import org.bouncycastle.openpgp.operator.bc.BcPBEDataDecryptorFactory
 import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
+
+class PgpImportLimitExceededException(message: String) : Exception(message)
 
 object OpenPgpFileImporter {
     private const val TAG = "OpenPgpFileImporter"
+
+    private const val MAX_IMPORT_BYTES = 8L * 1024 * 1024
+    private const val MAX_COMPRESSION_DEPTH = 8
+
     fun decrypt(bytes: ByteArray, passphrase: CharArray): PGPSecretKeyRing {
         Log.d(TAG, "decrypt() — fileSize=${bytes.size} B passphraseLength=${passphrase.size}")
         var clearBytes: ByteArray? = null
@@ -45,7 +52,8 @@ object OpenPgpFileImporter {
                     passphrase, BcPGPDigestCalculatorProvider()
                 )
 
-                val decrypted = pbeData.getDataStream(decryptorFactory).readBytes()
+                val decrypted = pbeData.getDataStream(decryptorFactory)
+                    .readBytesBounded(MAX_IMPORT_BYTES, "Decrypted key data")
                 clearBytes = decrypted
                 Log.d(TAG, "Decrypted ${decrypted.size} B")
 
@@ -93,7 +101,15 @@ object OpenPgpFileImporter {
         return baos.toString(Charsets.UTF_8.name())
     }
 
-    private fun findSecretKeyRing(factory: PGPObjectFactory): PGPSecretKeyRing? {
+    private fun findSecretKeyRing(
+        factory: PGPObjectFactory,
+        depth: Int = 0,
+    ): PGPSecretKeyRing? {
+        if (depth > MAX_COMPRESSION_DEPTH) {
+            throw PgpImportLimitExceededException(
+                "Key file has too many nested compression layers — refusing to continue"
+            )
+        }
         var obj = factory.nextObject()
         while (obj != null) {
             Log.d(TAG, "findSecretKeyRing: ${obj::class.simpleName}")
@@ -109,12 +125,13 @@ object OpenPgpFileImporter {
                 is PGPCompressedData -> {
                     Log.d(TAG, "Decompressing (algorithm=${obj.algorithm})…")
                     val inner = PGPObjectFactory(obj.dataStream, BcKeyFingerprintCalculator())
-                    findSecretKeyRing(inner)?.let { return it }
+                    findSecretKeyRing(inner, depth + 1)?.let { return it }
                 }
 
                 is PGPLiteralData -> {
                     Log.d(TAG, "Unwrapping PGPLiteralData (filename='${obj.fileName}')…")
-                    val literalBytes = obj.inputStream.readBytes()
+                    val literalBytes = obj.inputStream
+                        .readBytesBounded(MAX_IMPORT_BYTES, "Decompressed key data")
                     Log.d(TAG, "LiteralData content (${literalBytes.size} B)")
 
                     for (block in splitArmoredBlocks(literalBytes)) {
@@ -122,7 +139,7 @@ object OpenPgpFileImporter {
                             PGPUtil.getDecoderStream(ByteArrayInputStream(block)),
                             BcKeyFingerprintCalculator()
                         )
-                        findSecretKeyRing(inner)?.let { return it }
+                        findSecretKeyRing(inner, depth + 1)?.let { return it }
                     }
                 }
 
@@ -132,6 +149,24 @@ object OpenPgpFileImporter {
             obj = factory.nextObject()
         }
         return null
+    }
+
+    private fun InputStream.readBytesBounded(maxBytes: Long, context: String): ByteArray {
+        val buf = ByteArrayOutputStream()
+        val chunk = ByteArray(8192)
+        var total = 0L
+        while (true) {
+            val n = read(chunk)
+            if (n < 0) break
+            total += n
+            if (total > maxBytes) {
+                throw PgpImportLimitExceededException(
+                    "$context exceeds ${maxBytes / (1024 * 1024)} MB — refusing to continue"
+                )
+            }
+            buf.write(chunk, 0, n)
+        }
+        return buf.toByteArray()
     }
 
     private fun splitArmoredBlocks(bytes: ByteArray): List<ByteArray> {

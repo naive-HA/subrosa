@@ -206,7 +206,7 @@
                 android:layout_marginBottom="@dimen/activity_margin"
                 android:gravity="center"
                 android:textAppearance="?attr/textAppearanceCaption"
-                android:textColor="?attr/colorAccent"
+                android:textColor="@color/binary_background"
                 tools:text="Slot 1 programmed" />
 
             <View
@@ -339,7 +339,7 @@
                 android:layout_marginBottom="@dimen/activity_margin"
                 android:gravity="center"
                 android:textAppearance="?attr/textAppearanceCaption"
-                android:textColor="?attr/colorAccent"
+                android:textColor="@color/binary_background"
                 tools:text="Read complete" />
 
             <View
@@ -408,7 +408,7 @@
                 android:layout_marginBottom="@dimen/activity_margin"
                 android:gravity="center"
                 android:textAppearance="?attr/textAppearanceCaption"
-                android:textColor="?attr/colorAccent"
+                android:textColor="@color/binary_background"
                 tools:text="Slot 1 reset" />
 
         </LinearLayout>

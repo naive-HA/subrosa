@@ -148,6 +148,19 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             binding.progressChangeUserPin.visibility = if (userBusy) View.VISIBLE else View.GONE
             binding.btnChangeAdminPin.isEnabled = !busy
             binding.btnChangeUserPin.isEnabled = !busy
+
+            if (!busy && op != OpenPgpOperation.NONE) {
+                openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
+            }
+        }
+
+        openPgpViewModel.result.observe(viewLifecycleOwner) { result ->
+            result.onFailure {
+                Log.e(TAG, "OpenPGP operation failed: ${it.message}", it)
+                errorVibrate()
+                Toast.makeText(requireContext(), it.message ?: "No message", Toast.LENGTH_SHORT).show()
+            }
+            openPgpViewModel.clearResult()
         }
 
         bindAutoClearStatus(
@@ -333,16 +346,15 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
 
                 lifecycleScope.launch(Dispatchers.Main) {
                     errorVibrate()
-                    if (e is InvalidPinException) {
-                        Toast.makeText(requireContext(), wrongPinToastMessage, Toast.LENGTH_SHORT).show()
-                    }
+                    val toastMessage = if (e is InvalidPinException) wrongPinToastMessage else (e.message ?: failureFallback)
+                    Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_SHORT).show()
                 }
 
                 if (e is InvalidPinException) {
                     onWrongPin(e.attemptsRemaining)
                 }
 
-                openPgpViewModel.postPinChangeStatus(e.message ?: failureFallback)
+                openPgpViewModel.postPinChangeStatus("")
                 null
             } finally {
                 pins.forEach { it.fill('\u0000') }

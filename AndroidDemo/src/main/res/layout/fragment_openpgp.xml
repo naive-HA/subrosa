@@ -200,7 +200,7 @@
                 android:fontFamily="monospace"
                 android:gravity="center_horizontal"
                 android:text=""
-                android:textColor="@android:color/darker_gray"
+                android:textColor="@color/binary_background"
                 android:textSize="12sp"
                 tools:text="Writing slot SIG…" />
 
@@ -246,7 +246,7 @@
                 android:fontFamily="monospace"
                 android:gravity="center_horizontal"
                 android:text=""
-                android:textColor="@android:color/darker_gray"
+                android:textColor="@color/binary_background"
                 android:textSize="12sp"
                 tools:text="Reading slot SIG…" />
 
@@ -293,7 +293,7 @@
                 android:fontFamily="monospace"
                 android:gravity="center_horizontal"
                 android:text=""
-                android:textColor="@android:color/darker_gray"
+                android:textColor="@color/binary_background"
                 android:textSize="12sp"
                 tools:text="Blocking Admin PIN…" />
 
