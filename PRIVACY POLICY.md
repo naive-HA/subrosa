@@ -6,7 +6,7 @@
 
 sub rosa does not collect, store, or transmit your personal data. Everything it touches stays on your device and your hardware security key.
 
-## What Sub Rosa Does
+## What sub rosa Does
 
 - **Talks to your hardware security key.** sub rosa communicates with connected YubiKey, Nitrokey 3, Nitrokey Pro or Librem Key devices over NFC or USB using standard smart-card (APDU) commands, 
 to read device info and manage the Static Password, OpenPGP keys and PINs.
@@ -17,7 +17,7 @@ immediately after — never stored, never transmitted.
 - **Imports OpenPGP key backups.** You can import an existing OpenPGP key to write it to your security key. During import, your private key material is briefly held in the app's memory 
 to complete the write — it's never written to any file sub rosa creates itself, and never leaves your device.
 
-## What Sub Rosa Doesn't Do
+## What sub rosa Doesn't Do
 
 - No account or sign-in
 - No analytics, telemetry, or crash reporting
@@ -32,14 +32,14 @@ to complete the write — it's never written to any file sub rosa creates itself
 
 ## Data Retention
 
-Sub Rosa doesn't run any servers and has nothing to retain. All app data lives on your device; uninstalling removes it.
+sub rosa doesn't run any servers and has nothing to retain. All app data lives on your device; uninstalling removes it.
 
 ## Third-Party Services
 
 If you install sub rosa from Google Play, Google collects some data as part of operating the Play Store (e.g. install and OS-level crash data) under Google's own privacy policy — 
 outside sub rosa's control.
 
-Sub Rosa uses no third-party services.
+sub rosa uses no third-party services.
 
 ## Your Rights (GDPR / CCPA)
 
@@ -51,4 +51,4 @@ sub rosa is not directed at children and does not knowingly collect data from an
 
 ## Changes to This Policy
 
-If Sub Rosa's data practices change — for example, a future feature that needs network access — this page will be updated and the date above revised.
+If sub rosa's data practices change — for example, a future feature that needs network access — this page will be updated and the date above revised.
