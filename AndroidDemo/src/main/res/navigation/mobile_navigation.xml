@@ -6,37 +6,37 @@
 
     <fragment
         android:id="@+id/nav_management"
-        android:name="acab.naiveha.subrosa.ui.management.ManagementFragment"
+        android:name="acab.naiveha.subrosa.by.naiveha.ui.management.ManagementFragment"
         android:label="@string/menu_mgmt"
         tools:layout="@layout/fragment_management" />
 
     <fragment
         android:id="@+id/nav_yubiotp"
-        android:name="acab.naiveha.subrosa.ui.yubiotp.YubiOtpFragment"
+        android:name="acab.naiveha.subrosa.by.naiveha.ui.yubiotp.YubiOtpFragment"
         android:label="@string/menu_otp"
         tools:layout="@layout/fragment_yubiotp" />
 
     <fragment
         android:id="@+id/nav_openpgp"
-        android:name="acab.naiveha.subrosa.ui.openpgp.OpenPgpFragment"
+        android:name="acab.naiveha.subrosa.by.naiveha.ui.openpgp.OpenPgpFragment"
         android:label="@string/menu_openpgp"
         tools:layout="@layout/fragment_openpgp" />
 
     <fragment
         android:id="@+id/nav_licenses"
-        android:name="acab.naiveha.subrosa.ui.licenses.LicensesFragment"
+        android:name="acab.naiveha.subrosa.by.naiveha.ui.licenses.LicensesFragment"
         android:label="@string/menu_licenses"
         tools:layout="@layout/fragment_licenses" />
 
     <fragment
         android:id="@+id/nav_about"
-        android:name="acab.naiveha.subrosa.ui.about.AboutFragment"
+        android:name="acab.naiveha.subrosa.by.naiveha.ui.about.AboutFragment"
         android:label="@string/about"
         tools:layout="@layout/fragment_about" />
 
     <fragment
         android:id="@+id/passwordOcrFragment"
-        android:name="acab.naiveha.subrosa.ui.openpgp.PasswordOcrFragment"
+        android:name="acab.naiveha.subrosa.by.naiveha.ui.openpgp.PasswordOcrFragment"
         android:label="Extract Password"
         tools:layout="@layout/fragment_password_ocr">
         <argument

@@ -7,5 +7,5 @@ plugins {
 dependencies {
 
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.bouncycastle:bcprov-jdk15to18:1.85.1'
+    testImplementation 'org.bouncycastle:bcprov-jdk18on:1.85.2'
 }

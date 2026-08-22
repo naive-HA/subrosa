@@ -11,7 +11,7 @@ android {
         minSdkVersion 31
         targetSdkVersion 37
         versionName = version
-        versionCode = 12
+        versionCode = 13
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -31,6 +31,11 @@ android {
         dex {
             useLegacyPackaging = true
         }
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/LICENSE.md"
+            excludes += "/META-INF/NOTICE.md"
+        }
     }
 
     dependenciesInfo {
@@ -49,7 +54,7 @@ android {
         buildConfig = true
     }
 
-    namespace = 'acab.naiveha.subrosa'
+    namespace = 'acab.naiveha.subrosa.by.naiveha'
 }
 
 androidComponents {
@@ -74,8 +79,8 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0'
 
     implementation 'androidx.core:core-ktx:1.19.0'
-    implementation 'androidx.fragment:fragment-ktx:1.8.9'
-    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.fragment:fragment-ktx:1.9.0'
+    implementation 'androidx.appcompat:appcompat:1.8.0'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     implementation 'androidx.recyclerview:recyclerview:1.4.0'
     implementation 'com.google.android.material:material:1.14.0'
@@ -88,8 +93,8 @@ dependencies {
     implementation "androidx.navigation:navigation-ui-ktx:2.9.8"
     //implementation "androidx.navigation:navigation-dynamic-features-fragment:$nav_version"
 
-    implementation 'org.bouncycastle:bcpkix-jdk15to18:1.84'
-    implementation 'org.bouncycastle:bcpg-jdk15to18:1.84'
+    implementation 'org.bouncycastle:bcpkix-jdk18on:1.85'
+    implementation 'org.bouncycastle:bcpg-jdk18on:1.85'
 
     implementation 'com.github.tony19:logback-android:3.0.0'
 
