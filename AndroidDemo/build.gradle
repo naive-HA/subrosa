@@ -65,6 +65,29 @@ androidComponents {
     })
 }
 
+// Rename the release bundle to match the APK naming convention
+afterEvaluate {
+    def renameTask = tasks.register("renameReleaseBundle") {
+        doLast {
+            def bundleDir = project.file("release")
+            def bundleFile = new File(bundleDir, "AndroidDemo-release.aab")
+            if (bundleFile.exists()) {
+                def renamedFile = new File(bundleDir, "subrosa.${project.version}.aab")
+                ant.move(file: bundleFile, tofile: renamedFile)
+                logger.lifecycle("Renamed AAB to: ${renamedFile.name}")
+            } else {
+                logger.warn("Release bundle not found at: ${bundleFile.absolutePath}")
+            }
+        }
+    }
+
+    if (tasks.findByName("bundleRelease")) {
+        tasks.named("bundleRelease").configure {
+            finalizedBy(renameTask)
+        }
+    }
+}
+
 dependencies {
 
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
