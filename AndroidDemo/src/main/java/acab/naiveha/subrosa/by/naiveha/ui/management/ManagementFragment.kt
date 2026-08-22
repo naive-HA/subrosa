@@ -376,10 +376,10 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         showOpenPgpAppletResetDialog(
             TAG,
             onConfirmed = {
-                Log.i(TAG, "OpenPGP applet reset confirmed — device=${openPgpViewModel.uiState.value?.connectedDevice?.type}")
+                Log.i(TAG, "OpenPGP applet reset confirmed — device=${openPgpViewModel.currentState.connectedDevice.type}")
                 openPgpViewModel.pendingAction.value = {
                     try {
-                        val writer = openPgpViewModel.uiState.value?.connectedDevice?.type.writer()
+                        val writer = openPgpViewModel.currentState.connectedDevice.type.writer()
                         Log.i(TAG, "pendingAction — resetting OpenPGP applet, writer=${writer::class.simpleName}")
                         writer.wipe(this, status = openPgpViewModel::postPinChangeStatus)
                         viewModel.updatePinRetries(user = 3, admin = 3)

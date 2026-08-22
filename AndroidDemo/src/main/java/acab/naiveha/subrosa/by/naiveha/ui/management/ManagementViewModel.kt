@@ -58,19 +58,19 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private fun updateUi(update: (ManagementUiState) -> ManagementUiState) {
-        val apply = {
-            synchronized(this) {
-                val next = update(state)
-                state = if (next.connectedDevice != null) next.copy(loading = false) else next
-                _uiState.value = state
-            }
+        synchronized(this) {
+            val next = update(state)
+            state = if (next.connectedDevice != null) next.copy(loading = false) else next
         }
         if (Looper.getMainLooper().thread == Thread.currentThread()) {
-            apply()
+            _uiState.value = state
         } else {
-            mainHandler.post(apply)
+            mainHandler.post { _uiState.value = state }
         }
     }
+
+    val currentState: ManagementUiState
+        get() = state
 
     fun requestClearUi() {
         updateUi { ManagementUiState() }

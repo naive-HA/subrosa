@@ -23,5 +23,6 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 <i>sub rosa</i> is an Android app, built on top of YubiKit library provided by Yubico
 
 Version 2.3.2
+ - changed package name to acab.naiveha.subrosa.by.naiveha in preparation for publishing in Google Play
  - Upgraded Bouncy Castle
- - Small improvements
+ - Fixed a race condition
