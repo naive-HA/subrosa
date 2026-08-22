@@ -24,4 +24,4 @@ SSH authentication is simpler now—you no longer need to reuse the same SSH key
 
 Version 2.3.2
  - Upgraded Bouncy Castle
- - Small improvements
+ - Fixed a race condition

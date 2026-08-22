@@ -16,6 +16,7 @@
 
 package acab.naiveha.subrosa.by.naiveha.ui.yubiotp
 
+import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -38,14 +39,16 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     private val _uiState = MutableLiveData<YubiOtpUiState?>(state)
     val uiState: LiveData<YubiOtpUiState?> = _uiState
 
-    @Synchronized
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     private fun updateUi(update: (YubiOtpUiState) -> YubiOtpUiState) {
-        val newState = update(state)
-        state = newState
+        synchronized(this) {
+            state = update(state)
+        }
         if (Looper.getMainLooper().thread == Thread.currentThread()) {
-            _uiState.value = newState
+            _uiState.value = state
         } else {
-            _uiState.postValue(newState)
+            mainHandler.post { _uiState.value = state }
         }
     }
 

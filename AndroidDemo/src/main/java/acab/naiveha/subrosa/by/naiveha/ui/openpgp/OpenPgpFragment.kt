@@ -164,7 +164,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
 
                 viewModel.setCurrentOperation(OpenPgpOperation.SAVE)
                 viewModel.pendingAction.value = {
-                    val deviceType = viewModel.uiState.value?.connectedDevice?.type
+                    val deviceType = viewModel.currentState.connectedDevice.type
                     val writer = deviceType.writer()
                     Log.i(TAG, "pendingAction — device=$deviceType " +
                         "writer=${writer::class.simpleName}")
@@ -218,7 +218,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             Log.i(TAG, "Reset confirmed — device=${viewModel.uiState.value?.connectedDevice?.type}")
             viewModel.setCurrentOperation(OpenPgpOperation.WIPE)
             viewModel.pendingAction.value = {
-                val deviceType = viewModel.uiState.value?.connectedDevice?.type
+                val deviceType = viewModel.currentState.connectedDevice.type
                 val writer = deviceType.writer()
                 Log.i(TAG, "wipe — device=$deviceType " +
                     "writer=${writer::class.simpleName}")

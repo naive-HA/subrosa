@@ -36,18 +36,18 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private fun updateUi(update: (OpenPgpUiState) -> OpenPgpUiState) {
-        val apply = {
-            synchronized(this) {
-                state = update(state)
-                _uiState.value = state
-            }
+        synchronized(this) {
+            state = update(state)
         }
         if (Looper.getMainLooper().thread == Thread.currentThread()) {
-            apply()
+            _uiState.value = state
         } else {
-            mainHandler.post(apply)
+            mainHandler.post { _uiState.value = state }
         }
     }
+
+    val currentState: OpenPgpUiState
+        get() = state
 
     fun onImportIntent(uri: Uri) {
         updateUi { it.copy(pendingImportUri = uri) }
