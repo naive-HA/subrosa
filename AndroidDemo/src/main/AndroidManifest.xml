@@ -9,6 +9,7 @@
         android:supportsRtl="true"
         android:icon="@mipmap/binary"
         android:roundIcon="@mipmap/binary_round"
+        android:memtagMode="sync"
         android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"

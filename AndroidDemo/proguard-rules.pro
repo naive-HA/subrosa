@@ -13,7 +13,7 @@
 -keep class com.yubico.yubikit.yubiotp.** { *; }
 -keep class com.yubico.yubikit.support.** { *; }
 
--keep class acab.naiveha.subrosa.by.naiveha.** { *; }
+-keep class acab.naiveha.subrosa.** { *; }
 
 -keep class com.yubico.yubikit.core.Version { *; }
 -keep class com.yubico.yubikit.core.application.Feature** { *; }
@@ -38,11 +38,11 @@
     native <methods>;
 }
 
--keep class acab.naiveha.subrosa.by.naiveha.ui.**Fragment { *; }
--keep class acab.naiveha.subrosa.by.naiveha.ui.**ViewModel { *; }
--keep class acab.naiveha.subrosa.by.naiveha.ui.openpgp.OpenPgpKeyInfo { *; }
--keep class acab.naiveha.subrosa.by.naiveha.ui.openpgp.OpenPgpSubkeyInfo { *; }
--keep class acab.naiveha.subrosa.by.naiveha.ui.openpgp.OpenPgpCardInfo** { *; }
+-keep class acab.naiveha.subrosa.ui.**Fragment { *; }
+-keep class acab.naiveha.subrosa.ui.**ViewModel { *; }
+-keep class acab.naiveha.subrosa.ui.openpgp.OpenPgpKeyInfo { *; }
+-keep class acab.naiveha.subrosa.ui.openpgp.OpenPgpSubkeyInfo { *; }
+-keep class acab.naiveha.subrosa.ui.openpgp.OpenPgpCardInfo** { *; }
 -keepclassmembers class * {
     public static final java.lang.String TAG;
 }
