@@ -1,4 +1,5 @@
 [<img src="https://github.com/naive-HA/subrosa/blob/master/fastlane/metadata/android/en-US/images/google%20play.png" height="80" alt="Get it on goggle Play">](https://play.google.com/store/apps/details?id=acab.naiveha.subrosa.by.naiveha)
+
 [<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png" height="80" alt="Get it at IzzyOnDroid">](https://apt.izzysoft.de/packages/acab.naiveha.subrosa)
 
 # sub rosa by naiveHA
