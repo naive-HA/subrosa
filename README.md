@@ -6,7 +6,9 @@
 "What does this app do?" Well, actually, the first question to be asked is "why?" Why is there a need for this app? The answer is "passwords".
 
 We all have a "password problem". The IT industry is trying to solve the "password problem" for a long time.
-Passwords are the weakest link in a digital security model. Life is complicated enough that you should not overload your mind with remembering long, complex passwords.
+Passwords are the weakest link in a digital security model. 
+
+Life is complicated enough that you should not overload your mind with remembering long, complex passwords.
 And on top of that, good hygene requires changing the password frequently. And then you have personal email, social media and banking accounts, etc. 
 You should use unique passwords for each account such that when (when, not if) one account is compromised, the attacker does not gain access to all your accounts.
 You get the point... I guess.
