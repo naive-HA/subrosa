@@ -1,14 +1,27 @@
 [<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png" height="80" alt="Get it at IzzyOnDroid">](https://apt.izzysoft.de/packages/acab.naiveha.subrosa)
 
 # sub rosa by naiveHA
-Uncomplicatedly simple: if you manage your long, complex, and secure passwords in a password manager app (like KeePassDroid) on your Android device, 
-you can now “type” them easily, in public, without worrying about surveillance cameras or shoulder surfing, on any other device—phone, tablet, or PC—running Windows, Linux, or macOS.
+"What does this app do?" Well, actually, the first question to be asked is "why?" Why is there a need for this app? The answer is "passwords".
 
-*sub rosa* allows you to program the static password on your YubiKey, so you can “type” the password with the touch of a finger.
-When you’re done “typing” your long, complex, and secure password, be sure to wipe your YubiKey clean. 
-It isn’t much security if someone else can “type” your password by touching the YubiKey.
+We all have a "password problem". The IT industry is trying to solve the "password problem" for a long time.
+Passwords are the weakest link in a digital security model. Life is complicated enough that you should not overload your mind with remembering long, complex passwords.
+And on top of that, good hygene requires changing the password frequently. And then you have personal email, social media and banking accounts, etc. 
+You should use unique passwords for each account such that when (when, not if) one account is compromised, the attacker does not gain access to all your accounts.
+You get the point... I guess.
 
-The various keyboards accept the following characters:
+How many complex passwords (between 8 and 16 characters, including special characters like `~!@#$%^&*(){}:"<>?/.,';][=-) can you memorize?
+One solution is to use a password manager app (like KeePassDroid) on your phone. 
+But you use a work laptop, personal computer, tablet, maybe second phone... 
+And the passwords still need to be changed for security purposes every now and then... 
+How do stay safe online and still be able to log into your accounts on other devices when your passwords are on your mobile phone?
+How do you type your passwords while enjoying a coffee at your local coffee shop, without worrying about surveillance cameras or shoulder surfing? 
+
+Introducing "sub rosa". Uncomplicatedly simple.
+
+sub rosa allows programming a static password to a YubiKey. YubiKey is a hardware device that can act as a keyboard when touched. Basically, you plug it in your phone, tablet, laptop and touch it and it types a sequence of characters.
+Simple: no need to memorize multiple complex passwords. No need to have multiple such devices: you can program the YubiKey with a password, use it and then program it with another password. YubiKey comes in multiple form factors: from small enough that you can store it in the USB-C port of your phone, to larger and more capable (like NFC enabled)
+
+sub rosa supports various keyboards capable of typing the following characters:
 
 * *US*: space, \n, \t and abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'`()*+-=,./:;<>?@\\][^_{}|~
 
@@ -22,10 +35,25 @@ The various keyboards accept the following characters:
 
 * *MODHEX*: bcdefghijklnrtuvBCDEFGHIJKLNRTUV
 
-Since version 2.0.0, *sub rosa* has added support for OpenPGP. You can now provision an OpenPGP key onto your YubiKey, Nitrokey 3, Nitrokey Pro or Librem Key. 
-In keeping with the app’s motto, “Uncomplicatedly simple,” you can encrypt, decrypt, sign, and authenticate with your security key, 
-then wipe it clean and write another OpenPGP key to change your digital identity. 
-SSH authentication is simpler now—you no longer need to reuse the same SSH key or buy multiple security keys
+YubiKey solves one part of the "password problem": you do not need anymore to memorize passwords and you can log into your accounts over multiple devices while the password stays safe on your phone (protected with a PIN/passphrase/fingerprint)
+
+But, if you lose the YubiKey, anyone can just touch it and it will sing your password like a canary... 
+Not much security when anyone can touch your device and learn your last programmed password. 
+
+No worries, sub rosa comes to help again: once you type your complex password with YubiKey, you can de-program the YubiKey device such that if you lose the device, 
+you do not compromise your security. Simple.
+
+YubiKey (and other similar products like Nitrokey, Librem key) can do more than just act as a keyboard.
+sub rosa can program an OpenPGP key that you can use to encrypt, decrypt, cryptographically sign documents and even authenticate to remote servers via ssh.
+An OpenPGP key is basically a digital identity.
+
+Digital signatures are officially recognized in many countries and legally binding. 
+But anything digital will get hacked at some point in time. Is not a question of if, but when.
+So, just like with passwords, you should keep your digital personas compartmentalized.
+
+sub rosa comes to help again: you can program an OpenPGP key to your YubiKey device, sign off an electronic document, 
+and then program another OpenPGP key to decrypt a confidential message from a business partner or encrypt a whistleblower alert sent to a media organisation. 
+And once you are done, you can simply erase everything off YubiKey such that if you lose your device, you are not compromising your digital personas.
 
 # How does *sub rosa* support various hardware security keys?
 <table>
