@@ -21,395 +21,521 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintWidth_max="448dp">
 
-            <TextView
+            <LinearLayout
+                android:id="@+id/tab_selector_container"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/activity_margin"
-                android:text="@string/otp_yubistatic_desc" />
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="12dp"
+                android:animateLayoutChanges="true"
+                android:background="@drawable/bg_tab_selector_container"
+                android:elevation="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp">
 
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/text_layout_staticpwd_id"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/otp_yubistatic_id"
-                android:textColorHint="?attr/colorAccent"
-                app:endIconContentDescription="@string/randomize"
-                app:endIconDrawable="@drawable/ic_content_paste_24dp"
-                app:endIconMode="custom"
-                app:hintTextColor="?attr/colorAccent">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/edit_text_staticpwd_id"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:imeActionId="6"
-                    android:inputType="textPassword"
-                    android:maxLength="38"
-                    tools:text="Type or paste from clipboard" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <CheckBox
-                android:id="@+id/checkbox_show_pwd_id"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/otp_yubistatic_show_pwd_desc" />
-
-            <TextView
-                android:id="@+id/yubi_keyboard_id"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/activity_margin"
-                android:text="@string/opt_keyboard_selection_desc" />
-
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/keyboard_radio"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:singleSelection="true"
-                app:selectionRequired="true">
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/keyoard_us"
-                    style="@style/AppTheme.Chip"
+                <LinearLayout
+                    android:id="@+id/tab_write"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="@string/otp_keyboard_us_desc" />
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:padding="8dp">
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/keyoard_uk"
-                    style="@style/AppTheme.Chip"
+                    <ImageView
+                        android:id="@+id/tab_write_icon"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:contentDescription="@string/tab_write"
+                        android:src="@drawable/ic_tab_dot_filled" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/tab_read"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/otp_keyboard_uk_desc" />
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:padding="8dp">
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/keyoard_de"
-                    style="@style/AppTheme.Chip"
+                    <ImageView
+                        android:id="@+id/tab_read_icon"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:contentDescription="@string/tab_read"
+                        android:src="@drawable/ic_tab_dot_outline" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/tab_erase"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/otp_keyboard_de_desc" />
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:padding="8dp">
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/keyoard_fr"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/otp_keyboard_fr_desc" />
+                    <ImageView
+                        android:id="@+id/tab_erase_icon"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:contentDescription="@string/tab_erase"
+                        android:src="@drawable/ic_tab_dot_outline" />
+                </LinearLayout>
+            </LinearLayout>
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/keyoard_it"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/otp_keyboard_it_desc" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/keyoard_modhex"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/otp_keyboard_modhex_desc" />
-            </com.google.android.material.chip.ChipGroup>
-
-            <TextView
-                android:id="@+id/yubi_extras_id"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/activity_margin"
-                android:text="@string/otp_extras_desc" />
-
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/extras_radio"
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/extras_tab_front"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/opt_extras_tab1_desc" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/extras_tab_end"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/opt_extras_tab2_desc" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/extras_cr"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/otp_extras_cr_desc" />
-            </com.google.android.material.chip.ChipGroup>
-
-            <TextView
-                android:id="@+id/yubi_slot_id"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/activity_margin"
-                android:text="@string/otp_yubistatic_slot_desc" />
-
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/slot_radio"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:singleSelection="true"
-                app:selectionRequired="true">
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/radio_slot_1"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
-                    android:checked="true"
-                    android:text="@string/otp_slot_1" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/radio_slot_2"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/otp_slot_2" />
-            </com.google.android.material.chip.ChipGroup>
-
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/activity_margin">
-
-                <Button
-                    android:id="@+id/btn_save_staticpwd"
+                <LinearLayout
+                    android:id="@+id/section_write"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/otp_btn_write_static" />
+                    android:orientation="vertical"
+                    android:visibility="visible">
 
-                <ProgressBar
-                    android:id="@+id/progress_save"
-                    style="?android:attr/progressBarStyleSmall"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical|end"
-                    android:layout_marginEnd="16dp"
-                    android:visibility="gone" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/activity_margin"
+                        android:text="@string/otp_yubistatic_desc" />
 
-            </FrameLayout>
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp">
 
-            <TextView
-                android:id="@+id/save_status"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/activity_margin"
-                android:gravity="center"
-                android:textAppearance="?attr/textAppearanceCaption"
-                android:textColor="@color/binary_background"
-                tools:text="Slot 1 programmed" />
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/text_layout_staticpwd_id"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/otp_yubistatic_id"
+                            android:textColorHint="?attr/colorAccent"
+                            app:hintTextColor="?attr/colorAccent">
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="5dp"
-                android:layout_marginVertical="@dimen/activity_margin"
-                android:background="@android:color/darker_gray" />
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/edit_text_staticpwd_id"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:imeActionId="6"
+                                android:inputType="textPassword"
+                                android:maxLength="38"
+                                android:paddingStart="16dp"
+                                android:paddingEnd="88dp"
+                                tools:text="Type or paste from clipboard" />
+                        </com.google.android.material.textfield.TextInputLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/activity_margin"
-                android:text="@string/otp_yubistatic_read_desc" />
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end|center_vertical"
+                            android:layout_marginEnd="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/read_keyboard_id"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/activity_margin"
-                android:text="@string/opt_keyboard_selection_desc" />
+                            <ImageButton
+                                android:id="@+id/btn_visibility_toggle"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:contentDescription="@string/otp_yubistatic_show_pwd_desc"
+                                android:scaleType="center"
+                                android:src="@drawable/visibility_off" />
 
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/read_keyboard_radio"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:singleSelection="true"
-                app:selectionRequired="true">
+                            <ImageButton
+                                android:id="@+id/btn_paste_action"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:contentDescription="@string/randomize"
+                                android:scaleType="center"
+                                android:src="@drawable/ic_content_paste_24dp" />
+                        </LinearLayout>
+                    </FrameLayout>
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/read_keyoard_us"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="@string/otp_keyboard_us_desc" />
+                    <TextView
+                        android:id="@+id/yubi_keyboard_id"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/activity_margin"
+                        android:text="@string/opt_keyboard_selection_desc" />
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/read_keyoard_uk"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/otp_keyboard_uk_desc" />
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/keyboard_radio"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:gravity="center_horizontal"
+                        app:singleSelection="true"
+                        app:selectionRequired="true">
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/read_keyoard_de"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/otp_keyboard_de_desc" />
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/keyoard_us"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            android:text="@string/otp_keyboard_us_desc" />
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/read_keyoard_fr"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/otp_keyboard_fr_desc" />
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/keyoard_uk"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_keyboard_uk_desc" />
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/read_keyoard_it"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/otp_keyboard_it_desc" />
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/keyoard_de"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_keyboard_de_desc" />
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/read_keyoard_modhex"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/otp_keyboard_modhex_desc" />
-            </com.google.android.material.chip.ChipGroup>
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/keyoard_fr"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_keyboard_fr_desc" />
 
-            <TextView
-                android:id="@+id/read_slot_id"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/activity_margin"
-                android:text="@string/otp_yubistatic_slot_desc" />
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/keyoard_it"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_keyboard_it_desc" />
 
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/read_slot_radio"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:singleSelection="true"
-                app:selectionRequired="true">
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/keyoard_modhex"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_keyboard_modhex_desc" />
+                    </com.google.android.material.chip.ChipGroup>
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/read_radio_slot_1"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
-                    android:checked="true"
-                    android:text="@string/otp_slot_1" />
+                    <TextView
+                        android:id="@+id/yubi_extras_id"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/activity_margin"
+                        android:text="@string/otp_extras_desc" />
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/read_radio_slot_2"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/otp_slot_2" />
-            </com.google.android.material.chip.ChipGroup>
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/extras_radio"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:gravity="center_horizontal">
 
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/activity_margin">
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/extras_tab_front"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/opt_extras_tab1_desc" />
 
-                <Button
-                    android:id="@+id/btn_request_staticpwd"
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/extras_tab_end"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/opt_extras_tab2_desc" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/extras_cr"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_extras_cr_desc" />
+                    </com.google.android.material.chip.ChipGroup>
+
+                    <TextView
+                        android:id="@+id/yubi_slot_id"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/activity_margin"
+                        android:text="@string/otp_yubistatic_slot_desc" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/slot_radio"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:gravity="center_horizontal"
+                        app:singleSelection="true"
+                        app:selectionRequired="true">
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/radio_slot_1"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="10dp"
+                            android:checked="true"
+                            android:text="@string/otp_slot_1" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/radio_slot_2"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_slot_2" />
+                    </com.google.android.material.chip.ChipGroup>
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/activity_margin">
+
+                        <Button
+                            android:id="@+id/btn_save_staticpwd"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_btn_write_static" />
+
+                        <ProgressBar
+                            android:id="@+id/progress_save"
+                            style="?android:attr/progressBarStyleSmall"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical|end"
+                            android:layout_marginEnd="16dp"
+                            android:visibility="gone" />
+
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/save_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/activity_margin"
+                        android:gravity="center"
+                        android:textAppearance="?attr/textAppearanceCaption"
+                        android:textColor="@color/binary_background"
+                        tools:text="Slot 1 programmed" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/section_read"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/otp_yubistatic_read" />
+                    android:orientation="vertical"
+                    android:visibility="gone">
 
-                <ProgressBar
-                    android:id="@+id/progress_read"
-                    style="?android:attr/progressBarStyleSmall"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical|end"
-                    android:layout_marginEnd="16dp"
-                    android:visibility="gone" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/activity_margin"
+                        android:text="@string/otp_yubistatic_read_desc" />
 
-            </FrameLayout>
+                    <TextView
+                        android:id="@+id/read_keyboard_id"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/opt_keyboard_selection_desc" />
 
-            <TextView
-                android:id="@+id/read_status"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/activity_margin"
-                android:gravity="center"
-                android:textAppearance="?attr/textAppearanceCaption"
-                android:textColor="@color/binary_background"
-                tools:text="Read complete" />
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/read_keyboard_radio"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:gravity="center_horizontal"
+                        app:singleSelection="true"
+                        app:selectionRequired="true">
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="5dp"
-                android:layout_marginVertical="@dimen/activity_margin"
-                android:background="@android:color/darker_gray" />
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/read_keyoard_us"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            android:text="@string/otp_keyboard_us_desc" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/activity_margin"
-                android:text="@string/reset_yubikey_static_password" />
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/read_keyoard_uk"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_keyboard_uk_desc" />
 
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/slot_radio_reset"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:singleSelection="true"
-                app:selectionRequired="true">
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/read_keyoard_de"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_keyboard_de_desc" />
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/reset_slot_1"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
-                    android:checked="true"
-                    android:text="@string/otp_slot_1" />
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/read_keyoard_fr"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_keyboard_fr_desc" />
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/reset_slot_2"
-                    style="@style/AppTheme.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/otp_slot_2" />
-            </com.google.android.material.chip.ChipGroup>
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/read_keyoard_it"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_keyboard_it_desc" />
 
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/activity_margin">
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/read_keyoard_modhex"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_keyboard_modhex_desc" />
+                    </com.google.android.material.chip.ChipGroup>
 
-                <Button
-                    android:id="@+id/btn_delete_staticpwd"
+                    <TextView
+                        android:id="@+id/read_slot_id"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/activity_margin"
+                        android:text="@string/otp_yubistatic_slot_desc" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/read_slot_radio"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:gravity="center_horizontal"
+                        app:singleSelection="true"
+                        app:selectionRequired="true">
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/read_radio_slot_1"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="10dp"
+                            android:checked="true"
+                            android:text="@string/otp_slot_1" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/read_radio_slot_2"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_slot_2" />
+                    </com.google.android.material.chip.ChipGroup>
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/activity_margin">
+
+                        <Button
+                            android:id="@+id/btn_request_staticpwd"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_yubistatic_read" />
+
+                        <ProgressBar
+                            android:id="@+id/progress_read"
+                            style="?android:attr/progressBarStyleSmall"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical|end"
+                            android:layout_marginEnd="16dp"
+                            android:visibility="gone" />
+
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/read_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/activity_margin"
+                        android:gravity="center"
+                        android:textAppearance="?attr/textAppearanceCaption"
+                        android:textColor="@color/binary_background"
+                        tools:text="Read complete" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/section_erase"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:backgroundTint="#B71C1C"
-                    android:text="@string/reset_static_password" />
+                    android:orientation="vertical"
+                    android:visibility="gone">
 
-                <ProgressBar
-                    android:id="@+id/progress_wipe"
-                    style="?android:attr/progressBarStyleSmall"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical|end"
-                    android:layout_marginEnd="16dp"
-                    android:visibility="gone" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/activity_margin"
+                        android:text="@string/reset_yubikey_static_password" />
 
+                    <TextView
+                        android:id="@+id/reset_slot_id"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/otp_yubistatic_slot_desc" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/slot_radio_reset"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:gravity="center_horizontal"
+                        app:singleSelection="true"
+                        app:selectionRequired="true">
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/reset_slot_1"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="10dp"
+                            android:checked="true"
+                            android:text="@string/otp_slot_1" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/reset_slot_2"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_slot_2" />
+                    </com.google.android.material.chip.ChipGroup>
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/activity_margin">
+
+                        <Button
+                            android:id="@+id/btn_delete_staticpwd"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:backgroundTint="#B71C1C"
+                            android:text="@string/reset_static_password" />
+
+                        <ProgressBar
+                            android:id="@+id/progress_wipe"
+                            style="?android:attr/progressBarStyleSmall"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical|end"
+                            android:layout_marginEnd="16dp"
+                            android:visibility="gone" />
+
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/delete_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/activity_margin"
+                        android:gravity="center"
+                        android:textAppearance="?attr/textAppearanceCaption"
+                        android:textColor="@color/binary_background"
+                        tools:text="Slot 1 reset" />
+                </LinearLayout>
             </FrameLayout>
-
-            <TextView
-                android:id="@+id/delete_status"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/activity_margin"
-                android:gravity="center"
-                android:textAppearance="?attr/textAppearanceCaption"
-                android:textColor="@color/binary_background"
-                tools:text="Slot 1 reset" />
 
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>

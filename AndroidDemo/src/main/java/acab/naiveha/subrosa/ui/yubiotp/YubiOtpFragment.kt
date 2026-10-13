@@ -1,6 +1,12 @@
 package acab.naiveha.subrosa.ui.yubiotp
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
+import android.annotation.SuppressLint
 import android.app.Activity
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -11,10 +17,13 @@ import android.text.TextWatcher
 import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
 import android.util.Log
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.fragment.app.activityViewModels
@@ -36,7 +45,6 @@ import com.yubico.yubikit.core.util.NdefUtils
 import com.yubico.yubikit.yubiotp.Slot
 import com.yubico.yubikit.yubiotp.StaticPasswordSlotConfiguration
 import com.yubico.yubikit.yubiotp.YubiOtpSession
-import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -226,6 +234,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         super.onPause()
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.btnSaveStaticpwd.isEnabled = false
@@ -233,6 +242,131 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         if (savedInstanceState == null) {
             binding.editTextStaticpwdId.requestFocus()
         }
+
+        var currentTabIndex = 0
+        var currentAnimator: ValueAnimator? = null
+
+        fun updateDots(selectedIndex: Int) {
+            binding.tabWriteIcon.setImageResource(if (selectedIndex == 0) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+            binding.tabReadIcon.setImageResource(if (selectedIndex == 1) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+            binding.tabEraseIcon.setImageResource(if (selectedIndex == 2) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+        }
+
+        fun navigateToTab(targetIndex: Int) {
+            if (targetIndex == currentTabIndex) return
+
+            currentAnimator?.cancel()
+
+            val fromIndex = currentTabIndex
+            val steps = targetIndex - fromIndex
+            val screenWidth = resources.displayMetrics.widthPixels.toFloat()
+            val sections = listOf(binding.sectionWrite, binding.sectionRead, binding.sectionErase)
+
+            val totalDuration = if (abs(steps) > 1) 360L else 220L
+
+            val animator = ValueAnimator.ofFloat(0f, steps.toFloat())
+            animator.duration = totalDuration
+            animator.interpolator = AccelerateDecelerateInterpolator()
+
+            animator.addUpdateListener { anim ->
+                val progress = anim.animatedValue as Float
+                val effectiveIndex = fromIndex + progress
+
+                val activeDot = effectiveIndex.roundToInt().coerceIn(0, 2)
+                updateDots(activeDot)
+
+                sections.forEachIndexed { i, view ->
+                    val dist = i - effectiveIndex
+                    val absDist = abs(dist)
+
+                    if (absDist < 1.2f) {
+                        view.visibility = View.VISIBLE
+                        view.translationX = dist * screenWidth
+                        view.alpha = (1.0f - (absDist * 0.5f)).coerceIn(0f, 1f)
+                    } else {
+                        view.visibility = View.GONE
+                    }
+                }
+            }
+
+            animator.addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    currentTabIndex = targetIndex
+                    updateDots(targetIndex)
+                    sections.forEachIndexed { i, view ->
+                        if (i == targetIndex) {
+                            view.visibility = View.VISIBLE
+                            view.translationX = 0f
+                            view.alpha = 1f
+                        } else {
+                            view.visibility = View.GONE
+                            view.translationX = 0f
+                            view.alpha = 1f
+                        }
+                    }
+                    currentAnimator = null
+                }
+            })
+
+            currentAnimator = animator
+            animator.start()
+        }
+
+        binding.tabWrite.setOnClickListener { navigateToTab(0) }
+        binding.tabRead.setOnClickListener { navigateToTab(1) }
+        binding.tabErase.setOnClickListener { navigateToTab(2) }
+        updateDots(0)
+
+        val gestureDetector = GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
+            private val swipeThreshold = 80
+            private val swipeVelocityThreshold = 100
+
+            override fun onFling(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                if (e1 == null) return false
+                val diffX = e2.x - e1.x
+                val diffY = e2.y - e1.y
+                if (abs(diffX) > abs(diffY)) {
+                    if ((abs(diffX) > swipeThreshold) && (abs(velocityX) > swipeVelocityThreshold)) {
+                        if (diffX < 0) {
+                            if (currentTabIndex < 2) {
+                                navigateToTab(currentTabIndex + 1)
+                                return true
+                            }
+                        } else {
+                            if (currentTabIndex > 0) {
+                                navigateToTab(currentTabIndex - 1)
+                                return true
+                            }
+                        }
+                    }
+                } else {
+                    if ((diffY > swipeThreshold) && (velocityY > swipeVelocityThreshold)) {
+                        if (currentTabIndex == 1 && (binding.btnRequestStaticpwd.isEnabled)) {
+                            binding.btnRequestStaticpwd.performClick()
+                            return true
+                        }
+                    }
+                }
+                return false
+            }
+        })
+
+        val attachSwipeListener = View.OnTouchListener { v, event ->
+            if (event.action == MotionEvent.ACTION_UP) {
+                v.performClick()
+            }
+            gestureDetector.onTouchEvent(event)
+        }
+
+        binding.root.setOnTouchListener(attachSwipeListener)
+        binding.sectionWrite.setOnTouchListener(attachSwipeListener)
+        binding.sectionRead.setOnTouchListener(attachSwipeListener)
+        binding.sectionErase.setOnTouchListener(attachSwipeListener)
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             if (state == null) return@observe
@@ -245,7 +379,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             updateProgressVisibility(state, action != null)
             updateButtonStates(action != null)
 
-            if (action == null && state.currentOperation != OtpOperation.NONE) {
+            if ((action == null) && (state.currentOperation != OtpOperation.NONE)) {
                 viewModel.setCurrentOperation(OtpOperation.NONE)
             }
         }
@@ -267,25 +401,32 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                 binding.extrasTabFront.isChecked = false
                 binding.extrasTabEnd.isChecked = false
                 binding.extrasCr.isChecked = false
-                binding.checkboxShowPwdId.isChecked = false
                 binding.keyboardRadio.check(R.id.keyoard_us)
                 binding.slotRadio.check(R.id.radio_slot_1)
                 binding.slotRadioReset.check(R.id.reset_slot_1)
             }
         }
 
-        binding.checkboxShowPwdId.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
+        var isPasswordVisible = false
+        val toggleVisibility: (Boolean) -> Unit = { visible ->
+            isPasswordVisible = visible
+            if (visible) {
                 binding.editTextStaticpwdId.transformationMethod = HideReturnsTransformationMethod.getInstance()
-                binding.editTextStaticpwdId.setSelection(binding.editTextStaticpwdId.text?.length ?: 0)
+                binding.btnVisibilityToggle.setImageResource(R.drawable.visibility)
             } else {
                 binding.editTextStaticpwdId.transformationMethod = PasswordTransformationMethod.getInstance()
-                binding.editTextStaticpwdId.setSelection(binding.editTextStaticpwdId.text?.length ?: 0)
+                binding.btnVisibilityToggle.setImageResource(R.drawable.visibility_off)
             }
+            binding.editTextStaticpwdId.setSelection(binding.editTextStaticpwdId.text?.length ?: 0)
         }
-        binding.textLayoutStaticpwdId.setEndIconOnClickListener {
+
+        binding.btnVisibilityToggle.setOnClickListener {
+            toggleVisibility(!isPasswordVisible)
+        }
+
+        binding.btnPasteAction.setOnClickListener {
             if (binding.editTextStaticpwdId.text.toString().isNotEmpty()){
-                binding.textLayoutStaticpwdId.endIconDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_content_paste_24dp)
+                binding.btnPasteAction.setImageResource(R.drawable.ic_content_paste_24dp)
                 binding.editTextStaticpwdId.setText("")
                 binding.editTextStaticpwdId.requestFocus()
                 WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).show(WindowInsetsCompat.Type.ime())
@@ -294,7 +435,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                 clipboard.primaryClip?.getItemAt(0)?.text?.let { pasted ->
                     runValidated(viewModel) {
                         requireWithinMaxLength(pasted.toString())
-                        binding.textLayoutStaticpwdId.endIconDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_cancel_24dp)
+                        binding.btnPasteAction.setImageResource(R.drawable.ic_cancel_24dp)
                         binding.editTextStaticpwdId.append(pasted)
                         WindowCompat.getInsetsController(requireActivity().window, binding.editTextStaticpwdId).hide(WindowInsetsCompat.Type.ime())
                         binding.editTextStaticpwdId.setSelection(binding.editTextStaticpwdId.text?.length ?: 0)
@@ -309,10 +450,10 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                 val busy = viewModel.pendingAction.value != null
                 binding.btnSaveStaticpwd.isEnabled = !busy && staticpwd.isNotEmpty()
                 if (staticpwd.isEmpty()) {
-                    binding.textLayoutStaticpwdId.endIconDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_content_paste_24dp)
+                    binding.btnPasteAction.setImageResource(R.drawable.ic_content_paste_24dp)
                     binding.textLayoutStaticpwdId.hint = getString(R.string.otp_yubistatic_id)
                 } else {
-                    binding.textLayoutStaticpwdId.endIconDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_cancel_24dp)
+                    binding.btnPasteAction.setImageResource(R.drawable.ic_cancel_24dp)
                     binding.textLayoutStaticpwdId.hint = getString(R.string.otp_yubistatic_hint)
                 }
             }

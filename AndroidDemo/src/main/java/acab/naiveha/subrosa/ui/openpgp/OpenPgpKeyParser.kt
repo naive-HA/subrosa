@@ -51,10 +51,17 @@ object OpenPgpKeyParser {
         val expirationDate = if (validSeconds > 0L) {
             Date(creationDate.time + validSeconds * 1_000L)
         } else null
-        val fingerprint = Hex.toHexString(primaryPublicKey.fingerprint)
-            .uppercase()
-            .chunked(4)
-            .joinToString(" ")
+        val formatFingerprint = { raw: ByteArray ->
+            val chunks = Hex.toHexString(raw).uppercase().chunked(4)
+            if (chunks.size >= 10) {
+                val l1 = chunks.subList(0, 5).joinToString(" ")
+                val l2 = chunks.subList(5, 10).joinToString(" ")
+                "$l1\n$l2"
+            } else {
+                chunks.joinToString(" ")
+            }
+        }
+        val fingerprint = formatFingerprint(primaryPublicKey.fingerprint)
         val algorithm = algorithmLabel(primaryPublicKey.algorithm, primaryPublicKey.bitStrength)
         
         val allSecretKeys = ring.secretKeys.asSequence().toList()
@@ -86,7 +93,7 @@ object OpenPgpKeyParser {
             }
 
             OpenPgpSubkeyInfo(
-                fingerprint = Hex.toHexString(pk.fingerprint).uppercase().chunked(4).joinToString(" "),
+                fingerprint = formatFingerprint(pk.fingerprint),
                 algorithm = algorithmLabel(pk.algorithm, pk.bitStrength),
                 creationDate = subCreationDate,
                 expirationDate = subExpirationDate,

@@ -15,60 +15,23 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            app:layout_constraintBottom_toTopOf="@+id/coffee_tips_container"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_bias="0.0"
-            app:layout_constraintVertical_chainStyle="spread_inside"
             app:layout_constraintWidth_max="448dp">
 
             <TextView
                 android:id="@+id/licenses_details"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:autoLink="web"
                 android:justificationMode="inter_word"
                 android:linksClickable="true"
                 android:text="@string/licenses_details"
                 android:textColorLink="@color/hyperlink"
                 android:textSize="14sp" />
 
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/coffee_tips_container"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="32dp"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:orientation="vertical"
-            android:padding="8dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/licenses_top_content"
-            app:layout_constraintWidth_max="448dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/coffee_tips"
-                android:textAlignment="center"
-                android:textColor="?android:attr/textColorSecondary"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/btc_address"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/btc_address"
-                android:textAlignment="center"
-                android:textColor="?android:attr/textColorSecondary"
-                android:textSize="14sp" />
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

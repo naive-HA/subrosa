@@ -21,281 +21,852 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintWidth_max="448dp">
 
-            <TextView
+            <LinearLayout
+                android:id="@+id/tab_selector_container"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/activity_margin"
-                android:text="@string/openpgp_desc" />
-
-            <LinearLayout
-                android:id="@+id/key_info_section"
-                android:layout_width="match_parent"
-                android:layout_height="150dp"
-                android:layout_marginTop="@dimen/activity_margin"
-                android:background="@color/armor_preview_background"
-                android:clickable="true"
-                android:focusable="true"
-                android:orientation="vertical"
-                android:padding="12dp">
-
-                <TextView
-                    android:id="@+id/import_instructions"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:fontFamily="monospace"
-                    android:gravity="start"
-                    android:text="@string/openpgp_tap_to_paste"
-                    android:textSize="14sp"
-                    android:visibility="visible" />
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="12dp"
+                android:animateLayoutChanges="true"
+                android:background="@drawable/bg_tab_selector_container"
+                android:elevation="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp">
 
                 <LinearLayout
-                    android:id="@+id/key_details_container"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:visibility="gone">
+                    android:id="@+id/tab_mgmt"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:padding="8dp">
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="4dp"
-                        android:orientation="horizontal">
+                    <ImageView
+                        android:id="@+id/tab_mgmt_icon"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:contentDescription="@string/openpgp_device_management"
+                        android:src="@drawable/ic_tab_dot_outline" />
+                </LinearLayout>
 
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="0.35"
-                            android:text="@string/openpgp_key_user_id"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
+                <LinearLayout
+                    android:id="@+id/tab_write"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:padding="8dp">
 
-                        <TextView
-                            android:id="@+id/key_info_user_id"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="0.65"
-                            android:ellipsize="end"
-                            android:maxLines="2"
-                            android:textSize="12sp"
-                            tools:text="Alice Doe &lt;alice@example.com&gt;" />
-                    </LinearLayout>
+                    <ImageView
+                        android:id="@+id/tab_write_icon"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:contentDescription="@string/tab_write"
+                        android:src="@drawable/ic_tab_dot_filled" />
+                </LinearLayout>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="4dp"
-                        android:orientation="horizontal">
+                <LinearLayout
+                    android:id="@+id/tab_read"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:padding="8dp">
 
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="0.35"
-                            android:text="@string/openpgp_key_algorithm"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
+                    <ImageView
+                        android:id="@+id/tab_read_icon"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:contentDescription="@string/tab_read"
+                        android:src="@drawable/ic_tab_dot_outline" />
+                </LinearLayout>
 
-                        <TextView
-                            android:id="@+id/key_info_algorithm"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="0.65"
-                            android:textSize="12sp"
-                            tools:text="EdDSA (Ed25519)" />
-                    </LinearLayout>
+                <LinearLayout
+                    android:id="@+id/tab_erase"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:padding="8dp">
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="4dp"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="0.35"
-                            android:text="@string/openpgp_key_created"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/key_info_created"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="0.65"
-                            android:textSize="12sp"
-                            tools:text="2024-01-15" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="4dp"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="0.35"
-                            android:text="@string/openpgp_key_expires"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/key_info_expires"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="0.65"
-                            android:textSize="12sp"
-                            tools:text="2026-01-15" />
-                    </LinearLayout>
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/openpgp_key_fingerprint"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/key_info_fingerprint"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        android:fontFamily="monospace"
-                        android:textIsSelectable="true"
-                        android:textSize="11sp"
-                        tools:text="AABB CCDD EEFF 0011 2233  4455 6677 8899 AABB CCDD" />
-
+                    <ImageView
+                        android:id="@+id/tab_erase_icon"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:contentDescription="@string/tab_erase"
+                        android:src="@drawable/ic_tab_dot_outline" />
                 </LinearLayout>
             </LinearLayout>
 
             <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="@dimen/activity_margin">
+                android:layout_height="wrap_content">
 
-                <Button
-                    android:id="@+id/btn_save"
+                <LinearLayout
+                    android:id="@+id/section_mgmt"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/openpgp_btn_write" />
+                    android:orientation="vertical"
+                    android:visibility="gone">
 
-                <ProgressBar
-                    android:id="@+id/progress_save"
-                    style="?android:attr/progressBarStyleSmall"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical|end"
-                    android:layout_marginEnd="16dp"
-                    android:visibility="gone" />
+                    <LinearLayout
+                        android:id="@+id/management_actions"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
 
-            </FrameLayout>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="@dimen/activity_margin"
+                            android:minLines="2"
+                            android:maxLines="2"
+                            android:text="@string/openpgp_device_management_desc" />
 
-            <TextView
-                android:id="@+id/write_status"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:fontFamily="monospace"
-                android:gravity="center_horizontal"
-                android:text=""
-                android:textColor="@color/binary_background"
-                android:textSize="12sp"
-                tools:text="Writing slot SIG…" />
+                        <LinearLayout
+                            android:id="@+id/pin_retries_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="@dimen/activity_margin"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:orientation="vertical">
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="5dp"
-                android:layout_marginVertical="@dimen/activity_margin"
-                android:background="@android:color/darker_gray" />
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="4dp"
+                                android:orientation="horizontal">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/activity_margin"
-                android:text="@string/test_the_openpgp_card" />
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="0.35"
+                                    android:text="User PIN retries"
+                                    android:textSize="12sp"
+                                    android:textStyle="bold" />
 
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="@dimen/activity_margin">
+                                <TextView
+                                    android:id="@+id/pin_retries_user"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="0.65"
+                                    android:text="@string/dash"
+                                    android:textSize="12sp"
+                                    tools:text="3" />
+                            </LinearLayout>
 
-                <Button
-                    android:id="@+id/btn_test_action"
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="0.35"
+                                    android:text="Admin PIN retries"
+                                    android:textSize="12sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/pin_retries_admin"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="0.65"
+                                    android:text="@string/dash"
+                                    android:textSize="12sp"
+                                    tools:text="3" />
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                        <FrameLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <Button
+                                android:id="@+id/btn_change_user_pin"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/openpgp_btn_change_user_pin" />
+
+                            <ProgressBar
+                                android:id="@+id/progress_change_user_pin"
+                                style="?android:attr/progressBarStyleSmall"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_vertical|end"
+                                android:layout_marginEnd="16dp"
+                                android:visibility="gone" />
+
+                        </FrameLayout>
+
+                        <FrameLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/activity_margin"
+                            android:layout_marginBottom="8dp">
+
+                            <Button
+                                android:id="@+id/btn_change_admin_pin"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/openpgp_btn_change_admin_pin" />
+
+                            <ProgressBar
+                                android:id="@+id/progress_change_admin_pin"
+                                style="?android:attr/progressBarStyleSmall"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_vertical|end"
+                                android:layout_marginEnd="16dp"
+                                android:visibility="gone" />
+
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/pin_change_status"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:fontFamily="monospace"
+                            android:gravity="center_horizontal"
+                            android:text=""
+                            android:textColor="@color/binary_background"
+                            android:textSize="12sp"
+                            android:visibility="visible"
+                            tools:text="Admin PIN changed"
+                            tools:visibility="visible" />
+
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/section_write"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/openpgp_btn_read" />
+                    android:orientation="vertical"
+                    android:visibility="visible">
 
-                <ProgressBar
-                    android:id="@+id/progress_read"
-                    style="?android:attr/progressBarStyleSmall"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical|end"
-                    android:layout_marginEnd="16dp"
-                    android:visibility="gone" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/activity_margin"
+                        android:minLines="2"
+                        android:maxLines="2"
+                        android:text="@string/openpgp_desc" />
 
-            </FrameLayout>
+                    <TextView
+                        android:id="@+id/import_key_instructions"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/openpgp_tap_to_paste" />
 
-            <TextView
-                android:id="@+id/read_status"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:fontFamily="monospace"
-                android:gravity="center_horizontal"
-                android:text=""
-                android:textColor="@color/binary_background"
-                android:textSize="12sp"
-                tools:text="Reading slot SIG…" />
+                    <LinearLayout
+                        android:id="@+id/key_details_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="30dp"
+                        android:layout_marginBottom="8dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:orientation="vertical"
+                        android:visibility="visible">
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="5dp"
-                android:layout_marginVertical="@dimen/activity_margin"
-                android:background="@android:color/darker_gray" />
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/activity_margin"
-                android:text="@string/wipe_the_openpgp_key" />
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_user_id"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
 
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/activity_margin">
+                            <TextView
+                                android:id="@+id/key_info_user_id"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:ellipsize="end"
+                                android:maxLines="2"
+                                android:text="@string/dash"
+                                android:textSize="12sp"
+                                tools:text="Alice Doe &lt;alice@example.com&gt;" />
+                        </LinearLayout>
 
-                <Button
-                    android:id="@+id/btn_delete_openpgp"
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_algorithm"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/key_info_algorithm"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:text="@string/dash"
+                                android:textSize="12sp"
+                                tools:text="EdDSA (Ed25519)" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_created"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/key_info_created"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:text="@string/dash"
+                                android:textSize="12sp"
+                                tools:text="2024-01-15" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_expires"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/key_info_expires"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:text="@string/dash"
+                                android:textSize="12sp"
+                                tools:text="2026-01-15" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_fingerprint"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/key_info_fingerprint"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:fontFamily="monospace"
+                                android:maxLines="2"
+                                android:minLines="2"
+                                android:ellipsize="end"
+                                android:text="@string/dash"
+                                android:textIsSelectable="true"
+                                android:textSize="11sp"
+                                tools:text="AABB CCDD EEFF 0011 2233  4455 6677 8899 AABB CCDD" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/activity_margin">
+
+                        <Button
+                            android:id="@+id/btn_save"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/openpgp_btn_write" />
+
+                        <ProgressBar
+                            android:id="@+id/progress_save"
+                            style="?android:attr/progressBarStyleSmall"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical|end"
+                            android:layout_marginEnd="16dp"
+                            android:visibility="gone" />
+
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/write_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="monospace"
+                        android:gravity="center_horizontal"
+                        android:text=""
+                        android:textColor="@color/binary_background"
+                        android:textSize="12sp"
+                        tools:text="Writing slot SIG…" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/section_read"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:backgroundTint="#B71C1C"
-                    android:text="@string/openpgp_btn_reset" />
+                    android:orientation="vertical"
+                    android:visibility="gone">
 
-                <ProgressBar
-                    android:id="@+id/progress_wipe"
-                    style="?android:attr/progressBarStyleSmall"
-                    android:layout_width="wrap_content"
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/activity_margin"
+                        android:minLines="2"
+                        android:maxLines="2"
+                        android:text="@string/test_the_openpgp_card" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <Button
+                            android:id="@+id/btn_test_action"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/openpgp_btn_read" />
+
+                        <ProgressBar
+                            android:id="@+id/progress_read"
+                            style="?android:attr/progressBarStyleSmall"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical|end"
+                            android:layout_marginEnd="16dp"
+                            android:visibility="gone" />
+
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/read_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="monospace"
+                        android:gravity="center_horizontal"
+                        android:text=""
+                        android:textColor="@color/binary_background"
+                        android:textSize="12sp"
+                        tools:text="Reading slot SIG…" />
+
+                    <LinearLayout
+                        android:id="@+id/card_info_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="8dp"
+                        android:orientation="vertical"
+                        android:visibility="visible">
+
+                        <!-- Name -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="Name"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/card_info_name"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:ellipsize="end"
+                                android:maxLines="2"
+                                android:text="@string/dash"
+                                android:textSize="12sp"
+                                tools:text="Alice Doe" />
+                        </LinearLayout>
+
+                        <!-- Login -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="Login"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/card_info_login"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:text="@string/dash"
+                                android:textSize="12sp"
+                                tools:text="alice" />
+                        </LinearLayout>
+
+                        <!-- Subkey SIG -->
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:layout_marginBottom="2dp"
+                            android:text="── SIG"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_algorithm"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/card_info_sig_algorithm"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:text="@string/dash"
+                                android:textSize="12sp"
+                                tools:text="Ed25519" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_expires"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/card_info_sig_expires"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:text="@string/dash"
+                                android:textSize="12sp"
+                                tools:text="2026-01-15" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_fingerprint"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/card_info_sig_fingerprint"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:fontFamily="monospace"
+                                android:maxLines="2"
+                                android:minLines="2"
+                                android:ellipsize="end"
+                                android:text="@string/dash_newline"
+                                android:textIsSelectable="true"
+                                android:textSize="11sp"
+                                tools:text="AABB CCDD EEFF 0011 2233\n4455 6677 8899 AABB CCDD" />
+                        </LinearLayout>
+
+                        <!-- Subkey DEC -->
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:layout_marginBottom="2dp"
+                            android:text="── DEC"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_algorithm"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/card_info_dec_algorithm"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:text="@string/dash"
+                                android:textSize="12sp"
+                                tools:text="Cv25519" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_expires"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/card_info_dec_expires"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:text="@string/dash"
+                                android:textSize="12sp"
+                                tools:text="2026-01-15" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_fingerprint"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/card_info_dec_fingerprint"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:fontFamily="monospace"
+                                android:maxLines="2"
+                                android:minLines="2"
+                                android:ellipsize="end"
+                                android:text="@string/dash_newline"
+                                android:textIsSelectable="true"
+                                android:textSize="11sp"
+                                tools:text="AABB CCDD EEFF 0011 2233\n4455 6677 8899 AABB CCDD" />
+                        </LinearLayout>
+
+                        <!-- Subkey AUT -->
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:layout_marginBottom="2dp"
+                            android:text="── AUT"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_algorithm"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/card_info_aut_algorithm"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:text="@string/dash"
+                                android:textSize="12sp"
+                                tools:text="Ed25519" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_expires"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/card_info_aut_expires"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:text="@string/dash"
+                                android:textSize="12sp"
+                                tools:text="2026-01-15" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.35"
+                                android:text="@string/openpgp_key_fingerprint"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/card_info_aut_fingerprint"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.65"
+                                android:fontFamily="monospace"
+                                android:maxLines="2"
+                                android:minLines="2"
+                                android:ellipsize="end"
+                                android:text="@string/dash_newline"
+                                android:textIsSelectable="true"
+                                android:textSize="11sp"
+                                tools:text="AABB CCDD EEFF 0011 2233\n4455 6677 8899 AABB CCDD" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/section_erase"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical|end"
-                    android:layout_marginEnd="16dp"
-                    android:visibility="gone" />
+                    android:orientation="vertical"
+                    android:visibility="gone">
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/activity_margin"
+                        android:minLines="2"
+                        android:maxLines="2"
+                        android:text="@string/wipe_the_openpgp_key" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <Button
+                            android:id="@+id/btn_delete_openpgp"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:backgroundTint="#B71C1C"
+                            android:text="@string/openpgp_btn_reset" />
+
+                        <ProgressBar
+                            android:id="@+id/progress_wipe"
+                            style="?android:attr/progressBarStyleSmall"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical|end"
+                            android:layout_marginEnd="16dp"
+                            android:visibility="gone" />
+
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/wipe_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="monospace"
+                        android:gravity="center_horizontal"
+                        android:text=""
+                        android:textColor="@color/binary_background"
+                        android:textSize="12sp"
+                        tools:text="Blocking Admin PIN…" />
+                </LinearLayout>
             </FrameLayout>
-
-            <TextView
-                android:id="@+id/wipe_status"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:fontFamily="monospace"
-                android:gravity="center_horizontal"
-                android:text=""
-                android:textColor="@color/binary_background"
-                android:textSize="12sp"
-                tools:text="Blocking Admin PIN…" />
 
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>

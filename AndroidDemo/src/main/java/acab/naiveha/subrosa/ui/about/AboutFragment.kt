@@ -8,7 +8,6 @@ import androidx.fragment.app.Fragment
 import acab.naiveha.subrosa.BuildConfig
 import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.databinding.FragmentAboutBinding
-import acab.naiveha.subrosa.ui.setupCoffeeTipsClipboard
 
 class AboutFragment : Fragment() {
     private var _binding: FragmentAboutBinding? = null
@@ -27,8 +26,6 @@ class AboutFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.version.text = getString(R.string.version, BuildConfig.VERSION_NAME)
-
-        setupCoffeeTipsClipboard(binding.coffeeTipsContainer)
     }
 
     override fun onDestroyView() {

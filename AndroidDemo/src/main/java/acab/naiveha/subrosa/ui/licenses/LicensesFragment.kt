@@ -7,7 +7,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import acab.naiveha.subrosa.databinding.FragmentLicensesBinding
-import acab.naiveha.subrosa.ui.setupCoffeeTipsClipboard
 
 class LicensesFragment : Fragment() {
     private var _binding: FragmentLicensesBinding? = null
@@ -26,8 +25,6 @@ class LicensesFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.licensesDetails.movementMethod = LinkMovementMethod.getInstance()
-
-        setupCoffeeTipsClipboard(binding.coffeeTipsContainer)
     }
 
     override fun onDestroyView() {

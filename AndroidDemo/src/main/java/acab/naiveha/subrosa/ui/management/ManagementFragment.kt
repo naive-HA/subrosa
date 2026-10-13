@@ -27,6 +27,10 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import acab.naiveha.subrosa.MainViewModel
 import acab.naiveha.subrosa.R
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import acab.naiveha.subrosa.databinding.FragmentManagementBinding
 import acab.naiveha.subrosa.ui.YubiKeyFragment
 import acab.naiveha.subrosa.ui.YubiKeyPromptDialog
@@ -48,7 +52,7 @@ import com.yubico.yubikit.core.application.InvalidPinException
 import com.yubico.yubikit.management.ManagementSession
 import com.yubico.yubikit.openpgp.OpenPgpSession
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewModel>() {
     private companion object {
@@ -94,20 +98,26 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         )
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
-            state.errorInfo?.let { binding.info.text = "Error:\n$it" }
+            val dash = getString(R.string.dash)
+            state.errorInfo?.let { binding.deviceModel.text = "Error: $it" }
 
             if (!state.isDeviceConnected && !state.loading) {
                 binding.progressLoading.visibility = View.GONE
-                binding.emptyView.text = state.errorInfo ?: getString(R.string.need_key_generic)
-                binding.info.setText("\n\n\n")
-                binding.pgpInfo.setText("\n\n")
+                startDotAnimation(state.errorInfo)
+                binding.deviceModel.text = dash
+                binding.deviceFirmware.text = dash
+                binding.staticPasswordStatus.text = dash
+                binding.openpgpCardStatus.text = dash
                 binding.connectedContent.visibility = View.GONE
                 return@observe
             }
 
             binding.progressLoading.visibility = if (state.loading) View.VISIBLE else View.GONE
-            binding.emptyView.setText("")
-            binding.info.text = state.infoText
+            stopDotAnimation()
+            binding.emptyView.text = ""
+            val infoLines = state.infoText.lines()
+            binding.deviceModel.text = infoLines.find { it.startsWith("Device:") }?.substringAfter("Device:")?.trim() ?: dash
+            binding.deviceFirmware.text = infoLines.find { it.startsWith("Firmware:") }?.substringAfter("Firmware:")?.trim() ?: dash
             binding.connectedContent.visibility = View.VISIBLE
             binding.managementActions.visibility = if (state.showManagementActions) View.VISIBLE else View.GONE
 
@@ -203,37 +213,31 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
     }
 
     private fun renderPgpStatus(status: PgpStatus) {
-        binding.pgpInfo.text = when (status) {
+        val dash = getString(R.string.dash)
+        val (staticText, pgpText) = when (status) {
             is PgpStatus.YubiKey -> {
-                val pgpLine = getString(
-                    if (status.programmed) R.string.openpgp_card_programmed else R.string.openpgp_card_not_programmed
-                )
-                "${getString(R.string.static_password_supported)}\n$pgpLine"
+                val pgpLine = if (status.programmed) "programmed" else "not programmed"
+                Pair("supported", pgpLine)
             }
             is PgpStatus.Nitrokey -> {
-                val staticLine = getString(R.string.static_password_not_supported)
+                val staticLine = "not supported"
                 val pgpLine = when {
-                    status.programmed != null -> getString(
-                        if (status.programmed) R.string.openpgp_card_programmed else R.string.openpgp_card_not_programmed
-                    )
-                    status.nfcUnsupported -> getString(R.string.openpgp_not_supported_nfc)
+                    status.programmed != null -> if (status.programmed) "programmed" else "not programmed"
+                    status.nfcUnsupported -> "not supported over NFC"
                     else -> null
                 }
-                if (pgpLine != null) "$staticLine\n$pgpLine" else staticLine
+                Pair(staticLine, pgpLine ?: dash)
             }
             is PgpStatus.OtherDevice -> {
-                val pgpLine = getString(
-                    if (status.programmed) R.string.openpgp_card_programmed else R.string.openpgp_card_not_programmed
-                )
-                if (status.staticPasswordSupported == false) {
-                    "${getString(R.string.static_password_not_supported)}\n$pgpLine"
-                } else {
-                    pgpLine
-                }
+                val pgpLine = if (status.programmed) "programmed" else "not programmed"
+                val staticLine = if (status.staticPasswordSupported == false) "not supported" else dash
+                Pair(staticLine, pgpLine)
             }
-            PgpStatus.AwaitingSecondTap -> getString(R.string.openpgp_tap_again)
-            PgpStatus.None -> ""
+            PgpStatus.AwaitingSecondTap -> Pair(dash, "tap again")
+            PgpStatus.None -> Pair(dash, dash)
         }
+        binding.staticPasswordStatus.text = staticText
+        binding.openpgpCardStatus.text = pgpText
     }
 
     private fun cancelPinOperation() {
@@ -395,5 +399,31 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             },
             onCancelled = { cancelPinOperation() },
         )
+    }
+
+    private var dotAnimationJob: Job? = null
+
+    private fun startDotAnimation(errorInfo: String?) {
+        if (dotAnimationJob?.isActive == true) return
+        val baseText = errorInfo ?: getString(R.string.need_key_generic)
+        dotAnimationJob = viewLifecycleOwner.lifecycleScope.launch {
+            val steps = arrayOf("", ".", "..", "...")
+            var step = 0
+            while (isActive) {
+                binding.emptyView.text = StringBuilder(baseText).append(steps[step]).toString()
+                delay(500.milliseconds)
+                step = (step + 1) % steps.size
+            }
+        }
+    }
+
+    private fun stopDotAnimation() {
+        dotAnimationJob?.cancel()
+        dotAnimationJob = null
+    }
+
+    override fun onDestroyView() {
+        stopDotAnimation()
+        super.onDestroyView()
     }
 }

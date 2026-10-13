@@ -13,4 +13,5 @@
     <color name="nav_item_text_unselected">#B3FFFFFF</color>
     <color name="hyperlink">#64B5F6</color>
     <color name="pin_input_text_color">#FFFFFF</color>
+    <color name="tab_item_active_fg">#FFFFFF</color>
 </resources>
