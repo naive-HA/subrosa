@@ -9,7 +9,8 @@ We all have a "password problem." The IT industry has been trying to solve the "
 Passwords are the weakest link in a digital security model.
 
 Life is complicated enough without overloading your mind trying to remember long, complex passwords.
-On top of that, good security hygiene requires changing passwords frequently. Add to that your personal email, social media, banking accounts, etc. You should use unique passwords for each account so that when (not if) one account is compromised, the attacker does not gain access to all your accounts. You get the point.
+On top of that, good security hygiene requires changing passwords frequently. Add to that your personal email, social media, banking accounts, etc. 
+You should use unique passwords for each account so that when (not if) one account is compromised, the attacker does not gain access to all your accounts. You get the point.
 
 How many complex passwords (between 8 and 16 characters, including special characters like `~!@#$%^&*(){}:"<>?/.,';][=-`) can you memorize?
 One solution is to use a password manager app (like KeePassDroid) on your phone.
@@ -20,9 +21,12 @@ How do you type your passwords while enjoying coffee at your local cafe without 
 
 Introducing **sub rosa**. Effortlessly simple.
 
-*sub rosa* allows you to program a static password onto a hardware security key, which can act as a keyboard when touched. Plug it into your phone, tablet, or laptop, touch it, and it automatically types out a sequence of characters.
+*sub rosa* allows you to program a static password onto a hardware security key, which can act as a keyboard when touched. 
+Plug it into your phone, tablet, or laptop, touch it, and it automatically types out a sequence of characters.
 
-Simple: no need to memorize multiple complex passwords. No need to carry multiple devices either — you can program a hardware security key with a password, use it, and then program it with a different password whenever needed. Nowadays, hardware security keys come in various form factors: from models small enough to remain in your phone's USB-C port to larger, NFC-enabled keys.
+Simple: no need to memorize multiple complex passwords. No need to carry multiple devices either — you can program a hardware security key with a password, 
+use it, and then program it with a different password whenever needed. Nowadays, hardware security keys come in various form factors: 
+from models small enough to remain in your phone's USB-C port to larger, NFC-enabled keys.
 
 *sub rosa* supports various keyboard layouts capable of typing the following character sets:
 
@@ -38,21 +42,30 @@ Simple: no need to memorize multiple complex passwords. No need to carry multipl
 
 * **MODHEX**: `bcdefghijklnrtuvBCDEFGHIJKLNRTUV`
 
-Hardware security keys solve one part of the "password problem": you no longer need to memorize passwords, and you can log into your accounts across multiple devices while the password stays safe on your phone (protected by a PIN, passphrase, or fingerprint).
+Hardware security keys solve one part of the "password problem": you no longer need to memorize passwords, 
+and you can log into your accounts across multiple devices while the password stays safe on your phone (protected by a PIN, passphrase, or fingerprint).
 
-However, if you lose your hardware security key, anyone who finds it could touch it and output your password. Not much security if anyone can plug in your device and read your last programmed password.
+However, if you lose your hardware security key, anyone who finds it could touch it and output your password. 
+Not much security if anyone can plug in your device and read your last programmed password.
 
-No worries, *sub rosa* helps with this too: once you finish typing your complex password with your hardware security key, you can de-program (wipe) the device. If you lose the key later, your security remains uncompromised. Simple.
+No worries, *sub rosa* helps with this too: once you finish typing your complex password with your hardware security key, 
+you can de-program (wipe) the device. If you lose the key later, your security remains uncompromised. Simple.
 
 Hardware security keys (like, YubiKey, Nitrokey or Librem Key) can do much more than act as USB keyboards.
-*sub rosa* can program an OpenPGP key onto your hardware key, allowing you to encrypt, decrypt, cryptographically sign documents, or authenticate to remote servers via SSH.
+*sub rosa* can program an OpenPGP key onto your hardware key, allowing you to encrypt, decrypt, cryptographically sign documents, 
+or authenticate to remote servers via SSH.
 An OpenPGP key acts as your digital identity.
 
 Digital signatures are officially recognized in many countries and are legally binding.
 However, any digital system can potentially be compromised. It is not a question of *if*, but *when*.
 Just like with passwords, you should keep your digital personas compartmentalized.
 
-*sub rosa* comes to the rescue again: you can program an OpenPGP key onto your hardware security key, sign an electronic document, and then program a different OpenPGP key to decrypt a confidential message from a business partner or encrypt a whistleblower report sent to a news organization. Once finished, you can simply erase everything from the hardware security key so that losing the physical device never compromises your digital identity.
+*sub rosa* comes to the rescue again: you can program an OpenPGP key onto your hardware security key, sign an electronic document, 
+and then program a different OpenPGP key to decrypt a confidential message from a business partner or encrypt a whistleblower report sent to a news organization. 
+Once finished, you can simply erase everything from the hardware security key so that losing the physical device never compromises your digital identity.
+
+Just like KeePassDroid managing passwords, OpenKeychain or PGPony manage OpenPGP keys.
+You can easily import OpenPGP keys generated or stored by these apps in *sub rosa* and then program them onto your hardware security key. 
 
 # How does *sub rosa* support various hardware security keys?
 
