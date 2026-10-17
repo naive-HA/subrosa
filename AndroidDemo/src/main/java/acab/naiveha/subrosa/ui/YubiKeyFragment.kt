@@ -26,6 +26,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import acab.naiveha.subrosa.MainViewModel
+import acab.naiveha.subrosa.R
 
 import org.slf4j.LoggerFactory
 
@@ -42,7 +43,7 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 
-        yubiKeyPrompt = YubiKeyPromptDialog(requireContext()) { viewModel.pendingAction.value = null }
+        yubiKeyPrompt = YubiKeyPromptDialog(requireContext()) { viewModel.cancelPendingAction() }
 
         bindDeviceActions(
             viewModel = viewModel,
@@ -73,6 +74,24 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
             yubiKeyPrompt.dismiss()
         }
         super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (viewModel.pendingAction.value != null &&
+            activityViewModel.yubiKey.value == null &&
+            !yubiKeyPrompt.isShowing
+        ) {
+            yubiKeyPrompt.setHelpText(getString(R.string.yubikit_prompt_plug_in_or_tap))
+            yubiKeyPrompt.show()
+        }
+    }
+
+    override fun onDestroyView() {
+        if (!requireActivity().isChangingConfigurations) {
+            viewModel.cancelPendingAction()
+        }
+        super.onDestroyView()
     }
 
     protected open fun shouldClearOnDisconnect(): Boolean = true

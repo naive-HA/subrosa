@@ -17,13 +17,14 @@
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.provider.Provider
 
 plugins {
     id("com.android.application")
     id("project-convention-spotbugs")
     id("project-convention-logging")
 }
+
+layout.buildDirectory.set(layout.projectDirectory.dir("release/build"))
 
 android {
     namespace = "acab.naiveha.subrosa"
@@ -47,18 +48,63 @@ android {
         versionName = "2.3.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        missingDimensionStrategy("distribution", "apk")
+        missingDimensionStrategy("distribution", "arm64")
     }
 
     flavorDimensions += "distribution"
     productFlavors {
+        create("arm64") {
+            dimension = "distribution"
+            applicationId = "acab.naiveha.subrosa"
+            versionCode = 2015
+            ndk {
+                //noinspection ChromeOsAbiSupport
+                abiFilters += "arm64-v8a"
+            }
+        }
+        create("armv7") {
+            dimension = "distribution"
+            applicationId = "acab.naiveha.subrosa"
+            versionCode = 1015
+            ndk {
+                //noinspection ChromeOsAbiSupport
+                abiFilters += "armeabi-v7a"
+            }
+        }
+        create("x86") {
+            dimension = "distribution"
+            applicationId = "acab.naiveha.subrosa"
+            versionCode = 3015
+            ndk {
+                //noinspection ChromeOsAbiSupport
+                abiFilters += "x86"
+            }
+        }
+        create("x86_64") {
+            dimension = "distribution"
+            applicationId = "acab.naiveha.subrosa"
+            versionCode = 4015
+            ndk {
+                //noinspection ChromeOsAbiSupport
+                abiFilters += "x86_64"
+            }
+        }
         create("apk") {
             dimension = "distribution"
             applicationId = "acab.naiveha.subrosa"
+            versionCode = 15
+            ndk {
+                //noinspection ChromeOsAbiSupport
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+            }
         }
         create("aab") {
             dimension = "distribution"
             applicationId = "acab.naiveha.subrosa.by.naiveha"
+            versionCode = 15
+            ndk {
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+            }
         }
     }
 
@@ -91,8 +137,9 @@ android {
 }
 
 abstract class CopyAndRenameBundleTask : DefaultTask() {
-    @get:Internal
-    abstract val inputDir: DirectoryProperty
+    @get:InputFile
+    @get:Optional
+    abstract val inputBundle: RegularFileProperty
 
     @get:OutputFile
     abstract val outputReleaseFile: RegularFileProperty
@@ -100,20 +147,14 @@ abstract class CopyAndRenameBundleTask : DefaultTask() {
     @get:OutputFile
     abstract val outputBuildFile: RegularFileProperty
 
-    @get:Input
-    abstract val targetFileName: Property<String>
-
     @TaskAction
     fun execute() {
-        val inDir = inputDir.orNull?.asFile
-        if (inDir != null && inDir.exists()) {
-            val bundleFile = inDir.walkTopDown().firstOrNull { it.isFile && it.extension == "aab" && it.name != targetFileName.get() }
-            if (bundleFile != null) {
-                outputReleaseFile.get().asFile.parentFile.mkdirs()
-                outputBuildFile.get().asFile.parentFile.mkdirs()
-                bundleFile.copyTo(outputReleaseFile.get().asFile, overwrite = true)
-                bundleFile.copyTo(outputBuildFile.get().asFile, overwrite = true)
-            }
+        val inFile = inputBundle.orNull?.asFile
+        if (inFile != null && inFile.exists()) {
+            outputReleaseFile.get().asFile.parentFile.mkdirs()
+            outputBuildFile.get().asFile.parentFile.mkdirs()
+            inFile.copyTo(outputReleaseFile.get().asFile, overwrite = true)
+            inFile.copyTo(outputBuildFile.get().asFile, overwrite = true)
         }
     }
 }
@@ -122,25 +163,43 @@ abstract class CopyAndRenameApkTask : DefaultTask() {
     @get:Internal
     abstract val inputDir: DirectoryProperty
 
-    @get:OutputFile
-    abstract val outputReleaseFile: RegularFileProperty
-
-    @get:OutputFile
-    abstract val outputBuildFile: RegularFileProperty
+    @get:Input
+    abstract val apkVersionName: Property<String>
 
     @get:Input
-    abstract val targetFileName: Property<String>
+    abstract val flavorName: Property<String>
+
+    @get:Internal
+    abstract val releaseDir: DirectoryProperty
 
     @TaskAction
     fun execute() {
         val inDir = inputDir.orNull?.asFile
-        if (inDir != null && inDir.exists()) {
-            val apkFile = inDir.walkTopDown().firstOrNull { it.isFile && it.extension == "apk" && it.name != targetFileName.get() }
+        val version = apkVersionName.get()
+        val flavor = flavorName.get()
+        val relDir = releaseDir.orNull?.asFile
+        if (inDir != null && inDir.exists() && relDir != null) {
+            relDir.mkdirs()
+            val apkFile = inDir.walkTopDown().firstOrNull { it.isFile && it.extension == "apk" }
             if (apkFile != null) {
-                outputReleaseFile.get().asFile.parentFile.mkdirs()
-                outputBuildFile.get().asFile.parentFile.mkdirs()
-                apkFile.copyTo(outputReleaseFile.get().asFile, overwrite = true)
-                apkFile.copyTo(outputBuildFile.get().asFile, overwrite = true)
+                val names = when (flavor) {
+                    "arm64" -> listOf("subrosa.$version-arm64-v8a.apk")
+                    "armv7" -> listOf("subrosa.$version-armeabi-v7a.apk")
+                    "x86" -> listOf("subrosa.$version-x86.apk")
+                    "x86_64" -> listOf("subrosa.$version-x86_64.apk")
+                    "apk" -> listOf("subrosa.$version.apk")
+                    else -> listOf("subrosa.$version-$flavor.apk")
+                }
+                for (targetName in names) {
+                    val destFile = relDir.resolve(targetName)
+                    if (apkFile.absolutePath != destFile.absolutePath) {
+                        apkFile.copyTo(destFile, overwrite = true)
+                    }
+                    val buildDestFile = apkFile.parentFile.resolve(targetName)
+                    if (apkFile.absolutePath != buildDestFile.absolutePath) {
+                        apkFile.copyTo(buildDestFile, overwrite = true)
+                    }
+                }
             }
         }
     }
@@ -152,34 +211,33 @@ androidComponents {
     }
 
     onVariants { variant ->
-        val apkVersionName = "2.3.3"
-        val isAab = variant.productFlavors.any { it.second == "aab" } || variant.name.contains("aab", ignoreCase = true)
+        val apkVersionName = android.defaultConfig.versionName ?: "0.0.0"
+        val flavorName = variant.productFlavors.firstOrNull()?.second ?: "arm64"
+        val isAab = flavorName == "aab" || variant.name.contains("aab", ignoreCase = true)
         val ext = if (isAab) "aab" else "apk"
         val targetName = "subrosa.$apkVersionName.$ext"
-        val releaseDir = layout.projectDirectory.dir("../release")
+        val releaseDir = layout.projectDirectory.dir("release")
 
         if (isAab) {
             val listingTaskName = "produce${variant.name.replaceFirstChar { it.uppercase() }}BundleIdeListingFile"
             val copyAndRenameTask = tasks.register<CopyAndRenameBundleTask>("copyAndRename${variant.name}Bundle") {
-                inputDir.set(layout.buildDirectory.dir("outputs/bundle/${variant.name}"))
+                inputBundle.set(layout.buildDirectory.file("outputs/bundle/${variant.name}/app-aab-release.aab"))
                 outputReleaseFile.set(releaseDir.file(targetName))
                 outputBuildFile.set(layout.buildDirectory.file("outputs/bundle/${variant.name}/$targetName"))
-                targetFileName.set(targetName)
             }
             tasks.matching { it.name == listingTaskName }.configureEach {
                 finalizedBy(copyAndRenameTask)
             }
         } else {
             val assembleTaskName = "assemble${variant.name.replaceFirstChar { it.uppercase() }}"
-            val flavorName = variant.productFlavors.firstOrNull()?.second ?: "apk"
             val buildTypeName = variant.buildType
             val listingTaskName = "create${variant.name.replaceFirstChar { it.uppercase() }}ApkListingFileRedirect"
 
             val copyAndRenameTask = tasks.register<CopyAndRenameApkTask>("copyAndRename${variant.name}Apk") {
                 inputDir.set(layout.buildDirectory.dir("outputs/apk/$flavorName/$buildTypeName"))
-                outputReleaseFile.set(releaseDir.file(targetName))
-                outputBuildFile.set(layout.buildDirectory.file("outputs/apk/$flavorName/$buildTypeName/$targetName"))
-                targetFileName.set(targetName)
+                this.apkVersionName.set(apkVersionName)
+                this.flavorName.set(flavorName)
+                this.releaseDir.set(releaseDir)
             }
             tasks.matching { it.name == assembleTaskName }.configureEach {
                 finalizedBy(copyAndRenameTask)

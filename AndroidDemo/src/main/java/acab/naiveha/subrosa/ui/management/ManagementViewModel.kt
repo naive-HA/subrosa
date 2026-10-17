@@ -76,30 +76,6 @@ class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
         updateUi { ManagementUiState() }
     }
 
-    fun updatePinRetries(user: Int? = null, admin: Int? = null) {
-        updateUi { s ->
-            val current = s.pgpCardInfo ?: return@updateUi s
-            s.copy(
-                pgpCardInfo = current.copy(
-                    userPinRetries = user ?: current.userPinRetries,
-                    adminPinRetries = admin ?: current.adminPinRetries
-                )
-            )
-        }
-    }
-
-    fun refreshPinRetries(session: OpenPgpSession) {
-        val current = state.pgpCardInfo ?: return
-        val updated = try {
-            val pw = session.pinStatus
-            current.copy(userPinRetries = pw.attemptsUser, adminPinRetries = pw.attemptsAdmin)
-        } catch (e: Exception) {
-            logger.debug("refreshPinRetries failed: ${e.message}")
-            current
-        }
-        updateUi { it.copy(pgpCardInfo = updated) }
-    }
-
     override fun onDeviceDisconnected() {
         requestClearUi()
     }

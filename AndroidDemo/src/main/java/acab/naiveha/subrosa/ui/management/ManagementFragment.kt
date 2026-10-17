@@ -18,14 +18,11 @@ package acab.naiveha.subrosa.ui.management
 
 import android.annotation.SuppressLint
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
-import acab.naiveha.subrosa.MainViewModel
 import acab.naiveha.subrosa.R
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -33,46 +30,14 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import acab.naiveha.subrosa.databinding.FragmentManagementBinding
 import acab.naiveha.subrosa.ui.YubiKeyFragment
-import acab.naiveha.subrosa.ui.YubiKeyPromptDialog
-import acab.naiveha.subrosa.ui.bindAutoClearStatus
-import acab.naiveha.subrosa.ui.bindDeviceActions
-import acab.naiveha.subrosa.ui.collectAdminPin
-import acab.naiveha.subrosa.ui.collectNewAdminPin
-import acab.naiveha.subrosa.ui.collectNewUserPin
 import acab.naiveha.subrosa.ui.setupCoffeeTipsClipboard
-import acab.naiveha.subrosa.ui.collectUserPin
-import acab.naiveha.subrosa.ui.showOpenPgpAppletResetDialog
-import acab.naiveha.subrosa.ui.openpgp.OpenPgpOperation
-import acab.naiveha.subrosa.ui.openpgp.OpenPgpViewModel
-import acab.naiveha.subrosa.ui.openpgp.OpenPgpWriter
-import acab.naiveha.subrosa.ui.openpgp.OpenPgpWriterUtils
-import acab.naiveha.subrosa.ui.openpgp.writer
-import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
-import com.yubico.yubikit.core.application.InvalidPinException
 import com.yubico.yubikit.management.ManagementSession
-import com.yubico.yubikit.openpgp.OpenPgpSession
-import kotlinx.coroutines.Dispatchers
 import kotlin.time.Duration.Companion.milliseconds
 
 class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewModel>() {
-    private companion object {
-        private const val TAG = "ManagementFragment"
-    }
     override val viewModel: ManagementViewModel by activityViewModels()
 
-    private val openPgpViewModel: OpenPgpViewModel by activityViewModels()
-
-    private val activityViewModel: MainViewModel by activityViewModels()
-
     private lateinit var binding: FragmentManagementBinding
-
-    private lateinit var openPgpPrompt: YubiKeyPromptDialog
-
-    override fun shouldClearOnDisconnect(): Boolean =
-        (openPgpViewModel.uiState.value?.currentOperation ?: OpenPgpOperation.NONE) == OpenPgpOperation.NONE
-
-    override fun isYubiKeyTapSuspended(): Boolean =
-        (openPgpViewModel.uiState.value?.currentOperation ?: OpenPgpOperation.NONE) != OpenPgpOperation.NONE
 
     override fun onCreateView(
             inflater: LayoutInflater,
@@ -87,16 +52,6 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        openPgpPrompt = YubiKeyPromptDialog(requireContext()) { openPgpViewModel.pendingAction.value = null }
-
-        bindDeviceActions(
-            viewModel = openPgpViewModel,
-            activityViewModel = activityViewModel,
-            prompt = openPgpPrompt,
-            shouldClearOnDisconnect = { shouldClearOnDisconnect() },
-            onDisconnected = { viewModel.onDeviceDisconnected() },
-        )
-
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             val dash = getString(R.string.dash)
             state.errorInfo?.let { binding.deviceModel.text = "Error: $it" }
@@ -108,7 +63,6 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 binding.deviceFirmware.text = dash
                 binding.staticPasswordStatus.text = dash
                 binding.openpgpCardStatus.text = dash
-                binding.connectedContent.visibility = View.GONE
                 return@observe
             }
 
@@ -118,98 +72,11 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             val infoLines = state.infoText.lines()
             binding.deviceModel.text = infoLines.find { it.startsWith("Device:") }?.substringAfter("Device:")?.trim() ?: dash
             binding.deviceFirmware.text = infoLines.find { it.startsWith("Firmware:") }?.substringAfter("Firmware:")?.trim() ?: dash
-            binding.connectedContent.visibility = View.VISIBLE
-            binding.managementActions.visibility = if (state.showManagementActions) View.VISIBLE else View.GONE
 
             renderPgpStatus(state.pgpStatus)
-
-            val retries = state.pinRetries
-            if (retries != null) {
-                binding.pinRetries.visibility = View.VISIBLE
-                val userRetries = if (retries.admin == 0) 0 else retries.user
-                binding.pinRetries.text = getString(R.string.openpgp_pin_retries, userRetries, retries.admin)
-
-                if (retries.admin == 0) {
-                    binding.btnChangeUserPin.visibility = View.GONE
-                    binding.btnChangeAdminPin.text = getString(R.string.openpgp_btn_reset)
-                } else {
-                    binding.btnChangeUserPin.visibility = View.VISIBLE
-                    binding.btnChangeAdminPin.text = getString(R.string.openpgp_btn_change_admin_pin)
-                    binding.btnChangeUserPin.text = if (retries.user == 0) {
-                        getString(R.string.openpgp_btn_reset_user_pin)
-                    } else {
-                        getString(R.string.openpgp_btn_change_user_pin)
-                    }
-                }
-            } else {
-                binding.pinRetries.setText("\n")
-                binding.btnChangeUserPin.visibility = View.VISIBLE
-                binding.btnChangeUserPin.text = getString(R.string.openpgp_btn_change_user_pin)
-                binding.btnChangeAdminPin.text = getString(R.string.openpgp_btn_change_admin_pin)
-            }
-        }
-
-        openPgpViewModel.pendingAction.observe(viewLifecycleOwner) {
-            val busy = it != null
-            val op = openPgpViewModel.uiState.value?.currentOperation ?: OpenPgpOperation.NONE
-            val adminBusy = busy && (op == OpenPgpOperation.CHANGE_ADMIN_PIN || op == OpenPgpOperation.RESET_ADMIN_PIN)
-            val userBusy = busy && (op == OpenPgpOperation.CHANGE_USER_PIN || op == OpenPgpOperation.RESET_USER_PIN)
-            binding.progressChangeAdminPin.visibility = if (adminBusy) View.VISIBLE else View.GONE
-            binding.progressChangeUserPin.visibility = if (userBusy) View.VISIBLE else View.GONE
-            binding.btnChangeAdminPin.isEnabled = !busy
-            binding.btnChangeUserPin.isEnabled = !busy
-
-            if (!busy && op != OpenPgpOperation.NONE) {
-                openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
-            }
-        }
-
-        openPgpViewModel.result.observe(viewLifecycleOwner) { result ->
-            result.onFailure {
-                Log.e(TAG, "OpenPGP operation failed: ${it.message}", it)
-                errorVibrate()
-                Toast.makeText(requireContext(), it.message ?: "No message", Toast.LENGTH_SHORT).show()
-            }
-            openPgpViewModel.clearResult()
-        }
-
-        bindAutoClearStatus(
-            openPgpViewModel.pinChangeStatus,
-            binding.pinChangeStatus,
-            OpenPgpViewModel.PIN_CHANGE_COMPLETE_STATUS,
-            OpenPgpViewModel.PIN_RESET_COMPLETE_STATUS,
-            OpenPgpWriter.WIPE_COMPLETE_STATUS,
-            hideWhenBlank = true,
-            shouldHide = { it.contains("Remaining attempts", ignoreCase = true) },
-        ) {
-            openPgpViewModel.postPinChangeStatus(it)
-        }
-
-        binding.btnChangeAdminPin.setOnClickListener {
-            val retries = viewModel.uiState.value?.pinRetries
-            if (retries?.admin == 0) {
-                onResetOpenPgpClicked()
-            } else {
-                onChangePinClicked(isAdmin = true)
-            }
-        }
-        binding.btnChangeUserPin.setOnClickListener {
-            val retries = viewModel.uiState.value?.pinRetries
-            if (retries?.user == 0) {
-                onResetUserPinClicked()
-            } else {
-                onChangePinClicked(isAdmin = false)
-            }
         }
 
         setupCoffeeTipsClipboard(binding.coffeeTipsContainer)
-    }
-
-    override fun onPause() {
-        if (::openPgpPrompt.isInitialized && openPgpPrompt.isShowing) {
-            openPgpPrompt.dismiss()
-        }
-        super.onPause()
     }
 
     private fun renderPgpStatus(status: PgpStatus) {
@@ -238,167 +105,6 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         }
         binding.staticPasswordStatus.text = staticText
         binding.openpgpCardStatus.text = pgpText
-    }
-
-    private fun cancelPinOperation() {
-        openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
-        if (activityViewModel.yubiKey.value !is UsbYubiKeyDevice) {
-            viewModel.onDeviceDisconnected()
-        }
-    }
-
-    private fun onChangePinClicked(isAdmin: Boolean) {
-        val label = if (isAdmin) "Admin" else "User"
-        val operation = if (isAdmin) OpenPgpOperation.CHANGE_ADMIN_PIN else OpenPgpOperation.CHANGE_USER_PIN
-
-        Log.d(TAG, "Change $label PIN tapped")
-        openPgpViewModel.setCurrentOperation(operation)
-
-        lifecycleScope.launch(Dispatchers.Main) {
-            val currentPin = (
-                if (isAdmin) {
-                    collectAdminPin("Enter current Device Admin PIN", tag = TAG, logLabel = "Current Admin PIN")
-                } else {
-                    collectUserPin("Enter current Device User PIN", tag = TAG, logLabel = "Current User PIN")
-                }
-            ) ?: run {
-                cancelPinOperation()
-                return@launch
-            }
-
-            val newPin = (if (isAdmin) collectNewAdminPin(TAG) else collectNewUserPin(TAG))
-                ?: run {
-                    Log.d(TAG, "Change $label PIN cancelled (new PIN)")
-                    currentPin.fill('\u0000')
-                    cancelPinOperation()
-                    return@launch
-                }
-
-            runOpenPgpPinOperation(
-                logLabel = "Change $label PIN",
-                pins = listOf(currentPin, newPin),
-                completeStatus = OpenPgpViewModel.PIN_CHANGE_COMPLETE_STATUS,
-                failureFallback = "Failed to change $label PIN",
-                wrongPinToastMessage = "$label PIN change failed",
-                onWrongPin = { attemptsRemaining ->
-                    if (isAdmin) viewModel.updatePinRetries(admin = attemptsRemaining)
-                    else viewModel.updatePinRetries(user = attemptsRemaining)
-                },
-            ) { session ->
-                if (isAdmin) {
-                    OpenPgpWriterUtils.changeAdminPin(session, currentPin, newPin, TAG, status = openPgpViewModel::postPinChangeStatus)
-                } else {
-                    OpenPgpWriterUtils.changeUserPin(session, currentPin, newPin, TAG, status = openPgpViewModel::postPinChangeStatus)
-                }
-            }
-        }
-    }
-
-    private fun onResetUserPinClicked() {
-        Log.d(TAG, "Reset blocked User PIN tapped")
-        openPgpViewModel.setCurrentOperation(OpenPgpOperation.RESET_USER_PIN)
-
-        lifecycleScope.launch(Dispatchers.Main) {
-            val adminPin = collectAdminPin(
-                "Enter Device Admin PIN",
-                tag = TAG,
-                logLabel = "Admin PIN (for User PIN reset)",
-            ) ?: run {
-                cancelPinOperation()
-                return@launch
-            }
-
-            val newUserPin = collectNewUserPin(TAG)
-                ?: run {
-                    Log.d(TAG, "Reset User PIN cancelled (new PIN)")
-                    adminPin.fill('\u0000')
-                    cancelPinOperation()
-                    return@launch
-                }
-
-            runOpenPgpPinOperation(
-                logLabel = "Reset User PIN",
-                pins = listOf(adminPin, newUserPin),
-                completeStatus = OpenPgpViewModel.PIN_RESET_COMPLETE_STATUS,
-                failureFallback = "Failed to reset User PIN",
-                wrongPinToastMessage = "Reset User PIN failed: wrong Admin PIN",
-                onWrongPin = { attemptsRemaining -> viewModel.updatePinRetries(admin = attemptsRemaining) },
-            ) { session ->
-                OpenPgpWriterUtils.resetBlockedUserPin(session, adminPin, newUserPin, TAG, status = openPgpViewModel::postPinChangeStatus)
-            }
-        }
-    }
-
-    private fun runOpenPgpPinOperation(
-        logLabel: String,
-        pins: List<CharArray>,
-        completeStatus: String,
-        failureFallback: String,
-        wrongPinToastMessage: String,
-        onWrongPin: (attemptsRemaining: Int) -> Unit,
-        execute: (OpenPgpSession) -> Unit,
-    ) {
-        openPgpViewModel.pendingAction.value = {
-            try {
-                Log.i(TAG, "pendingAction — $logLabel")
-                execute(this)
-                openPgpViewModel.postPinChangeStatus(completeStatus)
-                viewModel.refreshPinRetries(this)
-                null
-            } catch (e: Exception) {
-                Log.w(TAG, "$logLabel failed: ${e.message}")
-
-                lifecycleScope.launch(Dispatchers.Main) {
-                    errorVibrate()
-                    val toastMessage = if (e is InvalidPinException) wrongPinToastMessage else (e.message ?: failureFallback)
-                    Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_SHORT).show()
-                }
-
-                if (e is InvalidPinException) {
-                    onWrongPin(e.attemptsRemaining)
-                }
-
-                openPgpViewModel.postPinChangeStatus("")
-                null
-            } finally {
-                pins.forEach { it.fill('\u0000') }
-                Log.d(TAG, "$logLabel — PIN(s) zeroed")
-                lifecycleScope.launch(Dispatchers.Main) {
-                    openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE)
-                }
-            }
-        }
-    }
-
-    private fun onResetOpenPgpClicked() {
-        Log.d(TAG, "Reset OpenPGP applet tapped (Admin PIN retries exhausted)")
-        openPgpViewModel.setCurrentOperation(OpenPgpOperation.RESET_ADMIN_PIN)
-        showOpenPgpResetConfirmationDialog()
-    }
-
-    private fun showOpenPgpResetConfirmationDialog() {
-        showOpenPgpAppletResetDialog(
-            TAG,
-            onConfirmed = {
-                Log.i(TAG, "OpenPGP applet reset confirmed — device=${openPgpViewModel.currentState.connectedDevice.type}")
-                openPgpViewModel.pendingAction.value = {
-                    try {
-                        val writer = openPgpViewModel.currentState.connectedDevice.type.writer()
-                        Log.i(TAG, "pendingAction — resetting OpenPGP applet, writer=${writer::class.simpleName}")
-                        writer.wipe(this, status = openPgpViewModel::postPinChangeStatus)
-                        viewModel.updatePinRetries(user = 3, admin = 3)
-                        null
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Reset OpenPGP applet failed: ${e.message}")
-                        openPgpViewModel.postPinChangeStatus(e.message ?: "Failed to reset OpenPGP applet")
-                        null
-                    } finally {
-                        lifecycleScope.launch(Dispatchers.Main) { openPgpViewModel.setCurrentOperation(OpenPgpOperation.NONE) }
-                    }
-                }
-            },
-            onCancelled = { cancelPinOperation() },
-        )
     }
 
     private var dotAnimationJob: Job? = null

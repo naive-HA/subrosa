@@ -41,6 +41,7 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
             logger.error("onYubiKeyDevice — getSession failed: ${it.message}", it)
             _result.postValue(Result.failure(it))
             pendingAction.postValue(null)
+            onPendingActionDropped()
         }) { session ->
             pendingAction.value?.let {
                 val actionResult = Result.runCatching { it(session) }
@@ -70,6 +71,13 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
             }
         }
     }
+
+    fun cancelPendingAction() {
+        pendingAction.value = null
+        onPendingActionDropped()
+    }
+
+    protected open fun onPendingActionDropped() {}
 
     open fun onDeviceDisconnected() {}
 

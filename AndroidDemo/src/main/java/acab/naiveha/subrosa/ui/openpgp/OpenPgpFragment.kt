@@ -2,6 +2,7 @@ package acab.naiveha.subrosa.ui.openpgp
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.ClipboardManager
@@ -34,6 +35,8 @@ import acab.naiveha.subrosa.databinding.FragmentOpenpgpBinding
 import acab.naiveha.subrosa.ui.YubiKeyFragment
 import acab.naiveha.subrosa.ui.bindAutoClearStatus
 import acab.naiveha.subrosa.ui.collectAdminPin
+import acab.naiveha.subrosa.ui.collectNewAdminPin
+import acab.naiveha.subrosa.ui.collectNewUserPin
 import acab.naiveha.subrosa.ui.collectUserPin
 import acab.naiveha.subrosa.ui.getSecret
 import acab.naiveha.subrosa.ui.showOpenPgpAppletResetDialog
@@ -95,6 +98,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
 
             updateButtonStates(state)
             updateProgressVisibility(state)
+            renderPinRetries(state.pinRetries)
         }
 
         val onFilePickerClick = View.OnClickListener {
@@ -153,10 +157,86 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         var currentAnimator: ValueAnimator? = null
 
         fun updateDots(selectedIndex: Int) {
-            binding.tabMgmtIcon.setImageResource(if (selectedIndex == 0) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+            binding.tabEraseIcon.setImageResource(if (selectedIndex == 0) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
             binding.tabWriteIcon.setImageResource(if (selectedIndex == 1) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
             binding.tabReadIcon.setImageResource(if (selectedIndex == 2) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
-            binding.tabEraseIcon.setImageResource(if (selectedIndex == 3) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+            binding.tabMgmtIcon.setImageResource(if (selectedIndex == 3) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+        }
+
+        val sections = listOf(binding.sectionErase, binding.sectionWrite, binding.sectionRead, binding.sectionMgmt)
+
+        fun applySectionLayout(effectiveIndex: Float, isAnimating: Boolean = false) {
+            val isWideTablet = resources.configuration.smallestScreenWidthDp >= 600
+            val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            val isCarouselMode = isWideTablet || isLandscape
+
+            val screenWidth = resources.displayMetrics.widthPixels.toFloat()
+            val density = resources.displayMetrics.density
+            val cardSpacingPx = density * 460f
+            val sectionWidthPx = if (isCarouselMode) (density * 448f).roundToInt() else ViewGroup.LayoutParams.MATCH_PARENT
+
+            val activeDot = effectiveIndex.roundToInt().coerceIn(0, 3)
+            updateDots(activeDot)
+
+            sections.forEachIndexed { i, view ->
+                val lp = view.layoutParams
+                if (lp != null && lp.width != sectionWidthPx) {
+                    lp.width = sectionWidthPx
+                    view.layoutParams = lp
+                }
+
+                val dist = i - effectiveIndex
+                val absDist = abs(dist)
+
+                if (isCarouselMode) {
+                    val maxVisibleDist = 1.8f
+                    if (absDist < maxVisibleDist) {
+                        view.visibility = View.VISIBLE
+                        view.translationX = dist * cardSpacingPx
+                        val scale = (0.85f + (1.0f - absDist.toDouble().coerceIn(0.0, 1.0)) * 0.15f).toFloat()
+                        view.scaleX = scale
+                        view.scaleY = scale
+                        view.alpha = (1.0f - (absDist * 0.5f)).coerceIn(0f, 1f)
+                    } else {
+                        view.visibility = View.GONE
+                        view.translationX = 0f
+                        view.scaleX = 1f
+                        view.scaleY = 1f
+                        view.alpha = 1f
+                    }
+                } else {
+                    if (isAnimating) {
+                        if (absDist < 1.0f) {
+                            view.visibility = View.VISIBLE
+                            view.translationX = dist * screenWidth
+                            view.scaleX = 1f
+                            view.scaleY = 1f
+                            view.alpha = (1.0f - absDist).coerceIn(0f, 1f)
+                        } else {
+                            view.visibility = View.GONE
+                            view.translationX = 0f
+                            view.scaleX = 1f
+                            view.scaleY = 1f
+                            view.alpha = 1f
+                        }
+                    } else {
+                        val targetIndex = effectiveIndex.roundToInt().coerceIn(0, 3)
+                        if (i == targetIndex) {
+                            view.visibility = View.VISIBLE
+                            view.translationX = 0f
+                            view.scaleX = 1f
+                            view.scaleY = 1f
+                            view.alpha = 1f
+                        } else {
+                            view.visibility = View.GONE
+                            view.translationX = 0f
+                            view.scaleX = 1f
+                            view.scaleY = 1f
+                            view.alpha = 1f
+                        }
+                    }
+                }
+            }
         }
 
         fun navigateToTab(targetIndex: Int) {
@@ -170,8 +250,6 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
 
             val fromIndex = currentTabIndex
             val steps = targetIndex - fromIndex
-            val screenWidth = resources.displayMetrics.widthPixels.toFloat()
-            val sections = listOf(binding.sectionMgmt, binding.sectionWrite, binding.sectionRead, binding.sectionErase)
 
             val totalDuration = if (abs(steps) > 1) 360L else 220L
 
@@ -182,38 +260,18 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             animator.addUpdateListener { anim ->
                 val progress = anim.animatedValue as Float
                 val effectiveIndex = fromIndex + progress
-
-                val activeDot = effectiveIndex.roundToInt().coerceIn(0, 3)
-                updateDots(activeDot)
-
-                sections.forEachIndexed { i, view ->
-                    val dist = i - effectiveIndex
-                    val absDist = abs(dist)
-
-                    if (absDist < 1.2f) {
-                        view.visibility = View.VISIBLE
-                        view.translationX = dist * screenWidth
-                        view.alpha = (1.0f - (absDist * 0.5f)).coerceIn(0f, 1f)
-                    } else {
-                        view.visibility = View.GONE
-                    }
-                }
+                applySectionLayout(effectiveIndex, isAnimating = true)
             }
 
             animator.addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
                     currentTabIndex = targetIndex
-                    updateDots(targetIndex)
-                    sections.forEachIndexed { i, view ->
-                        if (i == targetIndex) {
-                            view.visibility = View.VISIBLE
-                            view.translationX = 0f
-                            view.alpha = 1f
-                        } else {
-                            view.visibility = View.GONE
-                            view.translationX = 0f
-                            view.alpha = 1f
-                        }
+                    applySectionLayout(targetIndex.toFloat(), isAnimating = false)
+                    if (binding.openpgpScrollView.scrollY > 0) {
+                        val scrollAnim = ObjectAnimator.ofInt(binding.openpgpScrollView, "scrollY", binding.openpgpScrollView.scrollY, 0)
+                        scrollAnim.duration = totalDuration
+                        scrollAnim.interpolator = AccelerateDecelerateInterpolator()
+                        scrollAnim.start()
                     }
                     currentAnimator = null
                 }
@@ -223,22 +281,16 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             animator.start()
         }
 
-        binding.tabMgmt.setOnClickListener { navigateToTab(0) }
+        binding.tabErase.setOnClickListener { navigateToTab(0) }
         binding.tabWrite.setOnClickListener { navigateToTab(1) }
         binding.tabRead.setOnClickListener { navigateToTab(2) }
-        binding.tabErase.setOnClickListener { navigateToTab(3) }
+        binding.tabMgmt.setOnClickListener { navigateToTab(3) }
 
-        val sectionsInit = listOf(binding.sectionMgmt, binding.sectionWrite, binding.sectionRead, binding.sectionErase)
-        sectionsInit.forEachIndexed { idx, view ->
-            view.visibility = if (idx == 1) View.VISIBLE else View.GONE
-            view.translationX = 0f
-            view.alpha = 1f
-        }
-        updateDots(1)
+        applySectionLayout(1.0f, isAnimating = false)
 
         val gestureDetector = GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
             private val swipeThreshold = 80
-            private val swipeVelocityThreshold = 100
+            private val swipeVelocityThreshold = 50
 
             override fun onFling(
                 e1: MotionEvent?,
@@ -249,10 +301,10 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                 if (e1 == null) return false
                 val diffX = e2.x - e1.x
                 val diffY = e2.y - e1.y
-                if (abs(diffX) > abs(diffY)) {
+                if (abs(diffX) > abs(diffY) * 0.7f) {
                     if ((abs(diffX) > swipeThreshold) && (abs(velocityX) > swipeVelocityThreshold)) {
                         if (diffX < 0) {
-                            if (currentTabIndex < 3) {
+                            if (currentTabIndex < sections.size - 1) {
                                 navigateToTab(currentTabIndex + 1)
                                 return true
                             }
@@ -264,9 +316,15 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                         }
                     }
                 } else {
-                    if ((diffY > swipeThreshold) && (velocityY > swipeVelocityThreshold)) {
+                    val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                    if (!isLandscape && (diffY > swipeThreshold) && (velocityY > swipeVelocityThreshold)) {
                         if (currentTabIndex == 2 && binding.btnTestAction.isEnabled) {
                             binding.btnTestAction.performClick()
+                            return true
+                        }
+                        if (currentTabIndex == 3) {
+                            Log.d(TAG, "Pull-down on Management tab — refreshing PIN counters")
+                            viewModel.refreshPinCounters()
                             return true
                         }
                     }
@@ -275,27 +333,97 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             }
         })
 
-        @SuppressLint("ClickableViewAccessibility")
-        val attachSwipeListener = View.OnTouchListener { v, event ->
-            if (event.action == MotionEvent.ACTION_UP) {
-                v.performClick()
-            }
-            gestureDetector.onTouchEvent(event)
-        }
-
         val dash = getString(R.string.dash)
         binding.pinRetriesUser.text = dash
         binding.pinRetriesAdmin.text = dash
 
-        binding.pinRetriesContainer.setOnClickListener {
-            Toast.makeText(requireContext(), "Pull down to refresh the PIN counters", Toast.LENGTH_SHORT).show()
+        fun isPointInsideView(rawX: Float, rawY: Float, view: View): Boolean {
+            val location = IntArray(2)
+            view.getLocationOnScreen(location)
+            val vX = location[0]
+            val vY = location[1]
+            return rawX >= vX && rawX <= vX + view.width && rawY >= vY && rawY <= vY + view.height
         }
 
+        @SuppressLint("ClickableViewAccessibility")
+        val attachSwipeListener = object : View.OnTouchListener {
+            private var startX = 0f
+            private var startY = 0f
+            private var currentX = 0f
+            private var currentY = 0f
+            private var isHorizontalSwipe = false
+            private var isDragged = false
+
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
+                gestureDetector.onTouchEvent(event)
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        startX = event.rawX
+                        startY = event.rawY
+                        currentX = startX
+                        currentY = startY
+                        isHorizontalSwipe = false
+                        isDragged = false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        currentX = event.rawX
+                        currentY = event.rawY
+                        val dx = currentX - startX
+                        val dy = currentY - startY
+
+                        if (abs(dy) > 20 || abs(dx) > 20) {
+                            isDragged = true
+                        }
+
+                        if (!isHorizontalSwipe && abs(dx) > 30f && abs(dx) > abs(dy) * 0.7f) {
+                            isHorizontalSwipe = true
+                            v.parent?.requestDisallowInterceptTouchEvent(true)
+                        }
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        if (!isDragged) {
+                            val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                            if (!isLandscape) {
+                                if (currentTabIndex == 3 && isPointInsideView(event.rawX, event.rawY, binding.pinRetriesContainer)) {
+                                    Toast.makeText(requireContext(), "Pull down to refresh the PIN counters", Toast.LENGTH_SHORT).show()
+                                } else if (currentTabIndex == 2 && isPointInsideView(event.rawX, event.rawY, binding.cardInfoContainer)) {
+                                    val cardDash = getString(R.string.dash)
+                                    val isCardInfoEmpty = binding.cardInfoName.text.toString() == cardDash || binding.cardInfoSigFingerprint.text.toString().trim() == cardDash.trim()
+                                    if (isCardInfoEmpty) {
+                                        Toast.makeText(requireContext(), "Pull down to refresh OpenPGP card details", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        }
+
+                        v.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+                return false
+            }
+        }
+
+        fun attachTouchListenerRecursive(view: View, listener: View.OnTouchListener) {
+            view.setOnTouchListener(listener)
+            if (view is ViewGroup) {
+                for (i in 0 until view.childCount) {
+                    attachTouchListenerRecursive(view.getChildAt(i), listener)
+                }
+            }
+        }
+
+        val sectionsToAttach = listOf(
+            binding.sectionErase,
+            binding.sectionWrite,
+            binding.sectionRead,
+            binding.sectionMgmt
+        )
+        sectionsToAttach.forEach { section ->
+            attachTouchListenerRecursive(section, attachSwipeListener)
+        }
+        binding.openpgpScrollView.setOnTouchListener(attachSwipeListener)
+        binding.tabContentContainer.setOnTouchListener(attachSwipeListener)
         binding.root.setOnTouchListener(attachSwipeListener)
-        binding.sectionMgmt.setOnTouchListener(attachSwipeListener)
-        binding.sectionWrite.setOnTouchListener(attachSwipeListener)
-        binding.sectionRead.setOnTouchListener(attachSwipeListener)
-        binding.sectionErase.setOnTouchListener(attachSwipeListener)
 
         viewModel.pendingAction.observe(viewLifecycleOwner) { action ->
             val state = viewModel.uiState.value ?: OpenPgpUiState()
@@ -319,6 +447,17 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         }
         bindAutoClearStatus(viewModel.wipeStatus, binding.wipeStatus, OpenPgpWriter.WIPE_COMPLETE_STATUS) {
             viewModel.postWipeStatus(it)
+        }
+        bindAutoClearStatus(
+            viewModel.pinChangeStatus,
+            binding.pinChangeStatus,
+            OpenPgpViewModel.PIN_CHANGE_COMPLETE_STATUS,
+            OpenPgpViewModel.PIN_RESET_COMPLETE_STATUS,
+            OpenPgpWriter.WIPE_COMPLETE_STATUS,
+            hideWhenBlank = true,
+            shouldHide = { it.contains("Remaining attempts", ignoreCase = true) },
+        ) {
+            viewModel.postPinChangeStatus(it)
         }
 
         binding.btnSave.setOnClickListener {
@@ -344,8 +483,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                     clearTextByDefault = true,
                 ) ?: run { adminPin.fill('\u0000'); return@launch }
 
-                viewModel.setCurrentOperation(OpenPgpOperation.SAVE)
-                viewModel.pendingAction.value = {
+                viewModel.queueWithPins(OpenPgpOperation.SAVE, listOf(adminPin, userPin)) {
                     val deviceType = viewModel.currentState.connectedDevice.type
                     val writer = deviceType.writer()
                     Log.i(TAG, "pendingAction — device=$deviceType " +
@@ -372,6 +510,23 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         binding.btnDeleteOpenpgp.setOnClickListener {
             showResetConfirmationDialog()
         }
+
+        binding.btnChangeAdminPin.setOnClickListener {
+            val retries = viewModel.uiState.value?.pinRetries
+            if (retries?.admin == 0) {
+                onResetOpenPgpClicked()
+            } else {
+                onChangePinClicked(isAdmin = true)
+            }
+        }
+        binding.btnChangeUserPin.setOnClickListener {
+            val retries = viewModel.uiState.value?.pinRetries
+            if (retries?.user == 0) {
+                onResetUserPinClicked()
+            } else {
+                onChangePinClicked(isAdmin = false)
+            }
+        }
     }
 
     private fun updateProgressVisibility(state: OpenPgpUiState, isBusy: Boolean? = null) {
@@ -380,6 +535,11 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         binding.progressSave.visibility = if (busy && (op == OpenPgpOperation.SAVE)) View.VISIBLE else View.GONE
         binding.progressRead.visibility = if (busy && (op == OpenPgpOperation.READ)) View.VISIBLE else View.GONE
         binding.progressWipe.visibility = if (busy && (op == OpenPgpOperation.WIPE)) View.VISIBLE else View.GONE
+
+        val adminBusy = busy && (op == OpenPgpOperation.CHANGE_ADMIN_PIN || op == OpenPgpOperation.RESET_ADMIN_PIN)
+        val userBusy = busy && (op == OpenPgpOperation.CHANGE_USER_PIN || op == OpenPgpOperation.RESET_USER_PIN)
+        binding.progressChangeAdminPin.visibility = if (adminBusy) View.VISIBLE else View.GONE
+        binding.progressChangeUserPin.visibility = if (userBusy) View.VISIBLE else View.GONE
     }
 
     private fun updateButtonStates(state: OpenPgpUiState, isBusy: Boolean? = null) {
@@ -387,6 +547,8 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         binding.btnSave.isEnabled = (!busy && (validatedBundle != null) && (state.currentOperation != OpenPgpOperation.SAVE))
         binding.btnTestAction.isEnabled = !busy
         binding.btnDeleteOpenpgp.isEnabled = !busy
+        binding.btnChangeAdminPin.isEnabled = !busy
+        binding.btnChangeUserPin.isEnabled = !busy
     }
 
     override fun onDestroyView() {
@@ -407,6 +569,85 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                 writer.wipe(this, status = viewModel::postWipeStatus)
             }
         })
+    }
+
+    private fun renderPinRetries(retries: PinRetries?) {
+        if (retries == null) {
+            val dash = getString(R.string.dash)
+            binding.pinRetriesUser.text = dash
+            binding.pinRetriesAdmin.text = dash
+            binding.btnChangeUserPin.visibility = View.VISIBLE
+            binding.btnChangeUserPin.text = getString(R.string.openpgp_btn_change_user_pin)
+            binding.btnChangeAdminPin.text = getString(R.string.openpgp_btn_change_admin_pin)
+            return
+        }
+
+        val userRetries = if (retries.admin == 0) 0 else retries.user
+        binding.pinRetriesUser.text = userRetries.toString()
+        binding.pinRetriesAdmin.text = retries.admin.toString()
+
+        if (retries.admin == 0) {
+            binding.btnChangeUserPin.visibility = View.GONE
+            binding.btnChangeAdminPin.text = getString(R.string.openpgp_btn_reset)
+        } else {
+            binding.btnChangeUserPin.visibility = View.VISIBLE
+            binding.btnChangeAdminPin.text = getString(R.string.openpgp_btn_change_admin_pin)
+            binding.btnChangeUserPin.text = if (retries.user == 0) {
+                getString(R.string.openpgp_btn_reset_user_pin)
+            } else {
+                getString(R.string.openpgp_btn_change_user_pin)
+            }
+        }
+    }
+
+    private fun onChangePinClicked(isAdmin: Boolean) {
+        val label = if (isAdmin) "Admin" else "User"
+        Log.d(TAG, "Change $label PIN tapped")
+
+        lifecycleScope.launch(Dispatchers.Main) {
+            val currentPin = (
+                if (isAdmin) {
+                    collectAdminPin("Enter current Device Admin PIN", tag = TAG, logLabel = "Current Admin PIN")
+                } else {
+                    collectUserPin("Enter current Device User PIN", tag = TAG, logLabel = "Current User PIN")
+                }
+            ) ?: return@launch
+
+            val newPin = (if (isAdmin) collectNewAdminPin(TAG) else collectNewUserPin(TAG))
+                ?: run {
+                    Log.d(TAG, "Change $label PIN cancelled (new PIN)")
+                    currentPin.fill('\u0000')
+                    return@launch
+                }
+
+            viewModel.changePin(isAdmin, currentPin, newPin)
+        }
+    }
+
+    private fun onResetUserPinClicked() {
+        Log.d(TAG, "Reset blocked User PIN tapped")
+
+        lifecycleScope.launch(Dispatchers.Main) {
+            val adminPin = collectAdminPin(
+                "Enter Device Admin PIN",
+                tag = TAG,
+                logLabel = "Admin PIN (for User PIN reset)",
+            ) ?: return@launch
+
+            val newUserPin = collectNewUserPin(TAG)
+                ?: run {
+                    Log.d(TAG, "Reset User PIN cancelled (new PIN)")
+                    adminPin.fill('\u0000')
+                    return@launch
+                }
+
+            viewModel.resetBlockedUserPin(adminPin, newUserPin)
+        }
+    }
+
+    private fun onResetOpenPgpClicked() {
+        Log.d(TAG, "Reset OpenPGP applet tapped (Admin PIN retries exhausted)")
+        showOpenPgpAppletResetDialog(TAG, onConfirmed = { viewModel.resetOpenPgpApplet() })
     }
 
     private fun showMonospaceInfoDialog(
@@ -629,6 +870,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             keyInfoExpires.text     = info.expirationDate?.toDisplayDate()
                 ?: getString(R.string.openpgp_key_no_expiry)
             keyInfoFingerprint.text = info.fingerprint
+            keyInfoFingerprint.setTextIsSelectable(true)
 
             root.post { root.requestLayout() }
         }
@@ -642,6 +884,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             keyInfoCreated.text     = dash
             keyInfoExpires.text     = dash
             keyInfoFingerprint.text = getString(R.string.dash_newline)
+            keyInfoFingerprint.setTextIsSelectable(false)
         }
     }
 
@@ -666,7 +909,8 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             val decSlot = info.slots.find { it.ref.name == "DEC" }
             val autSlot = info.slots.find { it.ref.name == "AUT" }
 
-            if (sigSlot != null && sigSlot.hasKey) {
+            val hasSig = sigSlot != null && sigSlot.hasKey
+            if (hasSig) {
                 cardInfoSigAlgorithm.text = sigSlot.algorithm
                 cardInfoSigExpires.text = sigSlot.created
                 cardInfoSigFingerprint.text = formatFingerprintDisplay(sigSlot.fingerprint)
@@ -675,8 +919,10 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                 cardInfoSigExpires.text = getString(R.string.dash)
                 cardInfoSigFingerprint.text = getString(R.string.dash_newline)
             }
+            cardInfoSigFingerprint.setTextIsSelectable(hasSig)
 
-            if (decSlot != null && decSlot.hasKey) {
+            val hasDec = decSlot != null && decSlot.hasKey
+            if (hasDec) {
                 cardInfoDecAlgorithm.text = decSlot.algorithm
                 cardInfoDecExpires.text = decSlot.created
                 cardInfoDecFingerprint.text = formatFingerprintDisplay(decSlot.fingerprint)
@@ -685,8 +931,10 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                 cardInfoDecExpires.text = getString(R.string.dash)
                 cardInfoDecFingerprint.text = getString(R.string.dash_newline)
             }
+            cardInfoDecFingerprint.setTextIsSelectable(hasDec)
 
-            if (autSlot != null && autSlot.hasKey) {
+            val hasAut = autSlot != null && autSlot.hasKey
+            if (hasAut) {
                 cardInfoAutAlgorithm.text = autSlot.algorithm
                 cardInfoAutExpires.text = autSlot.created
                 cardInfoAutFingerprint.text = formatFingerprintDisplay(autSlot.fingerprint)
@@ -695,6 +943,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                 cardInfoAutExpires.text = getString(R.string.dash)
                 cardInfoAutFingerprint.text = getString(R.string.dash_newline)
             }
+            cardInfoAutFingerprint.setTextIsSelectable(hasAut)
         }
     }
 
@@ -709,14 +958,17 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             cardInfoSigAlgorithm.text = dash
             cardInfoSigExpires.text = dash
             cardInfoSigFingerprint.text = dashNewline
+            cardInfoSigFingerprint.setTextIsSelectable(false)
 
             cardInfoDecAlgorithm.text = dash
             cardInfoDecExpires.text = dash
             cardInfoDecFingerprint.text = dashNewline
+            cardInfoDecFingerprint.setTextIsSelectable(false)
 
             cardInfoAutAlgorithm.text = dash
             cardInfoAutExpires.text = dash
             cardInfoAutFingerprint.text = dashNewline
+            cardInfoAutFingerprint.setTextIsSelectable(false)
         }
     }
 }

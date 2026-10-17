@@ -37,6 +37,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/pgp-message" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pgp-keys" />
+            </intent-filter>
         </activity>
     </application>
 </manifest>

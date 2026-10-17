@@ -71,6 +71,8 @@ fun <S : Closeable> Fragment.bindDeviceActions(
                 prompt.setHelpText(getString(R.string.yubikit_prompt_plug_in_or_tap))
                 prompt.show()
             }
+        } else if (prompt.isShowing) {
+            prompt.dismiss()
         }
     }
 }

@@ -24,8 +24,6 @@ sealed class PgpStatus {
     object None : PgpStatus()
 }
 
-data class PinRetries(val user: Int, val admin: Int)
-
 data class ManagementUiState(
     val connectedDevice: ConnectedDeviceInfo? = null,
     val pgpCardInfo: OpenPgpCardInfo? = null,
@@ -37,10 +35,6 @@ data class ManagementUiState(
 
     val infoText: String
         get() = connectedDevice?.infoText ?: ""
-
-    val showManagementActions: Boolean
-        get() = connectedDevice != null &&
-            !(connectedDevice.type == PgpDeviceType.NITROKEY && connectedDevice.isNfc)
 
     val pgpStatus: PgpStatus
         get() {
@@ -62,9 +56,6 @@ data class ManagementUiState(
                 }
             }
         }
-
-    val pinRetries: PinRetries?
-        get() = pgpCardInfo?.let { PinRetries(user = it.userPinRetries, admin = it.adminPinRetries) }
 
     private fun OpenPgpCardInfo?.isProgrammed(): Boolean = this?.slots?.any { it.hasKey } == true
 }

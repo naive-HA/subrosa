@@ -1,100 +1,199 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     tools:context=".ui.yubiotp.YubiOtpFragment">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+    <LinearLayout
+        android:id="@+id/tab_selector_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/card_view_margin"
+        android:animateLayoutChanges="true"
+        android:background="@drawable/bg_tab_selector_container"
+        android:elevation="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="2dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:id="@+id/tab_erase"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="@dimen/card_view_margin"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintWidth_max="448dp">
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:padding="8dp">
 
-            <LinearLayout
-                android:id="@+id/tab_selector_container"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="12dp"
-                android:animateLayoutChanges="true"
-                android:background="@drawable/bg_tab_selector_container"
-                android:elevation="8dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="2dp">
+            <ImageView
+                android:id="@+id/tab_erase_icon"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:contentDescription="@string/tab_erase"
+                android:src="@drawable/ic_tab_dot_outline" />
+        </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/tab_write"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:padding="8dp">
+        <LinearLayout
+            android:id="@+id/tab_write"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:padding="8dp">
 
-                    <ImageView
-                        android:id="@+id/tab_write_icon"
-                        android:layout_width="12dp"
-                        android:layout_height="12dp"
-                        android:contentDescription="@string/tab_write"
-                        android:src="@drawable/ic_tab_dot_filled" />
-                </LinearLayout>
+            <ImageView
+                android:id="@+id/tab_write_icon"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:contentDescription="@string/tab_write"
+                android:src="@drawable/ic_tab_dot_filled" />
+        </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/tab_read"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:padding="8dp">
+        <LinearLayout
+            android:id="@+id/tab_read"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:padding="8dp">
 
-                    <ImageView
-                        android:id="@+id/tab_read_icon"
-                        android:layout_width="12dp"
-                        android:layout_height="12dp"
-                        android:contentDescription="@string/tab_read"
-                        android:src="@drawable/ic_tab_dot_outline" />
-                </LinearLayout>
+            <ImageView
+                android:id="@+id/tab_read_icon"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:contentDescription="@string/tab_read"
+                android:src="@drawable/ic_tab_dot_outline" />
+        </LinearLayout>
+    </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/tab_erase"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:padding="8dp">
+    <ScrollView
+        android:id="@+id/yubiotp_scroll_view"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tab_selector_container">
 
-                    <ImageView
-                        android:id="@+id/tab_erase_icon"
-                        android:layout_width="12dp"
-                        android:layout_height="12dp"
-                        android:contentDescription="@string/tab_erase"
-                        android:src="@drawable/ic_tab_dot_outline" />
-                </LinearLayout>
-            </LinearLayout>
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:padding="@dimen/card_view_margin">
 
             <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:id="@+id/tab_content_container"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_max="448dp">
+
+                <LinearLayout
+                    android:id="@+id/section_erase"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:maxWidth="448dp"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/activity_margin"
+                        android:text="@string/reset_yubikey_static_password" />
+
+                    <TextView
+                        android:id="@+id/reset_slot_id"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/otp_yubistatic_slot_desc" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/slot_radio_reset"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:gravity="center_horizontal"
+                        app:singleSelection="true"
+                        app:selectionRequired="true">
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/reset_slot_1"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="10dp"
+                            android:checked="true"
+                            android:text="@string/otp_slot_1" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/reset_slot_2"
+                            style="@style/AppTheme.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/otp_slot_2" />
+                    </com.google.android.material.chip.ChipGroup>
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/activity_margin">
+
+                        <Button
+                            android:id="@+id/btn_delete_staticpwd"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:backgroundTint="#B71C1C"
+                            android:text="@string/reset_static_password" />
+
+                        <ProgressBar
+                            android:id="@+id/progress_wipe"
+                            style="?android:attr/progressBarStyleSmall"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical|end"
+                            android:layout_marginEnd="16dp"
+                            android:visibility="gone" />
+
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/delete_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/activity_margin"
+                        android:gravity="center"
+                        android:textAppearance="?attr/textAppearanceCaption"
+                        android:textColor="@color/binary_background"
+                        tools:text="Slot 1 reset" />
+                </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/section_write"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:maxWidth="448dp"
                     android:orientation="vertical"
                     android:visibility="visible">
 
@@ -323,6 +422,8 @@
                     android:id="@+id/section_read"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:maxWidth="448dp"
                     android:orientation="vertical"
                     android:visibility="gone">
 
@@ -457,86 +558,8 @@
                         tools:text="Read complete" />
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/section_erase"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:visibility="gone">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/activity_margin"
-                        android:text="@string/reset_yubikey_static_password" />
-
-                    <TextView
-                        android:id="@+id/reset_slot_id"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/otp_yubistatic_slot_desc" />
-
-                    <com.google.android.material.chip.ChipGroup
-                        android:id="@+id/slot_radio_reset"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center_horizontal"
-                        android:gravity="center_horizontal"
-                        app:singleSelection="true"
-                        app:selectionRequired="true">
-
-                        <com.google.android.material.chip.Chip
-                            android:id="@+id/reset_slot_1"
-                            style="@style/AppTheme.Chip"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="10dp"
-                            android:checked="true"
-                            android:text="@string/otp_slot_1" />
-
-                        <com.google.android.material.chip.Chip
-                            android:id="@+id/reset_slot_2"
-                            style="@style/AppTheme.Chip"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/otp_slot_2" />
-                    </com.google.android.material.chip.ChipGroup>
-
-                    <FrameLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/activity_margin">
-
-                        <Button
-                            android:id="@+id/btn_delete_staticpwd"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:backgroundTint="#B71C1C"
-                            android:text="@string/reset_static_password" />
-
-                        <ProgressBar
-                            android:id="@+id/progress_wipe"
-                            style="?android:attr/progressBarStyleSmall"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center_vertical|end"
-                            android:layout_marginEnd="16dp"
-                            android:visibility="gone" />
-
-                    </FrameLayout>
-
-                    <TextView
-                        android:id="@+id/delete_status"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/activity_margin"
-                        android:gravity="center"
-                        android:textAppearance="?attr/textAppearanceCaption"
-                        android:textColor="@color/binary_background"
-                        tools:text="Slot 1 reset" />
-                </LinearLayout>
             </FrameLayout>
 
-        </LinearLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
-</ScrollView>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </ScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

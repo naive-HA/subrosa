@@ -67,6 +67,8 @@ Once finished, you can simply erase everything from the hardware security key so
 Just like KeePassDroid managing passwords, OpenKeychain or PGPony manage OpenPGP keys.
 You can easily import OpenPGP keys generated or stored by these apps in *sub rosa* and then program them onto your hardware security key. 
 
+*sub rosa* has its roots in the YubiKit library provided by Yubico
+
 # How does *sub rosa* support various hardware security keys?
 
 <table>
@@ -187,15 +189,13 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 	<colgroup width="85"></colgroup>
 	<colgroup width="132"></colgroup>
 	<tr>
-		<td height="34"><br></td>
-		<td></td>
+		<td>Algorithm</td>
 		<td>YubiKey</td>
 		<td>Nitrokey 3</td>
         <td>Nitrokey Pro</td>
         <td>Librem Key</td>
 	</tr>
 	<tr>
-		<td>OpenKeychain supported algorithm</td>
 		<td>RSA 2048</td>
 		<td>✅</td>
 		<td>✅</td>
@@ -203,7 +203,6 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>✅</td>
 	</tr>
 	<tr>
-		<td></td>
 		<td>RSA 3072</td>
 		<td>✅</td>
 		<td>✅</td>
@@ -211,7 +210,6 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>✅</td>
 	</tr>
 	<tr>
-		<td></td>
 		<td>RSA 4096</td>
 		<td>✅</td>
 		<td>✅</td>
@@ -219,7 +217,6 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>✅</td>
 	</tr>
 	<tr>
-		<td></td>
 		<td>ECC NIST P-256</td>
 		<td>✅</td>
 		<td>✅</td>
@@ -227,7 +224,6 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>✅</td>
 	</tr>
 	<tr>
-		<td></td>
 		<td>ECC NIST P-521</td>
 		<td>✅</td>
 		<td>✅</td>
@@ -235,7 +231,6 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>✅</td>
 	</tr>
 	<tr>
-		<td></td>
 		<td>Ed25519/X25519</td>
 		<td>✅</td>
 		<td>✅</td>
@@ -267,6 +262,24 @@ Because this backup code—consisting of 36 numbers and dashes—cannot be copie
 </table>
 
 > **Note:** *sub rosa* is not affiliated with OpenKeychain—we are simply big fans of OpenKeychain!
+
+# How to import OpenPGP keys from PGPony
+
+Similarly to OpenKeychain, PGPony manages OpenPGP keys, handling generation, secure storage, and backups.
+
+Importing keys from PGPony is even easier. Share a key backup with *sub rosa* and hit "WRITE OPENPGP KEY".
+That's all. 
+
+<table>
+  <tr>
+    <td><img src="fastlane/metadata/android/en-US/images/Other/PGPony1.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/Other/PGPony2.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/Other/PGPony3.png" height="400"></td>
+  </tr>
+</table>
+
+> **Note:** *sub rosa* is not affiliated with PGPony—we are supporting PGPony, just like OpenKeychain!
+
 
 # How to use your security key for SSH authentication
 

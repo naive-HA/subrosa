@@ -2,6 +2,7 @@ package acab.naiveha.subrosa.ui.yubiotp
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -243,13 +244,89 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             binding.editTextStaticpwdId.requestFocus()
         }
 
-        var currentTabIndex = 0
+        var currentTabIndex = 1
         var currentAnimator: ValueAnimator? = null
 
         fun updateDots(selectedIndex: Int) {
-            binding.tabWriteIcon.setImageResource(if (selectedIndex == 0) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
-            binding.tabReadIcon.setImageResource(if (selectedIndex == 1) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
-            binding.tabEraseIcon.setImageResource(if (selectedIndex == 2) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+            binding.tabEraseIcon.setImageResource(if (selectedIndex == 0) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+            binding.tabWriteIcon.setImageResource(if (selectedIndex == 1) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+            binding.tabReadIcon.setImageResource(if (selectedIndex == 2) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+        }
+
+        val sections = listOf(binding.sectionErase, binding.sectionWrite, binding.sectionRead)
+
+        fun applySectionLayout(effectiveIndex: Float, isAnimating: Boolean = false) {
+            val isWideTablet = resources.configuration.smallestScreenWidthDp >= 600
+            val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            val isCarouselMode = isWideTablet || isLandscape
+
+            val screenWidth = resources.displayMetrics.widthPixels.toFloat()
+            val density = resources.displayMetrics.density
+            val cardSpacingPx = density * 460f
+            val sectionWidthPx = if (isCarouselMode) (density * 448f).roundToInt() else ViewGroup.LayoutParams.MATCH_PARENT
+
+            val activeDot = effectiveIndex.roundToInt().coerceIn(0, 2)
+            updateDots(activeDot)
+
+            sections.forEachIndexed { i, view ->
+                val lp = view.layoutParams
+                if (lp != null && lp.width != sectionWidthPx) {
+                    lp.width = sectionWidthPx
+                    view.layoutParams = lp
+                }
+
+                val dist = i - effectiveIndex
+                val absDist = abs(dist)
+
+                if (isCarouselMode) {
+                    val maxVisibleDist = 1.8f
+                    if (absDist < maxVisibleDist) {
+                        view.visibility = View.VISIBLE
+                        view.translationX = dist * cardSpacingPx
+                        val scale = (0.85f + (1.0f - absDist.toDouble().coerceIn(0.0, 1.0)) * 0.15f).toFloat()
+                        view.scaleX = scale
+                        view.scaleY = scale
+                        view.alpha = (1.0f - (absDist * 0.5f)).coerceIn(0f, 1f)
+                    } else {
+                        view.visibility = View.GONE
+                        view.translationX = 0f
+                        view.scaleX = 1f
+                        view.scaleY = 1f
+                        view.alpha = 1f
+                    }
+                } else {
+                    if (isAnimating) {
+                        if (absDist < 1.0f) {
+                            view.visibility = View.VISIBLE
+                            view.translationX = dist * screenWidth
+                            view.scaleX = 1f
+                            view.scaleY = 1f
+                            view.alpha = (1.0f - absDist).coerceIn(0f, 1f)
+                        } else {
+                            view.visibility = View.GONE
+                            view.translationX = 0f
+                            view.scaleX = 1f
+                            view.scaleY = 1f
+                            view.alpha = 1f
+                        }
+                    } else {
+                        val targetIndex = effectiveIndex.roundToInt().coerceIn(0, 2)
+                        if (i == targetIndex) {
+                            view.visibility = View.VISIBLE
+                            view.translationX = 0f
+                            view.scaleX = 1f
+                            view.scaleY = 1f
+                            view.alpha = 1f
+                        } else {
+                            view.visibility = View.GONE
+                            view.translationX = 0f
+                            view.scaleX = 1f
+                            view.scaleY = 1f
+                            view.alpha = 1f
+                        }
+                    }
+                }
+            }
         }
 
         fun navigateToTab(targetIndex: Int) {
@@ -259,8 +336,6 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
 
             val fromIndex = currentTabIndex
             val steps = targetIndex - fromIndex
-            val screenWidth = resources.displayMetrics.widthPixels.toFloat()
-            val sections = listOf(binding.sectionWrite, binding.sectionRead, binding.sectionErase)
 
             val totalDuration = if (abs(steps) > 1) 360L else 220L
 
@@ -271,38 +346,18 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             animator.addUpdateListener { anim ->
                 val progress = anim.animatedValue as Float
                 val effectiveIndex = fromIndex + progress
-
-                val activeDot = effectiveIndex.roundToInt().coerceIn(0, 2)
-                updateDots(activeDot)
-
-                sections.forEachIndexed { i, view ->
-                    val dist = i - effectiveIndex
-                    val absDist = abs(dist)
-
-                    if (absDist < 1.2f) {
-                        view.visibility = View.VISIBLE
-                        view.translationX = dist * screenWidth
-                        view.alpha = (1.0f - (absDist * 0.5f)).coerceIn(0f, 1f)
-                    } else {
-                        view.visibility = View.GONE
-                    }
-                }
+                applySectionLayout(effectiveIndex, isAnimating = true)
             }
 
             animator.addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
                     currentTabIndex = targetIndex
-                    updateDots(targetIndex)
-                    sections.forEachIndexed { i, view ->
-                        if (i == targetIndex) {
-                            view.visibility = View.VISIBLE
-                            view.translationX = 0f
-                            view.alpha = 1f
-                        } else {
-                            view.visibility = View.GONE
-                            view.translationX = 0f
-                            view.alpha = 1f
-                        }
+                    applySectionLayout(targetIndex.toFloat(), isAnimating = false)
+                    if (binding.yubiotpScrollView.scrollY > 0) {
+                        val scrollAnim = ObjectAnimator.ofInt(binding.yubiotpScrollView, "scrollY", binding.yubiotpScrollView.scrollY, 0)
+                        scrollAnim.duration = totalDuration
+                        scrollAnim.interpolator = AccelerateDecelerateInterpolator()
+                        scrollAnim.start()
                     }
                     currentAnimator = null
                 }
@@ -312,10 +367,11 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             animator.start()
         }
 
-        binding.tabWrite.setOnClickListener { navigateToTab(0) }
-        binding.tabRead.setOnClickListener { navigateToTab(1) }
-        binding.tabErase.setOnClickListener { navigateToTab(2) }
-        updateDots(0)
+        binding.tabErase.setOnClickListener { navigateToTab(0) }
+        binding.tabWrite.setOnClickListener { navigateToTab(1) }
+        binding.tabRead.setOnClickListener { navigateToTab(2) }
+
+        applySectionLayout(1.0f, isAnimating = false)
 
         val gestureDetector = GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
             private val swipeThreshold = 80
@@ -345,8 +401,9 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                         }
                     }
                 } else {
-                    if ((diffY > swipeThreshold) && (velocityY > swipeVelocityThreshold)) {
-                        if (currentTabIndex == 1 && (binding.btnRequestStaticpwd.isEnabled)) {
+                    val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                    if (!isLandscape && (diffY > swipeThreshold) && (velocityY > swipeVelocityThreshold)) {
+                        if (currentTabIndex == 2 && (binding.btnRequestStaticpwd.isEnabled)) {
                             binding.btnRequestStaticpwd.performClick()
                             return true
                         }
@@ -356,17 +413,71 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             }
         })
 
-        val attachSwipeListener = View.OnTouchListener { v, event ->
-            if (event.action == MotionEvent.ACTION_UP) {
-                v.performClick()
+        @SuppressLint("ClickableViewAccessibility")
+        val attachSwipeListener = object : View.OnTouchListener {
+            private var startX = 0f
+            private var startY = 0f
+            private var currentX = 0f
+            private var currentY = 0f
+            private var isHorizontalSwipe = false
+
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
+                gestureDetector.onTouchEvent(event)
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        startX = event.rawX
+                        startY = event.rawY
+                        currentX = startX
+                        currentY = startY
+                        isHorizontalSwipe = false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        currentX = event.rawX
+                        currentY = event.rawY
+                        val dx = currentX - startX
+                        val dy = currentY - startY
+
+                        if (!isHorizontalSwipe && abs(dx) > 30f && abs(dx) > abs(dy) * 0.7f) {
+                            isHorizontalSwipe = true
+                            v.parent?.requestDisallowInterceptTouchEvent(true)
+                        }
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        val dx = currentX - startX
+                        val dy = currentY - startY
+
+                        if (isHorizontalSwipe && abs(dx) > 80f && abs(dx) > abs(dy) * 0.7f) {
+                            if (dx < 0) {
+                                if (currentTabIndex < sections.size - 1) {
+                                    navigateToTab(currentTabIndex + 1)
+                                }
+                            } else {
+                                if (currentTabIndex > 0) {
+                                    navigateToTab(currentTabIndex - 1)
+                                }
+                            }
+                            v.parent?.requestDisallowInterceptTouchEvent(false)
+                            return true
+                        }
+
+                        v.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+                return false
             }
-            gestureDetector.onTouchEvent(event)
         }
 
-        binding.root.setOnTouchListener(attachSwipeListener)
-        binding.sectionWrite.setOnTouchListener(attachSwipeListener)
-        binding.sectionRead.setOnTouchListener(attachSwipeListener)
-        binding.sectionErase.setOnTouchListener(attachSwipeListener)
+        val viewsToAttachSwipe = listOf(
+            binding.root,
+            binding.yubiotpScrollView,
+            binding.tabContentContainer,
+            binding.sectionErase,
+            binding.sectionWrite,
+            binding.sectionRead
+        )
+        viewsToAttachSwipe.forEach { v ->
+            v.setOnTouchListener(attachSwipeListener)
+        }
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             if (state == null) return@observe

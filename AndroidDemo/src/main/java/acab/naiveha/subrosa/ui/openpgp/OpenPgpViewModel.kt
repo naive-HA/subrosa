@@ -13,16 +13,21 @@ import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.application.ApplicationNotAvailableException
+import com.yubico.yubikit.core.application.InvalidPinException
 import com.yubico.yubikit.core.smartcard.SmartCardConnection
 import com.yubico.yubikit.openpgp.OpenPgpSession
 import org.slf4j.LoggerFactory
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
     companion object {
         const val PIN_CHANGE_COMPLETE_STATUS = "PIN changed"
 
         const val PIN_RESET_COMPLETE_STATUS = "User PIN reset"
+
+        private const val TAG = "OpenPgpViewModel"
     }
 
     private val logger = LoggerFactory.getLogger(OpenPgpViewModel::class.java)
@@ -66,6 +71,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         updateUi {
             it.copy(
                 cardInfo = null,
+                pinRetries = null,
                 importedKeyInfo = null
             )
         }
@@ -81,6 +87,167 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
 
     fun setCurrentOperation(op: OpenPgpOperation) {
         updateUi { it.copy(currentOperation = op) }
+    }
+
+    fun updatePinRetries(user: Int? = null, admin: Int? = null) {
+        updateUi { s ->
+            val current = s.pinRetries ?: return@updateUi s
+            s.copy(pinRetries = PinRetries(user = user ?: current.user, admin = admin ?: current.admin))
+        }
+    }
+
+    fun refreshPinRetries(session: OpenPgpSession) {
+        try {
+            val pw = session.pinStatus
+            updateUi { it.copy(pinRetries = PinRetries(user = pw.attemptsUser, admin = pw.attemptsAdmin)) }
+        } catch (e: Exception) {
+            logger.debug("refreshPinRetries failed: ${e.message}")
+        }
+    }
+
+    private class QueuedPins(private val pins: List<CharArray>) {
+        private val state = AtomicInteger(PENDING)
+
+        fun start(): Boolean = state.compareAndSet(PENDING, RUNNING)
+
+        fun cancel() {
+            if (state.compareAndSet(PENDING, CANCELLED)) wipe()
+        }
+
+        fun wipe() {
+            pins.forEach { it.fill('\u0000') }
+        }
+
+        private companion object {
+            const val PENDING = 0
+            const val RUNNING = 1
+            const val CANCELLED = 2
+        }
+    }
+
+    private val queuedPins = AtomicReference<QueuedPins?>()
+
+    fun queueWithPins(
+        operation: OpenPgpOperation,
+        pins: List<CharArray>,
+        action: OpenPgpSession.() -> String?,
+    ) {
+        val queued = QueuedPins(pins)
+        queuedPins.getAndSet(queued)?.cancel()
+        setCurrentOperation(operation)
+
+        val task: OpenPgpSession.() -> String? = task@{
+            if (!queued.start()) return@task null
+            try {
+                action()
+            } finally {
+                queued.wipe()
+                queuedPins.compareAndSet(queued, null)
+            }
+        }
+        pendingAction.value = task
+    }
+
+    fun changePin(isAdmin: Boolean, currentPin: CharArray, newPin: CharArray) {
+        val label = if (isAdmin) "Admin" else "User"
+        queuePinOperation(
+            operation = if (isAdmin) OpenPgpOperation.CHANGE_ADMIN_PIN else OpenPgpOperation.CHANGE_USER_PIN,
+            logLabel = "Change $label PIN",
+            pins = listOf(currentPin, newPin),
+            completeStatus = PIN_CHANGE_COMPLETE_STATUS,
+            failureFallback = "Failed to change $label PIN",
+            wrongPinMessage = "$label PIN change failed",
+            onWrongPin = { attemptsRemaining ->
+                if (isAdmin) updatePinRetries(admin = attemptsRemaining)
+                else updatePinRetries(user = attemptsRemaining)
+            },
+        ) { session ->
+            if (isAdmin) {
+                OpenPgpWriterUtils.changeAdminPin(session, currentPin, newPin, TAG, status = this::postPinChangeStatus)
+            } else {
+                OpenPgpWriterUtils.changeUserPin(session, currentPin, newPin, TAG, status = this::postPinChangeStatus)
+            }
+        }
+    }
+
+    fun resetBlockedUserPin(adminPin: CharArray, newUserPin: CharArray) {
+        queuePinOperation(
+            operation = OpenPgpOperation.RESET_USER_PIN,
+            logLabel = "Reset User PIN",
+            pins = listOf(adminPin, newUserPin),
+            completeStatus = PIN_RESET_COMPLETE_STATUS,
+            failureFallback = "Failed to reset User PIN",
+            wrongPinMessage = "Reset User PIN failed: wrong Admin PIN",
+            onWrongPin = { attemptsRemaining -> updatePinRetries(admin = attemptsRemaining) },
+        ) { session ->
+            OpenPgpWriterUtils.resetBlockedUserPin(session, adminPin, newUserPin, TAG, status = this::postPinChangeStatus)
+        }
+    }
+
+    fun resetOpenPgpApplet() {
+        setCurrentOperation(OpenPgpOperation.RESET_ADMIN_PIN)
+        pendingAction.value = {
+            try {
+                val writer = currentState.connectedDevice.type.writer()
+                logger.info("pendingAction — resetting OpenPGP applet, writer=${writer::class.simpleName}")
+                writer.wipe(this, status = this@OpenPgpViewModel::postPinChangeStatus)
+                updatePinRetries(user = 3, admin = 3)
+                null
+            } catch (e: Exception) {
+                logger.warn("Reset OpenPGP applet failed: ${e.message}")
+                postPinChangeStatus(e.message ?: "Failed to reset OpenPGP applet")
+                null
+            } finally {
+                setCurrentOperation(OpenPgpOperation.NONE)
+            }
+        }
+    }
+
+    fun refreshPinCounters() {
+        if (pendingAction.value != null) return
+        pendingAction.value = {
+            refreshPinRetries(this)
+            null
+        }
+    }
+
+    private fun queuePinOperation(
+        operation: OpenPgpOperation,
+        logLabel: String,
+        pins: List<CharArray>,
+        completeStatus: String,
+        failureFallback: String,
+        wrongPinMessage: String,
+        onWrongPin: (attemptsRemaining: Int) -> Unit,
+        execute: (OpenPgpSession) -> Unit,
+    ) {
+        queueWithPins(operation, pins) {
+            try {
+                logger.info("pendingAction — $logLabel")
+                execute(this)
+                postPinChangeStatus(completeStatus)
+                refreshPinRetries(this)
+                null
+            } catch (e: Exception) {
+                logger.warn("$logLabel failed: ${e.message}")
+                if (e is InvalidPinException) {
+                    onWrongPin(e.attemptsRemaining)
+                }
+                postPinChangeStatus("")
+                // Reported through result: the screen's own observer shows the toast and vibrates.
+                throw IOException(if (e is InvalidPinException) wrongPinMessage else (e.message ?: failureFallback), e)
+            } finally {
+                setCurrentOperation(OpenPgpOperation.NONE)
+            }
+        }
+    }
+
+    override fun onPendingActionDropped() {
+        queuedPins.get()?.cancel()
+    }
+
+    override fun onDeviceDisconnected() {
+        updateUi { it.copy(pinRetries = null) }
     }
 
     private val writeStatusChannel = StatusChannel()
@@ -144,6 +311,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         else
             version.toString()
         updateUi { it.copy(status = "OpenPGP version: $versionLabel") }
+        refreshPinRetries(this)
     }
 
     private fun reportPreliminaryUsbType(device: YubiKeyDevice) {

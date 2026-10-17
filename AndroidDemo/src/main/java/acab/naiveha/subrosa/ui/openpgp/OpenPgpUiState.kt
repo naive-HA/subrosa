@@ -28,10 +28,13 @@ data class ConnectedPgpDevice(
     }
 }
 
+data class PinRetries(val user: Int, val admin: Int)
+
 data class OpenPgpUiState(
     val status: String? = null,
     val connectedDevice: ConnectedPgpDevice = ConnectedPgpDevice.NONE,
     val cardInfo: OpenPgpCardInfo? = null,
+    val pinRetries: PinRetries? = null,
     val currentOperation: OpenPgpOperation = OpenPgpOperation.NONE,
     val importedKeyInfo: OpenPgpKeyInfo? = null,
     val pendingImportUri: Uri? = null,
