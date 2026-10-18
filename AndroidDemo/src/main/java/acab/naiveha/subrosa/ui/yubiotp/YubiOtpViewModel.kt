@@ -34,7 +34,7 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     private val logger = LoggerFactory.getLogger(YubiOtpViewModel::class.java)
 
     @Volatile
-    private var state = YubiOtpUiState(false, false)
+    private var state = YubiOtpUiState()
 
     private val _uiState = MutableLiveData<YubiOtpUiState?>(state)
     val uiState: LiveData<YubiOtpUiState?> = _uiState
@@ -70,7 +70,7 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     fun requestClearUi() {
         _clearUiTrigger.postValue(true)
         _clearUiTrigger.postValue(false)
-        updateUi { YubiOtpUiState(false, false) }
+        updateUi { YubiOtpUiState() }
         postWriteStatus("")
         postReadStatus("")
         postResetStatus("")
@@ -81,8 +81,8 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     }
 
     override fun onDeviceDisconnected() {
-        logger.debug("onDeviceDisconnected — clearing slot status")
-        updateUi { YubiOtpUiState(false, false) }
+        logger.debug("onDeviceDisconnected — clearing slot status to UNKNOWN")
+        updateUi { YubiOtpUiState() }
     }
 
     override fun getSession(
@@ -119,18 +119,18 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     }
 
     override fun YubiOtpSession.updateState() {
-        val previousSlotOne = state.slotOneProgrammed
-        val previousSlotTwo = state.slotTwoProgrammed
-        val slotOne = configurationState.isConfigured(Slot.ONE)
-        val slotTwo = configurationState.isConfigured(Slot.TWO)
+        val previousSlotOne = state.slotOne
+        val previousSlotTwo = state.slotTwo
+        val slotOne = if (configurationState.isConfigured(Slot.ONE)) SlotState.PROGRAMMED else SlotState.EMPTY
+        val slotTwo = if (configurationState.isConfigured(Slot.TWO)) SlotState.PROGRAMMED else SlotState.EMPTY
         logger.debug(
             "updateState — device reports slotOne=$slotOne slotTwo=$slotTwo " +
                 "(cached UI state before this read was slotOne=$previousSlotOne slotTwo=$previousSlotTwo)"
         )
         updateUi {
             it.copy(
-                slotOneProgrammed = slotOne,
-                slotTwoProgrammed = slotTwo,
+                slotOne = slotOne,
+                slotTwo = slotTwo,
             )
         }
     }

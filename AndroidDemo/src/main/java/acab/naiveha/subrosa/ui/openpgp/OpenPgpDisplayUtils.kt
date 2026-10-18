@@ -1,6 +1,8 @@
 package acab.naiveha.subrosa.ui.openpgp
 
+import com.yubico.yubikit.core.keys.PrivateKeyValues
 import com.yubico.yubikit.openpgp.AlgorithmAttributes
+import com.yubico.yubikit.openpgp.OpenPgpCurve
 import com.yubico.yubikit.openpgp.OpenPgpSession
 import org.bouncycastle.openpgp.PGPPublicKey
 import org.bouncycastle.openpgp.PGPSignature
@@ -28,6 +30,18 @@ internal fun AlgorithmAttributes.toDisplayString(): String = try {
         else  -> javaClass.simpleName ?: "Unknown"
     }
 } catch (_: Exception) { javaClass.simpleName ?: "Unknown" }
+
+internal fun AlgorithmAttributes.matches(values: PrivateKeyValues): Boolean = try {
+    when (javaClass.simpleName) {
+        "Rsa" -> values is PrivateKeyValues.Rsa &&
+            javaClass.getDeclaredField("nLen").also { it.isAccessible = true }.getInt(this) == values.bitLength
+        "Ec" -> {
+            val curve = javaClass.getDeclaredField("curve").also { it.isAccessible = true }.get(this) as? OpenPgpCurve
+            values is PrivateKeyValues.Ec && curve == runCatching { OpenPgpCurve.valueOf(values.curveParams.name) }.getOrNull()
+        }
+        else -> false
+    }
+} catch (_: Exception) { false }
 
 internal fun ByteArray.toFingerprintDisplay(): String =
     joinToString("") { "%02X".format(it) }.chunked(4).joinToString(" ")

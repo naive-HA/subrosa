@@ -76,7 +76,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <ScrollView
+    <acab.naiveha.subrosa.ui.SwipeScrollView
         android:id="@+id/yubiotp_scroll_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -430,8 +430,22 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/activity_margin"
                         android:text="@string/otp_yubistatic_read_desc" />
+
+                    <TextView
+                        android:id="@+id/read_slot_one_state"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="?attr/textAppearanceCaption"
+                        tools:text="Slot 1: programmed" />
+
+                    <TextView
+                        android:id="@+id/read_slot_two_state"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/activity_margin"
+                        android:textAppearance="?attr/textAppearanceCaption"
+                        tools:text="Slot 2: empty" />
 
                     <TextView
                         android:id="@+id/read_keyboard_id"
@@ -561,5 +575,5 @@
             </FrameLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
-    </ScrollView>
+    </acab.naiveha.subrosa.ui.SwipeScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>

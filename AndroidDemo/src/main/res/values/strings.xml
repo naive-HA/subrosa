@@ -67,6 +67,9 @@
     <string name="otp_yubistatic_slot_desc">Slot selection</string>
     <string name="otp_yubistatic_read">Read static password</string>
     <string name="otp_yubistatic_read_desc">Test the static password</string>
+    <string name="otp_slot_one_state">Slot 1: %1$s</string>
+    <string name="otp_slot_two_state">Slot 2: %1$s</string>
+    <string name="otp_slot_state_unknown">unknown — tap Read to check</string>
     <string name="otp_yubistatic_show_pwd_desc">Show password</string>
     <string name="otp_btn_write_static">WRITE STATIC PASSWORD</string>
 
@@ -119,6 +122,10 @@ importing OpenPGP keys in sub rosa is a breeze.\n\nThe source code is available 
     <string name="openpgp_reset_message">This will permanently delete all keys, certificates, and data stored in the OpenPGP application.\n\nThis cannot be undone.</string>
     <string name="openpgp_reset_confirm">Reset</string>
     <string name="openpgp_reset_success">OpenPGP application reset successfully</string>
+
+    <string name="openpgp_write_confirm_title">Erase and Write Key</string>
+    <string name="openpgp_write_confirm_message">This will permanently erase all keys, certificates, and PINs currently on the device. It will then be set up with the key below, and the PINs you enter next.</string>
+    <string name="openpgp_write_confirm_action">Erase and write</string>
 
     <string name="openpgp_file_wrong_passphrase">Wrong file passphrase — please try again</string>
     <string name="openpgp_file_read_error">Could not read the file</string>
@@ -174,6 +181,10 @@ importing OpenPGP keys in sub rosa is a breeze.\n\nThe source code is available 
     <string name="staticpwd_reset_confirm">Reset</string>
     <string name="staticpwd_slot_1">Slot 1</string>
     <string name="staticpwd_slot_2">Slot 2</string>
+
+    <string name="staticpwd_overwrite_title">Overwrite Slot</string>
+    <string name="staticpwd_overwrite_message">Slot %1$s already contains a configuration. Writing will permanently replace it.</string>
+    <string name="staticpwd_overwrite_confirm">Overwrite</string>
 
     <string name="usage">Usage</string>
     <string name="dash">—</string>

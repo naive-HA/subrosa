@@ -14,6 +14,24 @@ internal object OpenPgpWriterUtils {
 
     val DEFAULT_USER_PIN: CharArray get() = "123456".toCharArray()
 
+    private const val NAME_MAX_BYTES = 39
+    private const val LOGIN_DATA_MAX_BYTES_DEFAULT = 254
+
+    fun validateCommon(bundle: ImportBundle): List<String> {
+        val problems = mutableListOf<String>()
+        if (bundle.slots.isEmpty()) {
+            problems += "No usable key slots to write."
+        }
+        if (bundle.nameBytes.size > NAME_MAX_BYTES) {
+            problems += "Name is ${bundle.nameBytes.size} bytes; the OpenPGP card NAME field allows at most $NAME_MAX_BYTES."
+        }
+        if (bundle.loginBytes.size > LOGIN_DATA_MAX_BYTES_DEFAULT) {
+            problems += "Login/URL is ${bundle.loginBytes.size} bytes; this exceeds the common " +
+                "$LOGIN_DATA_MAX_BYTES_DEFAULT-byte LOGIN_DATA limit."
+        }
+        return problems
+    }
+
     fun factoryResetAndRestorePin(
         session: OpenPgpSession,
         adminPin: CharArray,
@@ -214,9 +232,13 @@ internal object OpenPgpWriterUtils {
         } finally {
             adminPin.fill('\u0000')
             userPin.fill('\u0000')
-            bundle.destroy()
-            Log.d(tag, "adminPin and userPin zeroed and bundle destroyed")
-            if (!succeeded) status("")
+            if (succeeded) {
+                bundle.destroy()
+                Log.d(tag, "adminPin and userPin zeroed and bundle destroyed")
+            } else {
+                Log.d(tag, "adminPin and userPin zeroed; bundle kept (program() did not succeed)")
+                status("")
+            }
         }
     }
 

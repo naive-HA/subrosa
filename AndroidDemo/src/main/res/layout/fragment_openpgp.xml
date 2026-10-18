@@ -93,7 +93,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <ScrollView
+    <acab.naiveha.subrosa.ui.SwipeScrollView
         android:id="@+id/openpgp_scroll_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -884,5 +884,5 @@
         </FrameLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
-    </ScrollView>
+    </acab.naiveha.subrosa.ui.SwipeScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>

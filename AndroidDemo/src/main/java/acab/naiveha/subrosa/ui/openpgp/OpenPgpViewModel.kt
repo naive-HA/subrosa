@@ -127,6 +127,10 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
 
     private val queuedPins = AtomicReference<QueuedPins?>()
 
+    @Volatile
+    var lastQueuedActionSucceeded: Boolean? = null
+        private set
+
     fun queueWithPins(
         operation: OpenPgpOperation,
         pins: List<CharArray>,
@@ -135,11 +139,15 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         val queued = QueuedPins(pins)
         queuedPins.getAndSet(queued)?.cancel()
         setCurrentOperation(operation)
+        lastQueuedActionSucceeded = null
 
         val task: OpenPgpSession.() -> String? = task@{
             if (!queued.start()) return@task null
             try {
-                action()
+                action().also { lastQueuedActionSucceeded = true }
+            } catch (e: Throwable) {
+                lastQueuedActionSucceeded = false
+                throw e
             } finally {
                 queued.wipe()
                 queuedPins.compareAndSet(queued, null)

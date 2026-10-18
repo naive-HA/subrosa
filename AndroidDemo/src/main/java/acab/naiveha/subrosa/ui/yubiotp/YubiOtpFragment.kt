@@ -133,8 +133,19 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             Log.d(TAG, "isAnySlotProgrammed — no cached uiState yet, assuming programmed")
             return true
         }
-        Log.d(TAG, "isAnySlotProgrammed — slotOne=${state.slotOneProgrammed} slotTwo=${state.slotTwoProgrammed}")
-        return state.slotOneProgrammed || state.slotTwoProgrammed
+        Log.d(TAG, "isAnySlotProgrammed — slotOne=${state.slotOne} slotTwo=${state.slotTwo}")
+        return !(state.slotOne == SlotState.EMPTY && state.slotTwo == SlotState.EMPTY)
+    }
+
+    private fun renderSlotStates(state: YubiOtpUiState) {
+        binding.readSlotOneState.text = getString(R.string.otp_slot_one_state, state.slotOne.toDisplayLabel())
+        binding.readSlotTwoState.text = getString(R.string.otp_slot_two_state, state.slotTwo.toDisplayLabel())
+    }
+
+    private fun SlotState.toDisplayLabel(): String = when (this) {
+        SlotState.PROGRAMMED -> getString(R.string.otp_slot_state_programmed)
+        SlotState.EMPTY -> getString(R.string.otp_slot_state_empty)
+        SlotState.UNKNOWN -> getString(R.string.otp_slot_state_unknown)
     }
 
     private fun dispatchRead(device: YubiKeyDevice) {
@@ -268,6 +279,23 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             val activeDot = effectiveIndex.roundToInt().coerceIn(0, 2)
             updateDots(activeDot)
 
+            val activeSection = sections[activeDot]
+            activeSection.post {
+                if (isAdded) {
+                    activeSection.measure(
+                        View.MeasureSpec.makeMeasureSpec(binding.tabContentContainer.width, View.MeasureSpec.AT_MOST),
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                    )
+                    val targetHeight = activeSection.measuredHeight
+                    binding.yubiotpScrollView.activeTabHeight = targetHeight
+                    val lp = binding.tabContentContainer.layoutParams
+                    if (lp.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
+                        lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                        binding.tabContentContainer.layoutParams = lp
+                    }
+                }
+            }
+
             sections.forEachIndexed { i, view ->
                 val lp = view.layoutParams
                 if (lp != null && lp.width != sectionWidthPx) {
@@ -373,116 +401,27 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
 
         applySectionLayout(1.0f, isAnimating = false)
 
-        val gestureDetector = GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
-            private val swipeThreshold = 80
-            private val swipeVelocityThreshold = 100
-
-            override fun onFling(
-                e1: MotionEvent?,
-                e2: MotionEvent,
-                velocityX: Float,
-                velocityY: Float
-            ): Boolean {
-                if (e1 == null) return false
-                val diffX = e2.x - e1.x
-                val diffY = e2.y - e1.y
-                if (abs(diffX) > abs(diffY)) {
-                    if ((abs(diffX) > swipeThreshold) && (abs(velocityX) > swipeVelocityThreshold)) {
-                        if (diffX < 0) {
-                            if (currentTabIndex < 2) {
-                                navigateToTab(currentTabIndex + 1)
-                                return true
-                            }
-                        } else {
-                            if (currentTabIndex > 0) {
-                                navigateToTab(currentTabIndex - 1)
-                                return true
-                            }
-                        }
-                    }
-                } else {
-                    val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-                    if (!isLandscape && (diffY > swipeThreshold) && (velocityY > swipeVelocityThreshold)) {
-                        if (currentTabIndex == 2 && (binding.btnRequestStaticpwd.isEnabled)) {
-                            binding.btnRequestStaticpwd.performClick()
-                            return true
-                        }
-                    }
-                }
-                return false
-            }
-        })
-
-        @SuppressLint("ClickableViewAccessibility")
-        val attachSwipeListener = object : View.OnTouchListener {
-            private var startX = 0f
-            private var startY = 0f
-            private var currentX = 0f
-            private var currentY = 0f
-            private var isHorizontalSwipe = false
-
-            override fun onTouch(v: View, event: MotionEvent): Boolean {
-                gestureDetector.onTouchEvent(event)
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        startX = event.rawX
-                        startY = event.rawY
-                        currentX = startX
-                        currentY = startY
-                        isHorizontalSwipe = false
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        currentX = event.rawX
-                        currentY = event.rawY
-                        val dx = currentX - startX
-                        val dy = currentY - startY
-
-                        if (!isHorizontalSwipe && abs(dx) > 30f && abs(dx) > abs(dy) * 0.7f) {
-                            isHorizontalSwipe = true
-                            v.parent?.requestDisallowInterceptTouchEvent(true)
-                        }
-                    }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        val dx = currentX - startX
-                        val dy = currentY - startY
-
-                        if (isHorizontalSwipe && abs(dx) > 80f && abs(dx) > abs(dy) * 0.7f) {
-                            if (dx < 0) {
-                                if (currentTabIndex < sections.size - 1) {
-                                    navigateToTab(currentTabIndex + 1)
-                                }
-                            } else {
-                                if (currentTabIndex > 0) {
-                                    navigateToTab(currentTabIndex - 1)
-                                }
-                            }
-                            v.parent?.requestDisallowInterceptTouchEvent(false)
-                            return true
-                        }
-
-                        v.parent?.requestDisallowInterceptTouchEvent(false)
-                    }
-                }
-                return false
+        binding.yubiotpScrollView.onSwipeLeft = {
+            if (currentTabIndex < sections.size - 1) {
+                navigateToTab(currentTabIndex + 1)
             }
         }
-
-        val viewsToAttachSwipe = listOf(
-            binding.root,
-            binding.yubiotpScrollView,
-            binding.tabContentContainer,
-            binding.sectionErase,
-            binding.sectionWrite,
-            binding.sectionRead
-        )
-        viewsToAttachSwipe.forEach { v ->
-            v.setOnTouchListener(attachSwipeListener)
+        binding.yubiotpScrollView.onSwipeRight = {
+            if (currentTabIndex > 0) {
+                navigateToTab(currentTabIndex - 1)
+            }
+        }
+        binding.yubiotpScrollView.onPullDown = {
+            if (currentTabIndex == 2 && binding.btnRequestStaticpwd.isEnabled) {
+                binding.btnRequestStaticpwd.performClick()
+            }
         }
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             if (state == null) return@observe
             updateButtonStates()
             updateProgressVisibility(state)
+            renderSlotStates(state)
         }
 
         viewModel.pendingAction.observe(viewLifecycleOwner) { action ->
@@ -633,14 +572,38 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                     val configuration = StaticPasswordSlotConfiguration(scancodes)
                     configuration.appendCr(binding.extrasCr.isChecked)
                     val slot = resolveSlot(binding.slotRadio.checkedChipId, R.id.radio_slot_1, R.id.radio_slot_2)
-                    Log.d(TAG, "btnSaveStaticpwd — queuing program of slot $slot (${staticpwd.size} chars, keyboard=$keyboard)")
-                    viewModel.setCurrentOperation(OtpOperation.SAVE)
-                    viewModel.pendingAction.value = {
-                        Log.i(TAG, "pendingAction — programming slot $slot")
-                        putConfiguration(slot, configuration, null, null)
-                        Log.i(TAG, "pendingAction — slot $slot programmed")
-                        viewModel.postWriteStatus(YubiOtpViewModel.slotProgrammedStatus(slot))
-                        null
+
+                    fun queueSave(overwriteConfirmed: Boolean) {
+                        Log.d(TAG, "btnSaveStaticpwd — queuing program of slot $slot (${staticpwd.size} chars, " +
+                            "keyboard=$keyboard, overwriteConfirmed=$overwriteConfirmed)")
+                        viewModel.setCurrentOperation(OtpOperation.SAVE)
+                        viewModel.pendingAction.value = {
+                            if (!overwriteConfirmed && configurationState.isConfigured(slot)) {
+                                throw IllegalStateException(
+                                    "Slot ${if (slot == Slot.ONE) 1 else 2} is not empty. Confirm the overwrite and tap again."
+                                )
+                            }
+                            Log.i(TAG, "pendingAction — programming slot $slot")
+                            putConfiguration(slot, configuration, null, null)
+                            Log.i(TAG, "pendingAction — slot $slot programmed")
+                            viewModel.postWriteStatus(YubiOtpViewModel.slotProgrammedStatus(slot))
+                            null
+                        }
+                    }
+
+                    val cachedState = if (slot == Slot.ONE) viewModel.uiState.value?.slotOne else viewModel.uiState.value?.slotTwo
+                    if (cachedState != SlotState.EMPTY) {
+                        val slotLabel = getString(if (slot == Slot.ONE) R.string.staticpwd_slot_1 else R.string.staticpwd_slot_2)
+                        showConfirmationDialog(
+                            tag = TAG,
+                            logLabel = "Static password slot overwrite",
+                            title = R.string.staticpwd_overwrite_title,
+                            message = getString(R.string.staticpwd_overwrite_message, slotLabel),
+                            confirmText = R.string.staticpwd_overwrite_confirm,
+                            onConfirmed = { queueSave(overwriteConfirmed = true) },
+                        )
+                    } else {
+                        queueSave(overwriteConfirmed = false)
                     }
                 } finally {
                     staticpwd.fill('\u0000')

@@ -20,6 +20,8 @@ interface OpenPgpWriter {
     ): String?
 
     fun wipe(session: OpenPgpSession, status: (String) -> Unit = {}): String?
+
+    fun validate(session: OpenPgpSession, bundle: ImportBundle): List<String>
 }
 
 fun PgpDeviceType?.writer(): OpenPgpWriter = when (this) {
