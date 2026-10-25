@@ -6,23 +6,53 @@
     android:padding="@dimen/activity_margin"
     android:orientation="vertical">
 
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/dialog_pin_textinputlayout"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/pin"
-        android:textColorHint="@color/pin_input_text_color"
-        app:hintTextColor="@color/pin_input_text_color"
-        app:passwordToggleEnabled="true"
-        app:startIconDrawable="@drawable/ic_content_paste_24dp"
-        app:startIconContentDescription="@string/otp_clipboard_paste">
+        android:layout_height="wrap_content">
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/dialog_pin_edittext"
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/dialog_pin_textinputlayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="textPassword"
-            android:importantForAutofill="no"
-            android:textColor="@color/pin_input_text_color" />
-    </com.google.android.material.textfield.TextInputLayout>
+            android:hint="@string/pin"
+            android:textColorHint="@color/pin_input_text_color"
+            app:hintTextColor="@color/pin_input_text_color">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/dialog_pin_edittext"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPassword"
+                android:importantForAutofill="no"
+                android:paddingEnd="48dp"
+                android:textColor="@color/pin_input_text_color" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/dialog_pin_visibility_toggle"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/otp_yubistatic_show_pwd_desc"
+                android:scaleType="center"
+                android:src="@drawable/visibility_off" />
+
+            <ImageButton
+                android:id="@+id/dialog_pin_paste"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/otp_clipboard_paste"
+                android:scaleType="center"
+                android:src="@drawable/ic_content_paste_24dp" />
+        </LinearLayout>
+    </FrameLayout>
 </LinearLayout>

@@ -55,7 +55,7 @@ fun <S : Closeable> Fragment.bindDeviceActions(
                 dispatch(device)
             }
         } else {
-            if (alwaysReadOnConnect && lastDevice != null && lastDevice !is NfcYubiKeyDevice) {
+            if (shouldClearOnDisconnect() && lastDevice !is NfcYubiKeyDevice) {
                 onDisconnected()
             }
             lastDevice = null

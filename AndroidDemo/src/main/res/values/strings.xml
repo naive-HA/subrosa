@@ -1,8 +1,7 @@
 <resources>
 
     <string name="app_name">sub rosa</string>
-    <string name="nav_header_title">sub rosa by naiveHA</string>
-    <string name="nav_header_subtitle">Convey passwords</string>
+    <string name="nav_header_title">sub rosa</string>
     <string name="nav_header_desc">Navigation header</string>
 
     <string name="menu_mgmt">Device Information</string>
@@ -40,7 +39,7 @@
     <string name="mgmt_subtitle"> </string>
 
     <string name="otp_yubistatic">Static Password</string>
-    <string name="otp_yubistatic_desc">Program a static password.\nWARNING: Operation can NOT be undone!</string>
+    <string name="otp_yubistatic_desc">Program a static password.\nWARNING: Operation CANNOT be undone!</string>
     <string name="otp_clipboard_paste">Paste from clipboard</string>
     <string name="otp_yubistatic_id">Type or paste from clipboard</string>
     <string name="otp_yubistatic_hint">Static password</string>
@@ -95,7 +94,7 @@ importing OpenPGP keys in sub rosa is a breeze.\n\nThe source code is available 
     <string name="coffee_tips">Coffee tips go to:</string>
     <string name="btc_address">1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh</string>
     <string name="copied_to_clipboard_msg">Copied to clipboard: %s</string>
-    <string name="openpgp_desc">Program an OpenPGP private key.\nWARNING: Operation can NOT be undone!</string>
+    <string name="openpgp_desc">Program an OpenPGP private key.\nWARNING: Operation CANNOT be undone!</string>
 
     <string name="openpgp_tap_to_paste">Import from OpenKeychain via \"Share backup\" or PGPony via \"Export Private Key \" and then \"Share\", or tap to import from file</string>
 
@@ -172,9 +171,9 @@ importing OpenPGP keys in sub rosa is a breeze.\n\nThe source code is available 
         This software project is using tessdata from tesseract-ocr project for optical character recognition. tesseract-ocr/tessdata is licensed under the Apache License 2.0.
         The data can be found at: https://github.com/tesseract-ocr/tessdata.
         No copyright or trademark claims are made to tesseract-ocr or any related tesseract-ocr intellectual property.</string>
-    <string name="wipe_the_openpgp_key">Wipe the OpenPGP key\nWARNING: Operation can NOT be undone!</string>
+    <string name="wipe_the_openpgp_key">Wipe the OpenPGP key\nWARNING: Operation CANNOT be undone!</string>
     <string name="test_the_openpgp_card">Test the OpenPGP card</string>
-    <string name="reset_yubikey_static_password">Reset the static password\nWARNING: Operation can NOT be undone!</string>
+    <string name="reset_yubikey_static_password">Reset the static password\nWARNING: Operation CANNOT be undone!</string>
     <string name="reset_static_password">Reset Static Password</string>
     <string name="staticpwd_reset_title">Reset Static Password</string>
     <string name="staticpwd_reset_message">This will overwrite %1$s, erasing the currently programmed static password.\n\nThis cannot be undone.</string>
@@ -200,8 +199,24 @@ importing OpenPGP keys in sub rosa is a breeze.\n\nThe source code is available 
     <string name="openpgp_not_supported_nfc">OpenPGP: not supported over NFC</string>
     <string name="openpgp_tap_again">OpenPGP: tap again to read key info</string>
 
+    <string name="supported_algorithms">Supported algorithms</string>
+    <string name="supported_algorithms_not_reported">Not reported by this card</string>
+    <string name="algorithms_slot_sig" translatable="false">SIG</string>
+    <string name="algorithms_slot_dec" translatable="false">DEC</string>
+    <string name="algorithms_slot_aut" translatable="false">AUT</string>
+    <string name="algorithms_slot_att" translatable="false">ATT</string>
+
     <string name="tab_write">Write</string>
     <string name="tab_read">Read</string>
     <string name="tab_erase">Erase</string>
+    <string name="tab_mgmt">Management</string>
+    <string name="nfc_static_password_desc">By default, a YubiKey programmed with a static password will return the static password over NFC,
+        without any guard, like a touch guards when connected over USB.\n
+Any generic phone app, not just sub rosa, with no touch, can read the static password over NFC.\n
+Ideally, you would live by the sub rosa philosophy and program the static password, use it and then wipe it.
+This way, an attacker cannot get your secrete password when losing the device or read it over NFC when the device is in your pocket.\n
+But if you do not, then disabling the static password over NFC is your best alternative. \n
+Disabling the static password over NFC does not disable OpenPGP over NFC. Also, the static password over NFC can be re-enabled later on
+so that you can program the static password over NFC, not just over USB.</string>
 
 </resources>

@@ -28,6 +28,7 @@ import com.yubico.yubikit.core.application.ApplicationNotAvailableException
 import com.yubico.yubikit.yubiotp.Slot
 import com.yubico.yubikit.yubiotp.YubiOtpSession
 import org.slf4j.LoggerFactory
+import java.io.IOException
 
 
 class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
@@ -52,8 +53,8 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         }
     }
 
-    private val _clearUiTrigger = MutableLiveData<Boolean>(false)
-    val clearUiTrigger: LiveData<Boolean> = _clearUiTrigger
+    private val _clearUiTrigger = MutableLiveData<Unit>()
+    val clearUiTrigger: LiveData<Unit> = _clearUiTrigger
 
     private val writeStatusChannel = StatusChannel()
     val writeStatus: LiveData<String> = writeStatusChannel.value
@@ -68,8 +69,13 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     fun postResetStatus(message: String) = resetStatusChannel.post(message)
 
     fun requestClearUi() {
-        _clearUiTrigger.postValue(true)
-        _clearUiTrigger.postValue(false)
+        if (Looper.getMainLooper().thread == Thread.currentThread()) {
+            _clearUiTrigger.value = Unit
+        } else {
+            mainHandler.post {
+                _clearUiTrigger.value = Unit
+            }
+        }
         updateUi { YubiOtpUiState() }
         postWriteStatus("")
         postReadStatus("")
@@ -90,8 +96,8 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         onError: (Throwable) -> Unit,
         callback: (YubiOtpSession) -> Unit
     ) {
-        if (PgpDeviceType.isUsbNitrokey(device)) {
-            logger.info("USB Nitrokey detected — YubiOTP is not supported on this device")
+        if (PgpDeviceType.isUsbNitrokey3(device) || PgpDeviceType.isUsbNitrokey2(device)) {
+            logger.info("USB Nitrokey device detected — YubiOTP is not supported on this device")
             onError(ApplicationNotAvailableException(STATIC_PASSWORDS_NOT_SUPPORTED))
             return
         }
@@ -105,11 +111,14 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         logger.debug("Opening YubiOtpSession over ${transportLabel(device)}")
         YubiOtpSession.create(device) { result ->
             try {
-                val session = result.value
+                val session = result.getValue()
                 logger.debug("YubiOtpSession opened over ${transportLabel(device)}")
                 callback(session)
             } catch (e: ApplicationNotAvailableException) {
                 logger.info("YubiOTP application not available over ${transportLabel(device)}: ${e.message}")
+                onError(ApplicationNotAvailableException(STATIC_PASSWORDS_NOT_SUPPORTED))
+            } catch (e: IOException) {
+                logger.info("Failed to open YubiOtpSession over ${transportLabel(device)}: ${e.message}")
                 onError(ApplicationNotAvailableException(STATIC_PASSWORDS_NOT_SUPPORTED))
             } catch (e: Throwable) {
                 logger.error("Failed to open YubiOtpSession over ${transportLabel(device)}: ${e.message}", e)

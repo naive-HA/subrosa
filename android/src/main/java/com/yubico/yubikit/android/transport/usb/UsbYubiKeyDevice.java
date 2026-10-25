@@ -110,7 +110,12 @@ public class UsbYubiKeyDevice implements YubiKeyDevice, Closeable {
   @Override
   public <T extends YubiKeyConnection> void requestConnection(
       Class<T> connectionType, Callback<Result<T, IOException>> callback) {
-    verifyAccess(connectionType);
+    try {
+      verifyAccess(connectionType);
+    } catch (Exception e) {
+      callback.invoke(Result.failure(new IOException(e.getMessage(), e)));
+      return;
+    }
 
     // Keep UsbOtpConnection open until another connection is needed, to prevent re-enumeration of
     // the USB device.

@@ -30,8 +30,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import acab.naiveha.subrosa.databinding.FragmentManagementBinding
 import acab.naiveha.subrosa.ui.YubiKeyFragment
+import acab.naiveha.subrosa.ui.openpgp.OpenPgpCardInfo
 import acab.naiveha.subrosa.ui.setupCoffeeTipsClipboard
 import com.yubico.yubikit.management.ManagementSession
+import com.yubico.yubikit.openpgp.KeyRef
 import kotlin.time.Duration.Companion.milliseconds
 
 class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewModel>() {
@@ -63,6 +65,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
                 binding.deviceFirmware.text = dash
                 binding.staticPasswordStatus.text = dash
                 binding.openpgpCardStatus.text = dash
+                renderSupportedAlgorithms(null)
                 return@observe
             }
 
@@ -74,6 +77,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             binding.deviceFirmware.text = infoLines.find { it.startsWith("Firmware:") }?.substringAfter("Firmware:")?.trim() ?: dash
 
             renderPgpStatus(state.pgpStatus)
+            renderSupportedAlgorithms(state.pgpCardInfo)
         }
 
         setupCoffeeTipsClipboard(binding.coffeeTipsContainer)
@@ -105,6 +109,25 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         }
         binding.staticPasswordStatus.text = staticText
         binding.openpgpCardStatus.text = pgpText
+    }
+
+    private fun renderSupportedAlgorithms(info: OpenPgpCardInfo?) {
+        if (info == null) {
+            binding.supportedAlgorithmsContainer.visibility = View.GONE
+            return
+        }
+        binding.supportedAlgorithmsContainer.visibility = View.VISIBLE
+
+        val algorithms = info.supportedAlgorithms
+        binding.algorithmsNotReported.visibility = if (algorithms == null) View.VISIBLE else View.GONE
+        binding.algorithmGroups.visibility = if (algorithms == null) View.GONE else View.VISIBLE
+        if (algorithms == null) return
+
+        val dash = getString(R.string.dash)
+        fun textFor(slot: KeyRef) = algorithms.linesFor(slot).joinToString("\n").ifEmpty { dash }
+        binding.algorithmsSig.text = textFor(KeyRef.SIG)
+        binding.algorithmsDec.text = textFor(KeyRef.DEC)
+        binding.algorithmsAut.text = textFor(KeyRef.AUT)
     }
 
     private var dotAnimationJob: Job? = null

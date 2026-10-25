@@ -10,6 +10,7 @@ data class OpenPgpCardInfo(
     val userPinRetries: Int,
     val resetRetries: Int,
     val adminPinRetries: Int,
+    val supportedAlgorithms: SupportedAlgorithms? = null,
 ) {
     data class SlotInfo(
         val ref: KeyRef,
@@ -18,4 +19,8 @@ data class OpenPgpCardInfo(
         val created: String,
         val hasKey: Boolean,
     )
+
+    data class SupportedAlgorithms(val bySlot: Map<KeyRef, List<String>>) {
+        fun linesFor(slot: KeyRef): List<String> = bySlot[slot].orEmpty()
+    }
 }

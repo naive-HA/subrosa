@@ -5,41 +5,43 @@ import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.core.Version
 import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyType
+import com.yubico.yubikit.core.UsbPid
 
 enum class PgpDeviceType {
     YUBIKEY,
-    NITROKEY,
-    GNUK,
+    NITROKEY3,
+    NITROKEY2,
     UNKNOWN;
 
     companion object {
         private const val MANUFACTURER_YUBICO: Short = 0x0006
-        private const val MANUFACTURER_NITROKEY: Short = 0x000F
-        private const val MANUFACTURER_GNUK: Short = 0x0005
+        private const val MANUFACTURER_NITROKEY3: Short = 0x000F
+        private const val MANUFACTURER_NITROKEY2: Short = 0x0005
 
         fun fromManufacturerId(id: Short): PgpDeviceType = when (id) {
-            MANUFACTURER_YUBICO   -> YUBIKEY
-            MANUFACTURER_NITROKEY -> NITROKEY
-            MANUFACTURER_GNUK     -> GNUK
-            else                  -> UNKNOWN
+            MANUFACTURER_YUBICO      -> YUBIKEY
+            MANUFACTURER_NITROKEY3   -> NITROKEY3
+            MANUFACTURER_NITROKEY2   -> NITROKEY2
+            else                     -> UNKNOWN
         }
 
         fun fromUsbDescriptor(device: UsbYubiKeyDevice): PgpDeviceType {
             val vendorId = device.usbDevice.vendorId
+            val pid: UsbPid? = device.pid
             return when {
-                device.pid?.type == YubiKeyType.NK3 ||
-                    vendorId == UsbDeviceManager.NITROKEY_VENDOR_ID -> NITROKEY
-                vendorId == UsbDeviceManager.PURISM_VENDOR_ID       -> GNUK
-                vendorId == UsbDeviceManager.YUBICO_VENDOR_ID       -> YUBIKEY
-                else                                                -> UNKNOWN
+                pid?.type == YubiKeyType.NK3 ||
+                    vendorId == UsbDeviceManager.NITROKEY3_VENDOR_ID -> NITROKEY3
+                vendorId == UsbDeviceManager.NITROKEY2_VENDOR_ID     -> NITROKEY2
+                vendorId == UsbDeviceManager.YUBICO_VENDOR_ID        -> YUBIKEY
+                else                                                 -> UNKNOWN
             }
         }
 
-        fun isUsbNitrokey(device: YubiKeyDevice?): Boolean =
-            device is UsbYubiKeyDevice && fromUsbDescriptor(device) == NITROKEY
+        fun isUsbNitrokey3(device: YubiKeyDevice?): Boolean =
+            device is UsbYubiKeyDevice && fromUsbDescriptor(device) == NITROKEY3
 
-        fun isUsbGnuk(device: YubiKeyDevice?): Boolean =
-            device is UsbYubiKeyDevice && fromUsbDescriptor(device) == GNUK
+        fun isUsbNitrokey2(device: YubiKeyDevice?): Boolean =
+            device is UsbYubiKeyDevice && fromUsbDescriptor(device) == NITROKEY2
 
         fun detect(device: YubiKeyDevice, manufacturerId: Short, version: Version): PgpDeviceType {
             val byManufacturer = fromManufacturerId(manufacturerId)
@@ -48,7 +50,7 @@ enum class PgpDeviceType {
             return if (device is UsbYubiKeyDevice) {
                 fromUsbDescriptor(device)
             } else {
-                if (!version.isAtLeast(1, 0, 0)) NITROKEY else YUBIKEY
+                if (!version.isAtLeast(1, 0, 0)) NITROKEY3 else YUBIKEY
             }
         }
     }

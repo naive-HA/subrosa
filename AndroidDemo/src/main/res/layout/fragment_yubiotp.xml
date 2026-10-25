@@ -74,6 +74,23 @@
                 android:contentDescription="@string/tab_read"
                 android:src="@drawable/ic_tab_dot_outline" />
         </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/tab_mgmt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:padding="8dp">
+
+            <ImageView
+                android:id="@+id/tab_mgmt_icon"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:contentDescription="@string/tab_mgmt"
+                android:src="@drawable/ic_tab_dot_outline" />
+        </LinearLayout>
     </LinearLayout>
 
     <acab.naiveha.subrosa.ui.SwipeScrollView
@@ -163,6 +180,8 @@
                             android:id="@+id/btn_delete_staticpwd"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:gravity="center"
                             android:backgroundTint="#B71C1C"
                             android:text="@string/reset_static_password" />
 
@@ -223,6 +242,7 @@
                                 android:imeActionId="6"
                                 android:inputType="textPassword"
                                 android:maxLength="38"
+                                android:saveEnabled="false"
                                 android:paddingStart="16dp"
                                 android:paddingEnd="88dp"
                                 tools:text="Type or paste from clipboard" />
@@ -394,6 +414,8 @@
                             android:id="@+id/btn_save_staticpwd"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:gravity="center"
                             android:text="@string/otp_btn_write_static" />
 
                         <ProgressBar
@@ -430,22 +452,11 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/otp_yubistatic_read_desc" />
-
-                    <TextView
-                        android:id="@+id/read_slot_one_state"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="?attr/textAppearanceCaption"
-                        tools:text="Slot 1: programmed" />
-
-                    <TextView
-                        android:id="@+id/read_slot_two_state"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
                         android:layout_marginBottom="@dimen/activity_margin"
-                        android:textAppearance="?attr/textAppearanceCaption"
-                        tools:text="Slot 2: empty" />
+                        android:minLines="2"
+                        android:maxLines="2"
+                        android:ellipsize="end"
+                        android:text="@string/otp_yubistatic_read_desc" />
 
                     <TextView
                         android:id="@+id/read_keyboard_id"
@@ -548,6 +559,8 @@
                             android:id="@+id/btn_request_staticpwd"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:gravity="center"
                             android:text="@string/otp_yubistatic_read" />
 
                         <ProgressBar
@@ -571,6 +584,71 @@
                         android:textColor="@color/binary_background"
                         tools:text="Read complete" />
                 </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/section_mgmt"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:maxWidth="448dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/mgmt_desc"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/activity_margin"
+                    android:minLines="2"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:text="Static password NFC management" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/mgmt_nfc_state_id"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="0.35"
+                        android:text="Current state"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/mgmt_nfc_switch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:checked="true"
+                        android:text="" />
+
+                    <TextView
+                        android:id="@+id/mgmt_status"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="0.65"
+                        android:layout_marginStart="16dp"
+                        android:gravity="start"
+                        android:textAppearance="?attr/textAppearanceCaption"
+                        android:textColor="@color/binary_background"
+                        android:textSize="14sp"
+                        tools:text="ON" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="@dimen/activity_margin"
+                    android:ellipsize="end"
+                    android:text="@string/nfc_static_password_desc" />
+            </LinearLayout>
 
             </FrameLayout>
 

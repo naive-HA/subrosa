@@ -16,9 +16,7 @@ import android.text.TextPaint
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.util.Log
-import android.view.GestureDetector
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
@@ -32,6 +30,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.databinding.FragmentOpenpgpBinding
+import acab.naiveha.subrosa.databinding.ItemOpenpgpSubkeyBinding
 import acab.naiveha.subrosa.ui.YubiKeyFragment
 import acab.naiveha.subrosa.ui.bindAutoClearStatus
 import acab.naiveha.subrosa.ui.collectAdminPin
@@ -95,7 +94,8 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
 
             if (state.cardInfo != null) {
                 showCardInfo(state.cardInfo)
-                viewModel.clearCardInfo()
+            } else {
+                clearCardInfoDisplay()
             }
 
             updateButtonStates(state)
@@ -181,27 +181,19 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             updateDots(activeDot)
 
             val activeSection = sections[activeDot]
-            activeSection.post {
-                if (isAdded) {
-                    activeSection.measure(
-                        View.MeasureSpec.makeMeasureSpec(binding.tabContentContainer.width, View.MeasureSpec.AT_MOST),
-                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-                    )
-                    val targetHeight = activeSection.measuredHeight
-                    binding.openpgpScrollView.activeTabHeight = targetHeight
-                    val lp = binding.tabContentContainer.layoutParams
-                    if (lp.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
-                        lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
-                        binding.tabContentContainer.layoutParams = lp
-                    }
-                }
-            }
+            activeSection.measure(
+                View.MeasureSpec.makeMeasureSpec(binding.tabContentContainer.width, View.MeasureSpec.AT_MOST),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            )
+            binding.openpgpScrollView.activeTabHeight = activeSection.measuredHeight
+            activeSection.requestLayout()
 
             sections.forEachIndexed { i, view ->
                 val lp = view.layoutParams
                 if (lp != null && lp.width != sectionWidthPx) {
                     lp.width = sectionWidthPx
                     view.layoutParams = lp
+                    view.requestLayout()
                 }
 
                 val dist = i - effectiveIndex
@@ -261,10 +253,6 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         fun navigateToTab(targetIndex: Int) {
             if (targetIndex == currentTabIndex) return
 
-            if (currentTabIndex == 2) {
-                clearCardInfoDisplay()
-            }
-
             currentAnimator?.cancel()
 
             val fromIndex = currentTabIndex
@@ -305,7 +293,11 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         binding.tabRead.setOnClickListener { navigateToTab(2) }
         binding.tabMgmt.setOnClickListener { navigateToTab(3) }
 
-        applySectionLayout(1.0f, isAnimating = false)
+        binding.root.post {
+            if (isAdded) {
+                applySectionLayout(currentTabIndex.toFloat(), isAnimating = false)
+            }
+        }
 
         val dash = getString(R.string.dash)
         binding.pinRetriesUser.text = dash
@@ -371,6 +363,8 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         }
         bindAutoClearStatus(viewModel.wipeStatus, binding.wipeStatus, OpenPgpWriter.WIPE_COMPLETE_STATUS) {
             viewModel.postWipeStatus(it)
+            clearCardInfoDisplay()
+            clearPinRetriesDisplay()
         }
         bindAutoClearStatus(
             viewModel.pinChangeStatus,
@@ -378,6 +372,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             OpenPgpViewModel.PIN_CHANGE_COMPLETE_STATUS,
             OpenPgpViewModel.PIN_RESET_COMPLETE_STATUS,
             OpenPgpWriter.WIPE_COMPLETE_STATUS,
+            "PIN retries refreshed",
             hideWhenBlank = true,
             shouldHide = { it.contains("Remaining attempts", ignoreCase = true) },
         ) {
@@ -428,6 +423,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
 
         binding.btnTestAction.setOnClickListener {
             Log.d(TAG, "Read tapped — device=${viewModel.uiState.value?.connectedDevice?.type}")
+            viewModel.postReadStatus("Reading card status…")
             viewModel.setCurrentOperation(OpenPgpOperation.READ)
             viewModel.pendingAction.value = {
                 val info = OpenPgpReader.read(
@@ -825,6 +821,29 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             keyInfoFingerprint.text = info.fingerprint
             keyInfoFingerprint.setTextIsSelectable(true)
 
+            keyInfoSubkeysContainer.removeAllViews()
+
+            val subkeys = info.keys.filter { !it.usage.contains("Primary") }.ifEmpty {
+                if (info.keys.size > 1) info.keys.drop(1) else emptyList()
+            }
+
+            for (subkey in subkeys) {
+                val subkeyBinding = ItemOpenpgpSubkeyBinding.inflate(
+                    layoutInflater,
+                    keyInfoSubkeysContainer,
+                    false
+                )
+                subkeyBinding.subkeyHeader.text = "── ${subkey.usage}"
+                subkeyBinding.subkeyAlgorithm.text = subkey.algorithm
+                subkeyBinding.subkeyCreated.text = subkey.creationDate.toDisplayDate()
+                subkeyBinding.subkeyExpires.text = subkey.expirationDate?.toDisplayDate()
+                    ?: getString(R.string.openpgp_key_no_expiry)
+                subkeyBinding.subkeyFingerprint.text = formatFingerprintDisplay(subkey.fingerprint)
+                subkeyBinding.subkeyFingerprint.setTextIsSelectable(true)
+
+                keyInfoSubkeysContainer.addView(subkeyBinding.root)
+            }
+
             root.post { root.requestLayout() }
         }
     }
@@ -838,11 +857,12 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             keyInfoExpires.text     = dash
             keyInfoFingerprint.text = getString(R.string.dash_newline)
             keyInfoFingerprint.setTextIsSelectable(false)
+            keyInfoSubkeysContainer.removeAllViews()
         }
     }
 
     private fun formatFingerprintDisplay(fp: String): String {
-        val clean = fp.replace(" ", "")
+        val clean = fp.filter { it.isLetterOrDigit() }
         val chunks = clean.chunked(4)
         return if (chunks.size >= 10) {
             val l1 = chunks.subList(0, 5).joinToString(" ")
@@ -923,5 +943,12 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             cardInfoAutFingerprint.text = dashNewline
             cardInfoAutFingerprint.setTextIsSelectable(false)
         }
+    }
+
+    private fun clearPinRetriesDisplay() {
+        val dash = getString(R.string.dash)
+        binding.pinRetriesUser.text = dash
+        binding.pinRetriesAdmin.text = dash
+        viewModel.clearPinRetries()
     }
 }

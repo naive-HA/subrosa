@@ -41,11 +41,11 @@ data class ManagementUiState(
             val connected = connectedDevice ?: return PgpStatus.None
             return when (connected.type) {
                 PgpDeviceType.YUBIKEY -> PgpStatus.YubiKey(programmed = pgpCardInfo.isProgrammed())
-                PgpDeviceType.NITROKEY -> PgpStatus.Nitrokey(
+                PgpDeviceType.NITROKEY3 -> PgpStatus.Nitrokey(
                     programmed = pgpCardInfo?.isProgrammed(),
                     nfcUnsupported = pgpCardInfo == null && connected.isNfc,
                 )
-                PgpDeviceType.GNUK -> PgpStatus.OtherDevice(
+                PgpDeviceType.NITROKEY2 -> PgpStatus.OtherDevice(
                     programmed = pgpCardInfo.isProgrammed(),
                     staticPasswordSupported = false,
                 )

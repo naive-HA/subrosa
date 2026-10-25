@@ -19,10 +19,13 @@ package acab.naiveha.subrosa.ui
 import android.content.ClipboardManager
 import android.content.Context
 import android.text.TextUtils
+import android.text.method.HideReturnsTransformationMethod
+import android.text.method.PasswordTransformationMethod
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.StringRes
@@ -36,11 +39,11 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputLayout
 import acab.naiveha.subrosa.R
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 @UiThread
 suspend fun getSecret(
@@ -51,15 +54,17 @@ suspend fun getSecret(
     defaultValue: CharArray? = null,
     inputType: Int? = null,
     clearTextByDefault: Boolean = false
-): CharArray? = suspendCoroutine { cont ->
+): CharArray? = suspendCancellableCoroutine { cont ->
     val view = LayoutInflater.from(context).inflate(R.layout.dialog_pin, null).apply {
         val textInputLayout = findViewById<TextInputLayout>(R.id.dialog_pin_textinputlayout)
         val editText = findViewById<EditText>(R.id.dialog_pin_edittext)
+        val btnVisibility = findViewById<ImageButton>(R.id.dialog_pin_visibility_toggle)
+        val btnPaste = findViewById<ImageButton>(R.id.dialog_pin_paste)
         textInputLayout.hint = context.getString(hint)
 
         inputType?.let { editText.inputType = it }
         if (clearTextByDefault) {
-            editText.transformationMethod = android.text.method.HideReturnsTransformationMethod.getInstance()
+            editText.transformationMethod = HideReturnsTransformationMethod.getInstance()
         }
 
         defaultValue?.let {
@@ -68,8 +73,25 @@ suspend fun getSecret(
         }
         editText.requestFocus()
 
+        var isPasswordVisible = clearTextByDefault
+        btnVisibility?.setImageResource(if (isPasswordVisible) R.drawable.visibility else R.drawable.visibility_off)
+        btnVisibility?.setOnClickListener {
+            isPasswordVisible = !isPasswordVisible
+            if (isPasswordVisible) {
+                editText.transformationMethod = HideReturnsTransformationMethod.getInstance()
+                btnVisibility.setImageResource(R.drawable.visibility)
+            } else {
+                editText.transformationMethod = PasswordTransformationMethod.getInstance()
+                btnVisibility.setImageResource(R.drawable.visibility_off)
+            }
+            editText.setSelection(editText.text?.length ?: 0)
+        }
+
         if (showPaste) {
-            textInputLayout.setStartIconOnClickListener {
+            btnPaste?.visibility = View.VISIBLE
+            val density = resources.displayMetrics.density
+            editText.setPaddingRelative(editText.paddingStart, editText.paddingTop, (88 * density).toInt(), editText.paddingBottom)
+            btnPaste?.setOnClickListener {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.primaryClip?.getItemAt(0)?.text?.let {
                     editText.setText(it)
@@ -77,7 +99,9 @@ suspend fun getSecret(
                 }
             }
         } else {
-            textInputLayout.startIconDrawable = null
+            btnPaste?.visibility = View.GONE
+            val density = resources.displayMetrics.density
+            editText.setPaddingRelative(editText.paddingStart, editText.paddingTop, (48 * density).toInt(), editText.paddingBottom)
         }
     }
     val dialog = MaterialAlertDialogBuilder(context)
@@ -91,19 +115,29 @@ suspend fun getSecret(
                 val editable = view.findViewById<EditText>(R.id.dialog_pin_edittext).text
                 val chars = CharArray(editable.length)
                 TextUtils.getChars(editable, 0, editable.length, chars, 0)
-                cont.resume(chars)
+                if (cont.isActive) {
+                    cont.resume(chars)
+                }
             }
             .setNeutralButton(android.R.string.cancel) { d, _ ->
                 d.dismiss()
-                cont.resume(null)
+                if (cont.isActive) {
+                    cont.resume(null)
+                }
             }
             .setOnCancelListener {
-                cont.resume(null)
+                if (cont.isActive) {
+                    cont.resume(null)
+                }
             }
             .create()
 
     dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
     dialog.show()
+
+    cont.invokeOnCancellation {
+        dialog.dismiss()
+    }
 
     view.findViewById<EditText>(R.id.dialog_pin_edittext).run {
         requestFocus()

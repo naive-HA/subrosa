@@ -14,18 +14,4 @@
         android:layout_marginBottom="24dp"
         android:contentDescription="@string/nav_header_desc"
         android:src="@drawable/big_logo" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingTop="@dimen/nav_header_vertical_spacing"
-        android:text="@string/nav_header_title"
-        android:textAppearance="@style/TextAppearance.AppCompat.Body1"
-        android:visibility="invisible" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/nav_header_subtitle"
-        android:visibility="invisible" />
 </LinearLayout>

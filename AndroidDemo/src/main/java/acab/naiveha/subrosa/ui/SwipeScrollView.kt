@@ -5,6 +5,7 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.widget.ScrollView
 import kotlin.math.abs
+import androidx.core.view.isNotEmpty
 
 class SwipeScrollView @JvmOverloads constructor(
     context: Context,
@@ -22,10 +23,12 @@ class SwipeScrollView @JvmOverloads constructor(
     private var isGestureHandled = false
 
     private fun cancelChildTouches(ev: MotionEvent) {
-        val cancelEvent = MotionEvent.obtain(ev)
-        cancelEvent.action = MotionEvent.ACTION_CANCEL
-        super.dispatchTouchEvent(cancelEvent)
-        cancelEvent.recycle()
+        if (isNotEmpty()) {
+            val cancelEvent = MotionEvent.obtain(ev)
+            cancelEvent.action = MotionEvent.ACTION_CANCEL
+            getChildAt(0).dispatchTouchEvent(cancelEvent)
+            cancelEvent.recycle()
+        }
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
@@ -65,6 +68,27 @@ class SwipeScrollView @JvmOverloads constructor(
             }
         }
         return super.dispatchTouchEvent(ev)
+    }
+
+    override fun overScrollBy(
+        deltaX: Int, deltaY: Int,
+        scrollX: Int, scrollY: Int,
+        scrollRangeX: Int, scrollRangeY: Int,
+        maxOverScrollX: Int, maxOverScrollY: Int,
+        isTouchEvent: Boolean
+    ): Boolean {
+        val maxY = if (activeTabHeight > 0) maxOf(0, activeTabHeight - height) else 0
+        return super.overScrollBy(
+            deltaX, deltaY,
+            scrollX, scrollY,
+            scrollRangeX, maxY,
+            maxOverScrollX, maxOverScrollY,
+            isTouchEvent
+        )
+    }
+
+    override fun computeVerticalScrollRange(): Int {
+        return if (activeTabHeight > 0) activeTabHeight else super.computeVerticalScrollRange()
     }
 
     override fun scrollTo(x: Int, y: Int) {

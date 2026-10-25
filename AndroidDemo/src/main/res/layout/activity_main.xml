@@ -13,15 +13,34 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <com.google.android.material.navigation.NavigationView
-        android:id="@+id/nav_view"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:id="@+id/nav_drawer_container"
+        android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:fitsSystemWindows="true"
-        app:headerLayout="@layout/nav_header_main"
-        app:menu="@menu/activity_main_drawer"
-        app:itemShapeFillColor="@color/nav_item_background"
-        app:itemIconTint="@color/nav_item_text_color"
-        app:itemTextColor="@color/nav_item_text_color" />
+        android:orientation="vertical"
+        android:background="?android:attr/windowBackground"
+        android:fitsSystemWindows="true">
+
+        <include
+            layout="@layout/nav_header_main"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <com.google.android.material.navigation.NavigationView
+            android:id="@+id/nav_view"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            app:menu="@menu/activity_main_drawer"
+            app:itemShapeFillColor="@color/nav_item_background"
+            app:itemIconTint="@color/nav_item_text_color"
+            app:itemTextColor="@color/nav_item_text_color" />
+
+        <include
+            layout="@layout/nav_footer_main"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
 </androidx.drawerlayout.widget.DrawerLayout>

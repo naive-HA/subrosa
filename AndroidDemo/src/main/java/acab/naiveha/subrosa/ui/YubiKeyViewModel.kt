@@ -20,6 +20,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
+import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
 import org.slf4j.LoggerFactory
 import java.io.Closeable
@@ -39,14 +40,23 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
         logger.debug("onYubiKeyDevice — pendingAction=${if (pendingAction.value != null) "present" else "none"}")
         getSession(device, onError = {
             logger.error("onYubiKeyDevice — getSession failed: ${it.message}", it)
-            _result.postValue(Result.failure(it))
+            val isDisconnect = device is UsbYubiKeyDevice && !device.hasPermission()
+            if (pendingAction.value != null || !isDisconnect) {
+                _result.postValue(Result.failure(it))
+            }
             pendingAction.postValue(null)
             onPendingActionDropped()
+            if (isDisconnect) {
+                onDeviceDisconnected()
+            }
         }) { session ->
             pendingAction.value?.let {
                 val actionResult = Result.runCatching { it(session) }
                 actionResult.exceptionOrNull()?.let { e ->
                     logger.error("onYubiKeyDevice — pendingAction failed: ${e.message}", e)
+                    if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                        onDeviceDisconnected()
+                    }
                 }
                 _result.postValue(actionResult)
                 pendingAction.postValue(null)
@@ -56,6 +66,9 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
                 session.updateState()
             } catch (e: Throwable) {
                 logger.error("onYubiKeyDevice — session.updateState() failed: ${e.message}", e)
+                if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                    onDeviceDisconnected()
+                }
             }
         }
     }

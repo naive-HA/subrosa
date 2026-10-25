@@ -2,17 +2,14 @@ package acab.naiveha.subrosa.ui.openpgp
 
 import com.yubico.yubikit.openpgp.OpenPgpSession
 
-object NitrokeyPgpWriter : OpenPgpWriter {
+object Nitrokey2PgpWriter : OpenPgpWriter {
 
-    private const val TAG = "NitrokeyPgpWriter"
+    private const val TAG = "Nitrokey2PgpWriter"
 
-    private const val SUPPORTS_ED25519_X25519 = true
+    private const val OMIT_EC_PUBLIC_KEY_FOR_NIST_CURVES = true
 
     override fun validate(session: OpenPgpSession, bundle: ImportBundle): List<String> =
-        OpenPgpWriterUtils.validateCommon(bundle) +
-            bundle.slots.mapNotNull { slot ->
-                ManualApduKeyWriter.unsupportedReason(slot.privateKeyValues, slot.ref, SUPPORTS_ED25519_X25519)
-            }
+        ManualApduKeyWriter.validate(session, bundle, TAG, OMIT_EC_PUBLIC_KEY_FOR_NIST_CURVES)
 
     override fun program(
         session: OpenPgpSession,
@@ -21,13 +18,12 @@ object NitrokeyPgpWriter : OpenPgpWriter {
         userPin: CharArray,
         status: (String) -> Unit,
     ): String? {
-        validate(session, bundle).takeIf { it.isNotEmpty() }?.let {
-            throw IllegalArgumentException(it.joinToString("\n"))
-        }
+        requireValid(session, bundle)
+        session.forceExtendedApdusIfSupported()
         return ManualApduKeyWriter.program(
             session, bundle, adminPin, userPin, TAG, status,
-            clearSlotBeforeWrite = true,
-            supportsEd25519X25519 = SUPPORTS_ED25519_X25519,
+            clearSlotBeforeWrite = false,
+            omitEcPublicKeyForNistCurves = OMIT_EC_PUBLIC_KEY_FOR_NIST_CURVES,
         )
     }
 

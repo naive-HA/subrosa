@@ -22,14 +22,19 @@ interface OpenPgpWriter {
     fun wipe(session: OpenPgpSession, status: (String) -> Unit = {}): String?
 
     fun validate(session: OpenPgpSession, bundle: ImportBundle): List<String>
+
+    fun requireValid(session: OpenPgpSession, bundle: ImportBundle) {
+        val problems = validate(session, bundle)
+        require(problems.isEmpty()) { problems.joinToString("\n") }
+    }
 }
 
 fun PgpDeviceType?.writer(): OpenPgpWriter = when (this) {
-    PgpDeviceType.YUBIKEY -> YubiKeyPgpWriter
-    PgpDeviceType.NITROKEY -> NitrokeyPgpWriter
-    PgpDeviceType.GNUK     -> GnukPgpWriter
+    PgpDeviceType.YUBIKEY   -> YubiKeyPgpWriter
+    PgpDeviceType.NITROKEY3 -> Nitrokey3PgpWriter
+    PgpDeviceType.NITROKEY2 -> Nitrokey2PgpWriter
     PgpDeviceType.UNKNOWN,
-    null                  -> throw UnsupportedOperationException(
+    null                    -> throw UnsupportedOperationException(
         "No OpenPgpWriter available for an unrecognized device (PgpDeviceType=$this)."
     )
 }

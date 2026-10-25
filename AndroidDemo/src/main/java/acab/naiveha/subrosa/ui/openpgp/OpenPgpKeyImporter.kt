@@ -4,19 +4,15 @@ import android.util.Log
 import com.yubico.yubikit.core.keys.PrivateKeyValues
 import com.yubico.yubikit.openpgp.KeyRef
 import org.bouncycastle.bcpg.ArmoredInputStream
-import org.bouncycastle.bcpg.BCPGOutputStream
-import org.bouncycastle.bcpg.RSAPublicBCPGKey
 import org.bouncycastle.bcpg.sig.KeyFlags
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.openpgp.PGPObjectFactory
-import org.bouncycastle.openpgp.PGPPublicKey
 import org.bouncycastle.openpgp.PGPSecretKeyRing
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator
 import org.bouncycastle.openpgp.operator.bc.BcPBESecretKeyDecryptorBuilder
 import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter
 import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import javax.security.auth.DestroyFailedException
 
 data class SlotData(
@@ -24,7 +20,6 @@ data class SlotData(
     val privateKeyValues: PrivateKeyValues,
     val fingerprint: ByteArray,
     val creationTimestamp: Int,
-    val declaredModulusBitLength: Int? = null,
 )
 data class ImportBundle(
     val nameBytes: ByteArray,
@@ -64,7 +59,6 @@ object OpenPgpKeyImporter {
                        "keyFlags=0x${pubKey.keyFlags().toString(16)} " +
                        "s2KUsage=${secretKey.s2KUsage} " +
                        "(0=plaintext,254=SHA1,255=checksum)")
-            val declaredModulusBitLength = extractDeclaredRsaModulusBitLength(pubKey, keyIdHex)
             if (pubKey.isMasterKey) {
                 val uid = pubKey.userIDs.asSequence().firstOrNull() ?: ""
                 parseUid(uid).let { (n, e) -> displayName = n; email = e }
@@ -129,7 +123,6 @@ object OpenPgpKeyImporter {
                 privateKeyValues         = privateKeyValues,
                 fingerprint              = pubKey.fingerprint,
                 creationTimestamp        = (pubKey.creationTime.time / 1_000L).toInt(),
-                declaredModulusBitLength = declaredModulusBitLength,
             )
             Log.i(TAG, "  Slot $ref populated ✓")
         }
@@ -164,27 +157,4 @@ object OpenPgpKeyImporter {
         return if (bytes.size > 39) bytes.copyOf(39) else bytes
     }
 
-    private fun extractDeclaredRsaModulusBitLength(pubKey: PGPPublicKey, keyIdHex: String): Int? {
-        return try {
-            val bcKey = pubKey.publicKeyPacket.key as? RSAPublicBCPGKey ?: return null
-            val baos = ByteArrayOutputStream()
-            BCPGOutputStream(baos).use { bcKey.encode(it) }
-            val encoded = baos.toByteArray()
-            if (encoded.size < 2) return null
-            val declared = ((encoded[0].toInt() and 0xFF) shl 8) or (encoded[1].toInt() and 0xFF)
-            val computed = bcKey.modulus.bitLength()
-            if (declared != computed) {
-                Log.w(TAG, "Key 0x$keyIdHex: declared RSA nLen=$declared but " +
-                           "BigInteger.bitLength()=$computed — " +
-                           "using declared ($declared) for Algorithm Attributes DO")
-            } else {
-                Log.d(TAG, "Key 0x$keyIdHex: RSA nLen=$declared (declared==computed)")
-            }
-            declared
-        } catch (e: Exception) {
-            Log.w(TAG, "Key 0x$keyIdHex: could not extract declared RSA modulus bit length " +
-                       "(${e::class.simpleName}: ${e.message}) — will fall back to BigInteger.bitLength()")
-            null
-        }
-    }
 }

@@ -62,7 +62,10 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
     }
 
     fun onCardRead(info: OpenPgpCardInfo) {
-        updateUi { it.copy(cardInfo = info) }
+        updateUi { it.copy(
+            cardInfo = info,
+            pinRetries = PinRetries(user = info.userPinRetries, admin = info.adminPinRetries)
+        ) }
     }
     fun clearCardInfo() {
         updateUi { it.copy(cardInfo = null) }
@@ -211,10 +214,22 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         }
     }
 
+    fun clearPinRetries() {
+        updateUi { it.copy(pinRetries = null) }
+    }
+
     fun refreshPinCounters() {
         if (pendingAction.value != null) return
+        postPinChangeStatus("Refreshing PIN retries…")
         pendingAction.value = {
-            refreshPinRetries(this)
+            try {
+                postPinChangeStatus("Reading PIN status…")
+                refreshPinRetries(this)
+                postPinChangeStatus("PIN retries refreshed")
+            } catch (e: Exception) {
+                logger.warn("refreshPinCounters failed: ${e.message}")
+                postPinChangeStatus("Failed to refresh PIN retries: ${e.message ?: "Unknown error"}")
+            }
             null
         }
     }
@@ -252,10 +267,24 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
 
     override fun onPendingActionDropped() {
         queuedPins.get()?.cancel()
+        setCurrentOperation(OpenPgpOperation.NONE)
+        postReadStatus("")
+        postWriteStatus("")
+        postWipeStatus("")
+        postPinChangeStatus("")
     }
 
     override fun onDeviceDisconnected() {
-        updateUi { it.copy(pinRetries = null) }
+        updateUi {
+            OpenPgpUiState(
+                pendingImportUri = it.pendingImportUri
+            )
+        }
+        setCurrentOperation(OpenPgpOperation.NONE)
+        postReadStatus("")
+        postWriteStatus("")
+        postWipeStatus("")
+        postPinChangeStatus("")
     }
 
     private val writeStatusChannel = StatusChannel()
@@ -291,6 +320,9 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
                 val err = result.error
                 logger.error("requestConnection(SmartCardConnection) FAILED for " +
                     "${transportLabel(device)} device: ${err?.let { it::class.simpleName }}: ${err?.message}", err)
+                if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                    onDeviceDisconnected()
+                }
                 onError(err ?: IOException("requestConnection failed with no exception"))
                 return@requestConnection
             }
@@ -299,12 +331,12 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
             if (device is NfcYubiKeyDevice) {
                 logNfcConnectionOpened(connection)
 
-                val nitrokeyVersion = NitrokeyAdminVersion.query(connection)
+                val nitrokeyVersion = Nitrokey3AdminVersion.query(connection)
                 if (nitrokeyVersion != null) {
                     logger.info("Nitrokey detected over NFC (admin firmware $nitrokeyVersion) — " +
                         "OpenPGP applet is not reachable over this transport, not attempting it")
-                    updateUi { it.copy(connectedDevice = ConnectedPgpDevice(PgpDeviceType.NITROKEY, nitrokeyVersion)) }
-                    onError(IOException(NitrokeyAdminVersion.NFC_NOT_SUPPORTED_MESSAGE))
+                    updateUi { it.copy(connectedDevice = ConnectedPgpDevice(PgpDeviceType.NITROKEY3, nitrokeyVersion)) }
+                    onError(IOException(Nitrokey3AdminVersion.NFC_NOT_SUPPORTED_MESSAGE))
                     return@requestConnection
                 }
             }
@@ -319,7 +351,6 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         else
             version.toString()
         updateUi { it.copy(status = "OpenPGP version: $versionLabel") }
-        refreshPinRetries(this)
     }
 
     private fun reportPreliminaryUsbType(device: YubiKeyDevice) {
@@ -350,14 +381,14 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
             val type = resolveDeviceType(device, session)
 
             val firmwareVersion = when (type) {
-                PgpDeviceType.NITROKEY -> {
-                    val fw = NitrokeyAdminVersion.query(connection)
+                PgpDeviceType.NITROKEY3 -> {
+                    val fw = Nitrokey3AdminVersion.query(connection)
                     logger.debug("Nitrokey admin firmware version: $fw")
                     runCatching { session.reselect() }
                         .onFailure { logger.warn("Failed to re-select OpenPGP applet after admin query: ${it.message}") }
                     fw
                 }
-                PgpDeviceType.GNUK -> session.gnukVersionLabel()
+                PgpDeviceType.NITROKEY2 -> session.nitrokey2VersionLabel()
                 else -> null
             }
 
@@ -365,6 +396,9 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
             callback(session)
         } catch (e: Throwable) {
             logger.error("Failed to open OpenPgpSession over ${transportLabel(device)}: ${e.describeChain()}", e)
+            if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                onDeviceDisconnected()
+            }
             onError(e)
         }
     }

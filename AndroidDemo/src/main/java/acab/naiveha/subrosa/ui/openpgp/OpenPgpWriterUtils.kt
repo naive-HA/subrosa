@@ -32,6 +32,9 @@ internal object OpenPgpWriterUtils {
         return problems
     }
 
+    fun validate(session: OpenPgpSession, bundle: ImportBundle, tag: String): List<String> =
+        validateCommon(bundle) + session.capabilityProblems(bundle, tag)
+
     fun factoryResetAndRestorePin(
         session: OpenPgpSession,
         adminPin: CharArray,

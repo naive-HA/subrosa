@@ -25,9 +25,7 @@ import android.nfc.NfcAdapter
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.Gravity
 import android.view.View
-import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
@@ -35,6 +33,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.net.toUri
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
@@ -173,15 +173,9 @@ class MainActivity : AppCompatActivity() {
             handled || item.itemId == R.id.nav_management
         }
 
-        val footerView = layoutInflater.inflate(R.layout.nav_footer_main, navView, false)
-        navView.addView(footerView)
-        val params = footerView.layoutParams as FrameLayout.LayoutParams
-        params.gravity = Gravity.BOTTOM
-        footerView.layoutParams = params
-
-        footerView.findViewById<TextView>(R.id.footer_title_version).text =
+        findViewById<TextView>(R.id.footer_title_version)?.text =
             getString(R.string.footer_title_version, BuildConfig.VERSION_NAME)
-        footerView.findViewById<TextView>(R.id.footer_github_link).setOnClickListener {
+        findViewById<TextView>(R.id.footer_github_link)?.setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, getString(R.string.github_url).toUri()))
         }
 
@@ -197,6 +191,7 @@ class MainActivity : AppCompatActivity() {
             override fun onDrawerOpened(drawerView: View) {
                 logger.info("onDrawerOpened: enabling drawerCallback")
                 drawerCallback.isEnabled = true
+                WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.ime())
             }
             override fun onDrawerClosed(drawerView: View) {
                 logger.info("onDrawerClosed: disabling drawerCallback")

@@ -36,26 +36,19 @@ internal object ManualApduKeyWriter {
         tag: String,
         status: (String) -> Unit,
         clearSlotBeforeWrite: Boolean,
-        supportsEd25519X25519: Boolean,
         omitEcPublicKeyForNistCurves: Boolean = false,
-    ): String? =
-        OpenPgpWriterUtils.programCommon(
+    ): String? {
+        return OpenPgpWriterUtils.programCommon(
             session, bundle, adminPin, userPin, tag, status,
             clearSlotBeforeWrite = clearSlotBeforeWrite,
         ) { s, slot, t, st ->
-            val attrBytes = buildAlgorithmAttributes(
-                slot.privateKeyValues,
-                slot.ref,
-                slot.declaredModulusBitLength,
-                supportsEd25519X25519,
-                t,
-            )
+            val attrBytes = buildAlgorithmAttributes(slot)
             Log.d(t, "  putData(algorithmAttributes, ${attrBytes.size} bytes)…")
             s.putData(slot.ref.algorithmAttributes, attrBytes)
             Log.d(t, "  algorithm attributes written")
             st("Algorithm attributes set for ${slot.ref.name}")
 
-            val template = buildKeyTemplate(slot.ref, slot.privateKeyValues, supportsEd25519X25519, omitEcPublicKeyForNistCurves)
+            val template = buildKeyTemplate(slot, omitEcPublicKeyForNistCurves)
             try {
                 Log.d(t, "  putRawKeyTemplate(${slot.ref.name}, ${template.size} bytes)…")
                 s.putRawKeyTemplate(template)
@@ -65,23 +58,6 @@ internal object ManualApduKeyWriter {
                 template.fill(0)
             }
         }
-
-    fun unsupportedReason(
-        values: PrivateKeyValues,
-        ref: KeyRef,
-        supportsEd25519X25519: Boolean,
-    ): String? = when (values) {
-        is PrivateKeyValues.Rsa -> null
-        is PrivateKeyValues.Ec -> when (values.curveParams) {
-            EllipticCurveValues.Ed25519, EllipticCurveValues.X25519 ->
-                if (supportsEd25519X25519) null
-                else "${ref.name}: this device does not support Ed25519/X25519"
-            EllipticCurveValues.SECP256R1, EllipticCurveValues.SECP521R1 -> null
-            else -> "${ref.name}: unsupported curve ${values.curveParams} " +
-                "(manual PGP import only supports Ed25519/X25519/NIST P-256/NIST P-521)"
-        }
-        else -> "${ref.name}: unsupported private key type ${values::class.simpleName} " +
-            "(manual PGP import only supports RSA and Ed25519/X25519/NIST P-256/NIST P-521)"
     }
 
     fun wipe(session: OpenPgpSession, tag: String, status: (String) -> Unit): String? {
@@ -98,44 +74,45 @@ internal object ManualApduKeyWriter {
         }
     }
 
-    private fun buildAlgorithmAttributes(
-        values: PrivateKeyValues,
-        ref: KeyRef,
-        declaredBitLength: Int?,
-        supportsEd25519X25519: Boolean,
+    fun validate(
+        session: OpenPgpSession,
+        bundle: ImportBundle,
         tag: String,
-    ): ByteArray {
-        unsupportedReason(values, ref, supportsEd25519X25519)?.let { throw UnsupportedOperationException(it) }
-        return when (values) {
-            is PrivateKeyValues.Rsa -> {
-                val nLenBits = declaredBitLength ?: run {
-                    Log.w(tag, "declaredBitLength unavailable for slot ${ref.name}, " +
-                               "falling back to BigInteger.bitLength()=${values.bitLength}")
-                    values.bitLength
-                }
-                val eLenBits = RSA_PUBLIC_EXPONENT_LEN_BITS
+        omitEcPublicKeyForNistCurves: Boolean = false,
+    ): List<String> =
+        OpenPgpWriterUtils.validate(session, bundle, tag) +
+            bundle.slots.mapNotNull { encodingProblem(it, omitEcPublicKeyForNistCurves) }
+
+    fun encodingProblem(slot: SlotData, omitEcPublicKeyForNistCurves: Boolean = false): String? =
+        try {
+            buildAlgorithmAttributes(slot)
+            buildKeyTemplate(slot, omitEcPublicKeyForNistCurves).fill(0)
+            null
+        } catch (e: IllegalArgumentException) {
+            "${slot.ref.name}: ${e.message}"
+        }
+
+    private fun unwritable(key: PrivateKeyValues) = IllegalArgumentException(
+        "${CardAlgorithmInfo.describe(key)} cannot be written to this device by this app " +
+            "(it can write RSA, NIST P-256, NIST P-521, Ed25519 and X25519 keys)"
+    )
+
+    private fun buildAlgorithmAttributes(slot: SlotData): ByteArray {
+        val ref = slot.ref
+        return when (val key = slot.privateKeyValues) {
+            is PrivateKeyValues.Rsa ->
                 byteArrayOf(PGP_ALGO_RSA.toByte()) +
-                    shortBe(nLenBits) +
-                    shortBe(eLenBits) +
+                    shortBe(key.bitLength) +
+                    shortBe(RSA_PUBLIC_EXPONENT_LEN_BITS) +
                     byteArrayOf(0x00)
+            is PrivateKeyValues.Ec -> when (key.curveParams) {
+                EllipticCurveValues.SECP256R1 -> byteArrayOf(ecdsaOrEcdh(ref).toByte()) + OID_SECP256R1
+                EllipticCurveValues.SECP521R1 -> byteArrayOf(ecdsaOrEcdh(ref).toByte()) + OID_SECP521R1
+                EllipticCurveValues.Ed25519 -> byteArrayOf(PGP_ALGO_EDDSA_LEGACY.toByte()) + OID_ED25519
+                EllipticCurveValues.X25519 -> byteArrayOf(PGP_ALGO_ECDH.toByte()) + OID_X25519
+                else -> throw unwritable(key)
             }
-            is PrivateKeyValues.Ec -> when (values.curveParams) {
-                EllipticCurveValues.Ed25519 ->
-                    byteArrayOf(PGP_ALGO_EDDSA_LEGACY.toByte()) + OID_ED25519
-                EllipticCurveValues.X25519 ->
-                    byteArrayOf(PGP_ALGO_ECDH.toByte()) + OID_X25519
-                EllipticCurveValues.SECP256R1 ->
-                    byteArrayOf(ecdsaOrEcdh(ref).toByte()) + OID_SECP256R1
-                EllipticCurveValues.SECP521R1 ->
-                    byteArrayOf(ecdsaOrEcdh(ref).toByte()) + OID_SECP521R1
-                else -> throw UnsupportedOperationException(
-                    "Manual PGP import only supports Ed25519/X25519/NIST P-256/NIST P-521, " +
-                        "got ${values.curveParams}"
-                )
-            }
-            else -> throw UnsupportedOperationException(
-                "Unsupported private key type for manual PGP import: ${values::class.simpleName}"
-            )
+            else -> throw unwritable(key)
         }
     }
 
@@ -145,22 +122,33 @@ internal object ManualApduKeyWriter {
     private fun ecdsaOrEcdh(ref: KeyRef): Int =
         if (ref == KeyRef.DEC) PGP_ALGO_ECDH else PGP_ALGO_ECDSA
 
-    private fun buildKeyTemplate(
-        ref: KeyRef,
-        values: PrivateKeyValues,
-        supportsEd25519X25519: Boolean,
-        omitEcPublicKeyForNistCurves: Boolean,
-    ): ByteArray =
-        when (values) {
-            is PrivateKeyValues.Rsa -> buildRsaKeyTemplate(ref, values)
-            is PrivateKeyValues.Ec -> buildEcKeyTemplate(ref, values, supportsEd25519X25519, omitEcPublicKeyForNistCurves)
-            else -> throw UnsupportedOperationException(
-                "Unsupported private key type for manual PGP import: ${values::class.simpleName}"
-            )
+    private fun buildKeyTemplate(slot: SlotData, omitEcPublicKeyForNistCurves: Boolean): ByteArray {
+        val ref = slot.ref
+        return when (val key = slot.privateKeyValues) {
+            is PrivateKeyValues.Rsa -> buildRsaKeyTemplate(ref, key)
+            is PrivateKeyValues.Ec -> when (key.curveParams) {
+                EllipticCurveValues.SECP256R1 ->
+                    buildNistEcTemplate(ref, key.secret, "secp256r1", omitEcPublicKeyForNistCurves)
+                EllipticCurveValues.SECP521R1 ->
+                    buildNistEcTemplate(ref, key.secret, "secp521r1", omitEcPublicKeyForNistCurves)
+                EllipticCurveValues.Ed25519 -> buildEd25519Template(ref, key.secret)
+                EllipticCurveValues.X25519 -> buildX25519Template(ref, key.secret)
+                else -> throw unwritable(key)
+            }
+            else -> throw unwritable(key)
         }
+    }
 
     private fun buildRsaKeyTemplate(ref: KeyRef, rsa: PrivateKeyValues.Rsa): ByteArray {
         val byteLength = rsa.bitLength / 8 / 2
+        require(rsa.publicExponent.bitLength() <= RSA_PUBLIC_EXPONENT_LEN_BITS) {
+            "the public exponent has ${rsa.publicExponent.bitLength()} bits; " +
+                "the card's RSA key format allows at most $RSA_PUBLIC_EXPONENT_LEN_BITS"
+        }
+        require(rsa.primeP.bitLength() <= byteLength * 8 && rsa.primeQ.bitLength() <= byteLength * 8) {
+            "the prime factors do not fit the card's RSA key format " +
+                "(at most ${byteLength * 8} bits each for a ${rsa.bitLength}-bit key)"
+        }
         val eBytes = ByteUtils.intToLength(rsa.publicExponent, RSA_PUBLIC_EXPONENT_LEN_BITS / 8)
         val pBytes = ByteUtils.intToLength(rsa.primeP, byteLength)
         val qBytes = ByteUtils.intToLength(rsa.primeQ, byteLength)
@@ -182,47 +170,30 @@ internal object ManualApduKeyWriter {
         }
     }
 
-    private fun buildEcKeyTemplate(
-        ref: KeyRef,
-        ec: PrivateKeyValues.Ec,
-        supportsEd25519X25519: Boolean,
-        omitEcPublicKeyForNistCurves: Boolean,
-    ): ByteArray {
-        unsupportedReason(ec, ref, supportsEd25519X25519)?.let { throw UnsupportedOperationException(it) }
-        return when (ec.curveParams) {
-            EllipticCurveValues.Ed25519 -> {
-                val secret = require32ByteSecret(ec.secret)
-                val publicKeyBytes = byteArrayOf(EC_PUBLIC_KEY_HEADER) +
-                    Ed25519PrivateKeyParameters(secret).generatePublicKey().encoded
-                try {
-                    buildPrivateAndPublicTemplate(ref, secret, publicKeyBytes)
-                } finally {
-                    publicKeyBytes.fill(0)
-                }
-            }
-            EllipticCurveValues.X25519 -> {
-                val secret = require32ByteSecret(ec.secret)
-                val reversedSecret = secret.reversedArray()
-                val publicKeyBytes = try {
-                    byteArrayOf(EC_PUBLIC_KEY_HEADER) +
-                        X25519PrivateKeyParameters(reversedSecret).generatePublicKey().encoded
-                } finally {
-                    reversedSecret.fill(0)
-                }
-                try {
-                    buildPrivateAndPublicTemplate(ref, secret, publicKeyBytes)
-                } finally {
-                    publicKeyBytes.fill(0)
-                }
-            }
-            EllipticCurveValues.SECP256R1 ->
-                buildNistEcTemplate(ref, ec.secret, "secp256r1", omitEcPublicKeyForNistCurves)
-            EllipticCurveValues.SECP521R1 ->
-                buildNistEcTemplate(ref, ec.secret, "secp521r1", omitEcPublicKeyForNistCurves)
-            else -> throw UnsupportedOperationException(
-                "Manual PGP import only supports Ed25519/X25519/NIST P-256/NIST P-521, " +
-                    "got ${ec.curveParams}"
-            )
+    private fun buildEd25519Template(ref: KeyRef, rawSecret: ByteArray): ByteArray {
+        val secret = require32ByteSecret(rawSecret)
+        val publicKeyBytes = byteArrayOf(EC_PUBLIC_KEY_HEADER) +
+            Ed25519PrivateKeyParameters(secret).generatePublicKey().encoded
+        try {
+            return buildPrivateAndPublicTemplate(ref, secret, publicKeyBytes)
+        } finally {
+            publicKeyBytes.fill(0)
+        }
+    }
+
+    private fun buildX25519Template(ref: KeyRef, rawSecret: ByteArray): ByteArray {
+        val secret = require32ByteSecret(rawSecret)
+        val reversedSecret = secret.reversedArray()
+        val publicKeyBytes = try {
+            byteArrayOf(EC_PUBLIC_KEY_HEADER) +
+                X25519PrivateKeyParameters(reversedSecret).generatePublicKey().encoded
+        } finally {
+            reversedSecret.fill(0)
+        }
+        try {
+            return buildPrivateAndPublicTemplate(ref, secret, publicKeyBytes)
+        } finally {
+            publicKeyBytes.fill(0)
         }
     }
 

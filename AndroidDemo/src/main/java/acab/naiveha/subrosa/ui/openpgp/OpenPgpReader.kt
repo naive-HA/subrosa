@@ -14,9 +14,10 @@ object OpenPgpReader {
         session: OpenPgpSession,
         knownFirmwareVersion: String?,
         useCache: Boolean = false,
+        includeSupportedAlgorithms: Boolean = false,
         status: (String) -> Unit = {},
     ): OpenPgpCardInfo {
-        Log.i(TAG, "read() — starting (useCache=$useCache)")
+        Log.i(TAG, "read() — starting (useCache=$useCache, includeSupportedAlgorithms=$includeSupportedAlgorithms)")
         var succeeded = false
         try {
             status("Reading card status…")
@@ -49,6 +50,13 @@ object OpenPgpReader {
                 )
             }
 
+            val supportedAlgorithms = if (includeSupportedAlgorithms) {
+                status("Reading supported algorithms…")
+                readSupportedAlgorithms(session)
+            } else {
+                null
+            }
+
             val rawVersion = session.version.toString()
             val displayVersion = if (rawVersion == "0.0.0") {
                 knownFirmwareVersion ?: rawVersion
@@ -64,6 +72,7 @@ object OpenPgpReader {
                 userPinRetries = pw.attemptsUser,
                 resetRetries = pw.attemptsReset,
                 adminPinRetries = pw.attemptsAdmin,
+                supportedAlgorithms = supportedAlgorithms,
             )
 
             Log.i(TAG, "read() complete — v=${info.version} hasName=${info.cardholderName != "—"} " +
@@ -74,5 +83,12 @@ object OpenPgpReader {
         } finally {
             if (!succeeded) status("")
         }
+    }
+
+    private fun readSupportedAlgorithms(session: OpenPgpSession): OpenPgpCardInfo.SupportedAlgorithms? = try {
+        session.probeCapabilities(TAG)?.toSupportedAlgorithms()
+    } catch (e: Exception) {
+        Log.i(TAG, "DO 0xFA (algorithm information) unavailable: ${e::class.simpleName}: ${e.message}")
+        null
     }
 }

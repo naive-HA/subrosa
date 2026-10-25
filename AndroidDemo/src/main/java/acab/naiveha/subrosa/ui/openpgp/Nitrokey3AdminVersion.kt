@@ -2,7 +2,7 @@ package acab.naiveha.subrosa.ui.openpgp
 
 import com.yubico.yubikit.core.smartcard.SmartCardConnection
 
-internal object NitrokeyAdminVersion {
+internal object Nitrokey3AdminVersion {
 
     const val NFC_NOT_SUPPORTED_MESSAGE =
         "Nitrokey over NFC is not supported. Connect over USB to access the OpenPGP applet"

@@ -137,11 +137,6 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         return !(state.slotOne == SlotState.EMPTY && state.slotTwo == SlotState.EMPTY)
     }
 
-    private fun renderSlotStates(state: YubiOtpUiState) {
-        binding.readSlotOneState.text = getString(R.string.otp_slot_one_state, state.slotOne.toDisplayLabel())
-        binding.readSlotTwoState.text = getString(R.string.otp_slot_two_state, state.slotTwo.toDisplayLabel())
-    }
-
     private fun SlotState.toDisplayLabel(): String = when (this) {
         SlotState.PROGRAMMED -> getString(R.string.otp_slot_state_programmed)
         SlotState.EMPTY -> getString(R.string.otp_slot_state_empty)
@@ -246,6 +241,13 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         super.onPause()
     }
 
+    override fun onDestroyView() {
+        if (!requireActivity().isChangingConfigurations) {
+            viewModel.requestClearUi()
+        }
+        super.onDestroyView()
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -262,9 +264,10 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             binding.tabEraseIcon.setImageResource(if (selectedIndex == 0) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
             binding.tabWriteIcon.setImageResource(if (selectedIndex == 1) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
             binding.tabReadIcon.setImageResource(if (selectedIndex == 2) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+            binding.tabMgmtIcon.setImageResource(if (selectedIndex == 3) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
         }
 
-        val sections = listOf(binding.sectionErase, binding.sectionWrite, binding.sectionRead)
+        val sections = listOf(binding.sectionErase, binding.sectionWrite, binding.sectionRead, binding.sectionMgmt)
 
         fun applySectionLayout(effectiveIndex: Float, isAnimating: Boolean = false) {
             val isWideTablet = resources.configuration.smallestScreenWidthDp >= 600
@@ -276,31 +279,23 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             val cardSpacingPx = density * 460f
             val sectionWidthPx = if (isCarouselMode) (density * 448f).roundToInt() else ViewGroup.LayoutParams.MATCH_PARENT
 
-            val activeDot = effectiveIndex.roundToInt().coerceIn(0, 2)
+            val activeDot = effectiveIndex.roundToInt().coerceIn(0, 3)
             updateDots(activeDot)
 
             val activeSection = sections[activeDot]
-            activeSection.post {
-                if (isAdded) {
-                    activeSection.measure(
-                        View.MeasureSpec.makeMeasureSpec(binding.tabContentContainer.width, View.MeasureSpec.AT_MOST),
-                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-                    )
-                    val targetHeight = activeSection.measuredHeight
-                    binding.yubiotpScrollView.activeTabHeight = targetHeight
-                    val lp = binding.tabContentContainer.layoutParams
-                    if (lp.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
-                        lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
-                        binding.tabContentContainer.layoutParams = lp
-                    }
-                }
-            }
+            activeSection.measure(
+                View.MeasureSpec.makeMeasureSpec(binding.tabContentContainer.width, View.MeasureSpec.AT_MOST),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            )
+            binding.yubiotpScrollView.activeTabHeight = activeSection.measuredHeight
+            activeSection.requestLayout()
 
             sections.forEachIndexed { i, view ->
                 val lp = view.layoutParams
                 if (lp != null && lp.width != sectionWidthPx) {
                     lp.width = sectionWidthPx
                     view.layoutParams = lp
+                    view.requestLayout()
                 }
 
                 val dist = i - effectiveIndex
@@ -338,7 +333,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                             view.alpha = 1f
                         }
                     } else {
-                        val targetIndex = effectiveIndex.roundToInt().coerceIn(0, 2)
+                        val targetIndex = effectiveIndex.roundToInt().coerceIn(0, 3)
                         if (i == targetIndex) {
                             view.visibility = View.VISIBLE
                             view.translationX = 0f
@@ -398,8 +393,20 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         binding.tabErase.setOnClickListener { navigateToTab(0) }
         binding.tabWrite.setOnClickListener { navigateToTab(1) }
         binding.tabRead.setOnClickListener { navigateToTab(2) }
+        binding.tabMgmt.setOnClickListener { navigateToTab(3) }
 
-        applySectionLayout(1.0f, isAnimating = false)
+        binding.mgmtNfcSwitch.setOnCheckedChangeListener { _, isChecked ->
+            val state = if (isChecked) "ON" else "OFF"
+            binding.mgmtStatus.text = state
+        }
+        binding.mgmtNfcSwitch.isChecked = true
+        binding.mgmtStatus.text = "ON"
+
+        binding.root.post {
+            if (isAdded) {
+                applySectionLayout(currentTabIndex.toFloat(), isAnimating = false)
+            }
+        }
 
         binding.yubiotpScrollView.onSwipeLeft = {
             if (currentTabIndex < sections.size - 1) {
@@ -421,7 +428,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             if (state == null) return@observe
             updateButtonStates()
             updateProgressVisibility(state)
-            renderSlotStates(state)
+//            renderSlotStates(state)
         }
 
         viewModel.pendingAction.observe(viewLifecycleOwner) { action ->
@@ -444,17 +451,17 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             binding.readRadioSlot2.isEnabled = !usbConnected
         }
 
-        viewModel.clearUiTrigger.observe(viewLifecycleOwner) { shouldClear ->
-            if (shouldClear) {
-                binding.editTextStaticpwdId.setText("")
-                binding.btnSaveStaticpwd.isEnabled = false
-                binding.extrasTabFront.isChecked = false
-                binding.extrasTabEnd.isChecked = false
-                binding.extrasCr.isChecked = false
-                binding.keyboardRadio.check(R.id.keyoard_us)
-                binding.slotRadio.check(R.id.radio_slot_1)
-                binding.slotRadioReset.check(R.id.reset_slot_1)
-            }
+        viewModel.clearUiTrigger.observe(viewLifecycleOwner) {
+            binding.editTextStaticpwdId.setText("")
+            binding.btnSaveStaticpwd.isEnabled = false
+            binding.extrasTabFront.isChecked = false
+            binding.extrasTabEnd.isChecked = false
+            binding.extrasCr.isChecked = false
+            binding.keyboardRadio.check(R.id.keyoard_us)
+            binding.slotRadio.check(R.id.radio_slot_1)
+            binding.slotRadioReset.check(R.id.reset_slot_1)
+            binding.readKeyboardRadio.check(R.id.read_keyoard_us)
+            binding.readSlotRadio.check(R.id.read_radio_slot_1)
         }
 
         var isPasswordVisible = false
@@ -719,7 +726,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
 
     private fun rejectIfUnsupportedDeviceConnected(): Boolean {
         val device = activityViewModel.yubiKey.value
-        if (PgpDeviceType.isUsbNitrokey(device) || PgpDeviceType.isUsbGnuk(device)) {
+        if (PgpDeviceType.isUsbNitrokey3(device) || PgpDeviceType.isUsbNitrokey2(device)) {
             viewModel.postResult(Result.failure(Exception(YubiOtpViewModel.STATIC_PASSWORDS_NOT_SUPPORTED)))
             return true
         }

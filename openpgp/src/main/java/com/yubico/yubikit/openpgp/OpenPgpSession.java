@@ -350,6 +350,11 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
     return protocol.sendAndReceive(new Apdu(0, INS_GET_DATA, doId >> 8, doId & 0xff, null));
   }
 
+  public byte[] getData(int doId, int le) throws ApduException, IOException {
+    Logger.debug(logger, "Reading Data Object {} (Le={})", doId, le);
+    return protocol.sendAndReceive(new Apdu(0, INS_GET_DATA, doId >> 8, doId & 0xff, null, le));
+  }
+
   /**
    * Write a Data Object to the YubiKey.
    *

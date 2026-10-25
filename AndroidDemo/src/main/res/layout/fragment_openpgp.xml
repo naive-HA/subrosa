@@ -206,6 +206,8 @@
                         android:id="@+id/btn_change_user_pin"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:gravity="center"
                         android:text="@string/openpgp_btn_change_user_pin" />
 
                     <ProgressBar
@@ -229,6 +231,8 @@
                         android:id="@+id/btn_change_admin_pin"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:gravity="center"
                         android:text="@string/openpgp_btn_change_admin_pin" />
 
                     <ProgressBar
@@ -290,6 +294,8 @@
                         android:id="@+id/btn_save"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:gravity="center"
                         android:text="@string/openpgp_btn_write" />
 
                     <ProgressBar
@@ -452,6 +458,12 @@
                             tools:text="AABB CCDD EEFF 0011 2233\n4455 6677 8899 AABB CCDD" />
                     </LinearLayout>
 
+                    <LinearLayout
+                        android:id="@+id/key_info_subkeys_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
                 </LinearLayout>
 
             </LinearLayout>
@@ -481,6 +493,8 @@
                         android:id="@+id/btn_test_action"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:gravity="center"
                         android:text="@string/openpgp_btn_read" />
 
                     <ProgressBar
@@ -517,7 +531,6 @@
                     android:orientation="vertical"
                     android:visibility="visible">
 
-                    <!-- Name -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -544,7 +557,6 @@
                             tools:text="Alice Doe" />
                     </LinearLayout>
 
-                    <!-- Login -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -569,7 +581,6 @@
                             tools:text="alice" />
                     </LinearLayout>
 
-                    <!-- Subkey SIG -->
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -655,7 +666,6 @@
                             tools:text="AABB CCDD EEFF 0011 2233\n4455 6677 8899 AABB CCDD" />
                     </LinearLayout>
 
-                    <!-- Subkey DEC -->
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -741,7 +751,6 @@
                             tools:text="AABB CCDD EEFF 0011 2233\n4455 6677 8899 AABB CCDD" />
                     </LinearLayout>
 
-                    <!-- Subkey AUT -->
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -855,6 +864,8 @@
                         android:id="@+id/btn_delete_openpgp"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:gravity="center"
                         android:backgroundTint="#B71C1C"
                         android:text="@string/openpgp_btn_reset" />
 
