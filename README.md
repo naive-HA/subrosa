@@ -380,8 +380,6 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
     </tr>
 </table>
 
-Other algorithms have not been tested.
-
 # How to import OpenPGP keys from OpenKeychain
 
 *sub rosa* works closely with OpenKeychain. OpenKeychain manages OpenPGP keys, handling generation, secure storage, and backups. 
