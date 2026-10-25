@@ -203,7 +203,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">Librem Key</td> 
     </tr>
     <tr> 
-        <td>RSA 2048</td> 
+        <td>RSA / 2048</td> 
         <td align="center">✅</td> 
         <td align="center">✅</td> 
         <td align="center">✅</td> 
@@ -211,7 +211,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td> 
     </tr> 
     <tr> 
-        <td>RSA 3072</td> 
+        <td>RSA / 3072</td> 
         <td align="center">✅</td> 
         <td align="center">✅</td> 
         <td align="center">✅</td> 
@@ -219,7 +219,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td> 
     </tr> 
     <tr> 
-        <td>RSA 4096</td>
+        <td>RSA / 4096</td>
         <td align="center">✅</td>
         <td align="center">✅</td>   
         <td align="center">✅</td>
