@@ -185,58 +185,199 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 </table>
 
 <table>
-	<colgroup width="115"></colgroup>
-	<colgroup width="85"></colgroup>
-	<colgroup width="132"></colgroup>
-	<tr>
-		<td>Algorithm</td>
-		<td>YubiKey</td>
-		<td>Nitrokey 3</td>
-        <td>Nitrokey Pro</td>
-        <td>Librem Key</td>
-	</tr>
-	<tr>
-		<td>RSA 2048</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-	</tr>
-	<tr>
-		<td>RSA 3072</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-	</tr>
-	<tr>
-		<td>RSA 4096</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-	</tr>
-	<tr>
-		<td>ECC NIST P-256</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-	</tr>
-	<tr>
-		<td>ECC NIST P-521</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-	</tr>
-	<tr>
-		<td>Ed25519/X25519</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>❌</td>
-		<td>❌</td>
-	</tr>
+    <colgroup>
+        <col>
+    </colgroup> 
+    <colgroup span="3"></colgroup>
+    <colgroup span="3"></colgroup> 
+    <colgroup span="3"></colgroup> 
+    <colgroup span="3"></colgroup> 
+    <tr> 
+        <td rowspan="2">Supported cryptographic algorithms</td> 
+        <td colspan="3" align="center">YubiKey</td> 
+        <td colspan="3" align="center">Nitrokey 3</td> 
+        <td colspan="3" align="center">Nitrokey 2 Pro</td> 
+        <td colspan="3" align="center">Librem Key</td> 
+    </tr>
+    <tr> 
+        <td align="center">SIG</td> 
+        <td align="center">DEC</td> 
+        <td align="center">AUT</td> 
+        <td align="center">SIG</td> 
+        <td align="center">DEC</td> 
+        <td align="center">AUT</td> 
+        <td align="center">SIG</td> 
+        <td align="center">DEC</td> 
+        <td align="center">AUT</td> 
+        <td align="center">SIG</td> 
+        <td align="center">DEC</td> 
+        <td align="center">AUT</td> 
+    </tr> 
+    <tr> 
+        <td>RSA 2048</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+    </tr> 
+    <tr> 
+        <td>RSA 3072</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+        <td align="center">✅</td> 
+    </tr> 
+    <tr> 
+        <td>RSA 4096</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>   
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+    </tr>
+    <tr>
+        <td>ECC / NIST P-256</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+    </tr>
+    <tr>
+        <td>ECC / NIST P-384</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+    </tr>
+    <tr>
+        <td>ECC / NIST P-521</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+    </tr>
+    <tr>
+        <td>ECC / Ed25519/X25519</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+    </tr>
+    <tr>
+        <td>ECC / secp256k1</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+    </tr>
+    <tr>
+        <td>ECC / brainpoolP256r1</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+    </tr>
+    <tr>
+        <td>ECC / brainpoolP384r1</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+    </tr>
+    <tr>
+        <td>ECC / brainpoolP512r1</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+    </tr>
 </table>
 
 Other algorithms have not been tested.
