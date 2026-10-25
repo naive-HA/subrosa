@@ -75,11 +75,10 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 	<tr>
 		<td height="34"><br></td>
 		<td></td>
-		<td>YubiKey</td>
-		<td>YubiKey</td>
-		<td>Nitrokey 3</td>
-		<td>Nitrokey 3</td>
-        <td>Nitrokey Pro</td>
+		<td colspan="2">YubiKey</td>
+		<td colspan="2">Nitrokey 3</td>
+        <td colspan>Nitrokey 2 Pro</td>
+        <td colspan>Nitrokey Storage</td>
         <td>Librem Key</td>
 	</tr>
 	<tr>
@@ -89,6 +88,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>NFC</td>
 		<td>USB</td>
 		<td>NFC</td>
+        <td>USB</td>
         <td>USB</td>
         <td>USB</td>
 	</tr>
@@ -101,6 +101,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>❌</td>
         <td>❌</td>
         <td>❌</td>
+        <td>❌</td>
 	</tr>
 	<tr>
 		<td></td>
@@ -111,6 +112,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>❌</td>
         <td>❌</td>
         <td>❌</td>
+        <td>❌</td>
 	</tr>
 	<tr>
 		<td></td>
@@ -119,6 +121,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>✅</td>
 		<td>❌</td>
 		<td>❌</td>
+        <td>❌</td>
         <td>❌</td>
         <td>❌</td>
 	</tr>
@@ -131,6 +134,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>❌</td>
         <td>✅</td>
         <td>✅</td>
+        <td>✅</td>
 	</tr>
 	<tr>
 		<td></td>
@@ -139,6 +143,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>✅</td>
 		<td>✅</td>
 		<td>❌</td>
+        <td>✅</td>
         <td>✅</td>
         <td>✅</td>
 	</tr>
@@ -151,6 +156,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>❌</td>
         <td>✅</td>
         <td>✅</td>
+        <td>✅</td>
 	</tr>
 	<tr>
 		<td></td>
@@ -159,6 +165,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>✅</td>
 		<td>✅</td>
 		<td>❌</td>
+        <td>✅</td>
         <td>✅</td>
         <td>✅</td>
 	</tr>
@@ -171,6 +178,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>❌</td>
         <td>✅</td>
         <td>✅</td>
+        <td>✅</td>
 	</tr>
 	<tr>
 		<td></td>
@@ -179,6 +187,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 		<td>✅</td>
 		<td>✅</td>
 		<td>❌</td>
+        <td>✅</td>
         <td>✅</td>
         <td>✅</td>
 	</tr>
@@ -190,6 +199,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">YubiKey</td> 
         <td align="center">Nitrokey 3</td> 
         <td align="center">Nitrokey 2 Pro</td> 
+        <td align="center">Nitrokey Storage</td>
         <td align="center">Librem Key</td> 
     </tr>
     <tr> 
@@ -197,10 +207,12 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td> 
         <td align="center">✅</td> 
         <td align="center">✅</td> 
+        <td align="center">✅</td>
         <td align="center">✅</td> 
     </tr> 
     <tr> 
         <td>RSA 3072</td> 
+        <td align="center">✅</td> 
         <td align="center">✅</td> 
         <td align="center">✅</td> 
         <td align="center">✅</td> 
@@ -211,6 +223,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td>
         <td align="center">✅</td>   
         <td align="center">✅</td>
+        <td align="center">✅</td> 
         <td align="center">✅</td>
     </tr>
     <tr>
@@ -219,6 +232,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
+        <td align="center">✅</td> 
     </tr>
     <tr>
         <td>ECC / NIST P-384</td>
@@ -226,6 +240,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
+        <td align="center">✅</td> 
     </tr>
     <tr>
         <td>ECC / NIST P-521</td>
@@ -233,6 +248,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
+        <td align="center">✅</td> 
     </tr>
     <tr>
         <td>ECC / brainpoolP256r1</td>
@@ -240,6 +256,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
+        <td align="center">✅</td> 
     </tr>
     <tr>
         <td>ECC / brainpoolP384r1</td>
@@ -247,6 +264,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
+        <td align="center">✅</td> 
     </tr>
     <tr>
         <td>ECC / brainpoolP512r1</td>
@@ -254,6 +272,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
+        <td align="center">✅</td> 
     </tr>
     <tr>
         <td>ECC / Ed25519/X25519</td>
@@ -261,11 +280,13 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td>
         <td align="center">❌</td>
         <td align="center">❌</td>
+        <td align="center">❌</td>
     </tr>
     <tr>
         <td>ECC / secp256k1</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
+        <td align="center">❌</td>
         <td align="center">❌</td>
         <td align="center">❌</td>
     </tr>
