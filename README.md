@@ -75,121 +75,121 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 	<tr>
 		<td height="34"><br></td>
 		<td></td>
-		<td colspan="2">YubiKey</td>
-		<td colspan="2">Nitrokey 3</td>
-        <td colspan>Nitrokey 2 Pro</td>
-        <td colspan>Nitrokey Storage</td>
-        <td>Librem Key</td>
+		<td colspan="2" align="center">YubiKey</td>
+		<td colspan="2" align="center">Nitrokey 3</td>
+        <td align="center">Nitrokey 2 Pro</td>
+        <td align="center">Nitrokey Storage</td>
+        <td align="center">Librem Key</td>
 	</tr>
 	<tr>
 		<td></td>
 		<td></td>
-		<td>USB</td>
-		<td>NFC</td>
-		<td>USB</td>
-		<td>NFC</td>
-        <td>USB</td>
-        <td>USB</td>
-        <td>USB</td>
+		<td align="center">USB</td>
+		<td align="center">NFC</td>
+		<td align="center">USB</td>
+		<td align="center">NFC</td>
+        <td align="center">USB</td>
+        <td align="center">USB</td>
+        <td align="center">USB</td>
 	</tr>
 	<tr>
-		<td>Static password</td>
-		<td>Write</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>❌</td>
-		<td>❌</td>
-        <td>❌</td>
-        <td>❌</td>
-        <td>❌</td>
+		<td align="center">Static password</td>
+		<td align="center">Write</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">❌</td>
+		<td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
 	</tr>
 	<tr>
-		<td></td>
-		<td>Read</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>❌</td>
-		<td>❌</td>
-        <td>❌</td>
-        <td>❌</td>
-        <td>❌</td>
+		<td align="center"></td>
+		<td align="center">Read</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">❌</td>
+		<td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
 	</tr>
 	<tr>
-		<td></td>
-		<td>Wipe</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>❌</td>
-		<td>❌</td>
-        <td>❌</td>
-        <td>❌</td>
-        <td>❌</td>
+		<td align="center"></td>
+		<td align="center">Wipe</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">❌</td>
+		<td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
 	</tr>
 	<tr>
-		<td>OpenPGP</td>
-		<td>Write</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>❌</td>
-        <td>✅</td>
-        <td>✅</td>
-        <td>✅</td>
+		<td align="center">OpenPGP</td>
+		<td align="center">Write</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">❌</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
 	</tr>
 	<tr>
-		<td></td>
-		<td>Read</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>❌</td>
-        <td>✅</td>
-        <td>✅</td>
-        <td>✅</td>
+		<td align="center"></td>
+		<td align="center">Read</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">❌</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
 	</tr>
 	<tr>
-		<td></td>
-		<td>Wipe</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>❌</td>
-        <td>✅</td>
-        <td>✅</td>
-        <td>✅</td>
+		<td align="center"></td>
+		<td align="center">Wipe</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">❌</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
 	</tr>
 	<tr>
-		<td></td>
-		<td>Change User PIN</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>❌</td>
-        <td>✅</td>
-        <td>✅</td>
-        <td>✅</td>
+		<td align="center"></td>
+		<td align="center">Change User PIN</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">❌</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
 	</tr>
 	<tr>
-		<td></td>
-		<td>Reset User PIN</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>❌</td>
-        <td>✅</td>
-        <td>✅</td>
-        <td>✅</td>
+		<td align="center"></td>
+		<td align="center">Reset User PIN</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">❌</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
 	</tr>
 	<tr>
-		<td></td>
-		<td>Change Admin PIN</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>✅</td>
-		<td>❌</td>
-        <td>✅</td>
-        <td>✅</td>
-        <td>✅</td>
+		<td align="center"></td>
+		<td align="center">Change Admin PIN</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">✅</td>
+		<td align="center">❌</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
 	</tr>
 </table>
 
