@@ -185,13 +185,6 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
 </table>
 
 <table>
-    <colgroup>
-        <col>
-    </colgroup> 
-    <colgroup span="3"></colgroup>
-    <colgroup span="3"></colgroup> 
-    <colgroup span="3"></colgroup> 
-    <colgroup span="3"></colgroup> 
     <tr> 
         <td>Supported cryptographic algorithms</td> 
         <td align="center">YubiKey</td> 
@@ -242,20 +235,6 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td>
     </tr>
     <tr>
-        <td>ECC / Ed25519/X25519</td>
-        <td align="center">✅</td>
-        <td align="center">✅</td>
-        <td align="center">❌</td>
-        <td align="center">❌</td>
-    </tr>
-    <tr>
-        <td>ECC / secp256k1</td>
-        <td align="center">✅</td>
-        <td align="center">✅</td>
-        <td align="center">❌</td>
-        <td align="center">❌</td>
-    </tr>
-    <tr>
         <td>ECC / brainpoolP256r1</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
@@ -275,6 +254,20 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
+    </tr>
+    <tr>
+        <td>ECC / Ed25519/X25519</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
+    </tr>
+    <tr>
+        <td>ECC / secp256k1</td>
+        <td align="center">✅</td>
+        <td align="center">✅</td>
+        <td align="center">❌</td>
+        <td align="center">❌</td>
     </tr>
 </table>
 
