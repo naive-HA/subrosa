@@ -227,7 +227,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td>
     </tr>
     <tr>
-        <td>ECC / NIST P-256</td>
+        <td>ECDSA / NIST P-256</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
@@ -235,7 +235,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td> 
     </tr>
     <tr>
-        <td>ECC / NIST P-384</td>
+        <td>ECDSA / NIST P-384</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
@@ -243,7 +243,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td> 
     </tr>
     <tr>
-        <td>ECC / NIST P-521</td>
+        <td>ECDSA / NIST P-521</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
@@ -251,7 +251,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td> 
     </tr>
     <tr>
-        <td>ECC / brainpoolP256r1</td>
+        <td>ECDSA / brainpoolP256r1</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
@@ -259,7 +259,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td> 
     </tr>
     <tr>
-        <td>ECC / brainpoolP384r1</td>
+        <td>ECDSA / brainpoolP384r1</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
@@ -267,7 +267,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td> 
     </tr>
     <tr>
-        <td>ECC / brainpoolP512r1</td>
+        <td>ECDSA / brainpoolP512r1</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
@@ -275,7 +275,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">✅</td> 
     </tr>
     <tr>
-        <td>ECC / Ed25519/X25519</td>
+        <td>EdDSA / Ed25519, ECDH / X25519</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">❌</td>
@@ -283,7 +283,7 @@ You can easily import OpenPGP keys generated or stored by these apps in *sub ros
         <td align="center">❌</td>
     </tr>
     <tr>
-        <td>ECC / secp256k1</td>
+        <td>ECDSA / secp256k1</td>
         <td align="center">✅</td>
         <td align="center">✅</td>
         <td align="center">❌</td>
