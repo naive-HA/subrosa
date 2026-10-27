@@ -15,7 +15,6 @@
  */
 
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 
 plugins {
@@ -137,24 +136,34 @@ android {
 }
 
 abstract class CopyAndRenameBundleTask : DefaultTask() {
-    @get:InputFile
-    @get:Optional
-    abstract val inputBundle: RegularFileProperty
+    @get:Internal
+    abstract val inputDir: DirectoryProperty
 
-    @get:OutputFile
-    abstract val outputReleaseFile: RegularFileProperty
+    @get:Input
+    abstract val apkVersionName: Property<String>
 
-    @get:OutputFile
-    abstract val outputBuildFile: RegularFileProperty
+    @get:Internal
+    abstract val releaseDir: DirectoryProperty
 
     @TaskAction
     fun execute() {
-        val inFile = inputBundle.orNull?.asFile
-        if (inFile != null && inFile.exists()) {
-            outputReleaseFile.get().asFile.parentFile.mkdirs()
-            outputBuildFile.get().asFile.parentFile.mkdirs()
-            inFile.copyTo(outputReleaseFile.get().asFile, overwrite = true)
-            inFile.copyTo(outputBuildFile.get().asFile, overwrite = true)
+        val inDir = inputDir.orNull?.asFile
+        val version = apkVersionName.get()
+        val relDir = releaseDir.orNull?.asFile
+        if (inDir != null && inDir.exists() && relDir != null) {
+            relDir.mkdirs()
+            val bundleFile = inDir.walkTopDown().firstOrNull { it.isFile && it.extension == "aab" }
+            if (bundleFile != null) {
+                val targetName = "subrosa.$version.aab"
+                val destFile = relDir.resolve(targetName)
+                if (bundleFile.absolutePath != destFile.absolutePath) {
+                    bundleFile.copyTo(destFile, overwrite = true)
+                }
+                val buildDestFile = bundleFile.parentFile.resolve(targetName)
+                if (bundleFile.absolutePath != buildDestFile.absolutePath) {
+                    bundleFile.copyTo(buildDestFile, overwrite = true)
+                }
+            }
         }
     }
 }
@@ -214,16 +223,14 @@ androidComponents {
         val apkVersionName = android.defaultConfig.versionName ?: "0.0.0"
         val flavorName = variant.productFlavors.firstOrNull()?.second ?: "arm64"
         val isAab = flavorName == "aab" || variant.name.contains("aab", ignoreCase = true)
-        val ext = if (isAab) "aab" else "apk"
-        val targetName = "subrosa.$apkVersionName.$ext"
         val releaseDir = layout.projectDirectory.dir("release")
 
         if (isAab) {
             val listingTaskName = "produce${variant.name.replaceFirstChar { it.uppercase() }}BundleIdeListingFile"
             val copyAndRenameTask = tasks.register<CopyAndRenameBundleTask>("copyAndRename${variant.name}Bundle") {
-                inputBundle.set(layout.buildDirectory.file("outputs/bundle/${variant.name}/app-aab-release.aab"))
-                outputReleaseFile.set(releaseDir.file(targetName))
-                outputBuildFile.set(layout.buildDirectory.file("outputs/bundle/${variant.name}/$targetName"))
+                inputDir.set(layout.buildDirectory.dir("outputs/bundle/${variant.name}"))
+                this.apkVersionName.set(apkVersionName)
+                this.releaseDir.set(releaseDir)
             }
             tasks.matching { it.name == listingTaskName }.configureEach {
                 finalizedBy(copyAndRenameTask)
