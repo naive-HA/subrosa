@@ -3,13 +3,18 @@ package acab.naiveha.subrosa.ui.management
 import acab.naiveha.subrosa.ui.PgpDeviceType
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpCardInfo
 import com.yubico.yubikit.management.DeviceInfo
+import com.yubico.yubikit.support.DeviceUtil
 
 data class ConnectedDeviceInfo(
     val deviceInfo: DeviceInfo?,
     val type: PgpDeviceType,
     val atr: String,
     val isNfc: Boolean,
-    val infoText: String,
+    val usbName: String? = null,
+    val rawFirmware: String? = null,
+    val aidManufacturerId: Short? = null,
+    val note: String? = null,
+    val rawInfoText: String? = null,
 )
 
 sealed class PgpStatus {
@@ -33,8 +38,46 @@ data class ManagementUiState(
     val isDeviceConnected: Boolean
         get() = connectedDevice != null
 
+    val resolvedDeviceNameResult: DeviceNameResult
+        get() {
+            val dev = connectedDevice ?: return DeviceNameResult("Unknown", DeviceNameResult.Source.UNKNOWN)
+            val usbName = dev.usbName ?: dev.deviceInfo?.let { DeviceUtil.getName(it, null) }
+            val aidMfg = dev.aidManufacturerId ?: pgpCardInfo?.aidManufacturerId
+            return DeviceNameResolver.resolveDeviceNameWithSource(
+                usbName = usbName,
+                aidManufacturerId = aidMfg,
+                atrHex = dev.atr,
+            )
+        }
+
+    val resolvedDeviceName: String
+        get() = resolvedDeviceNameResult.name
+
+    val resolvedFirmware: String
+        get() {
+            val dev = connectedDevice ?: return "unknown"
+            val rawFw = dev.rawFirmware ?: dev.deviceInfo?.version?.toString()
+            val pgpVer = pgpCardInfo?.cardProtocolVersion ?: pgpCardInfo?.version
+            return DeviceNameResolver.formatFirmware(
+                rawFirmware = rawFw,
+                openPgpVersion = pgpVer,
+            )
+        }
+
     val infoText: String
-        get() = connectedDevice?.infoText ?: ""
+        get() {
+            val dev = connectedDevice ?: return ""
+            if (dev.rawInfoText != null && dev.rawInfoText.isNotBlank()) {
+                return dev.rawInfoText
+            }
+            return buildString {
+                append("Device: $resolvedDeviceName\n")
+                append("Firmware: $resolvedFirmware")
+                if (dev.deviceInfo?.isFips == true) append("\nFIPS-certified")
+                if (dev.deviceInfo?.isLocked == true) append("\nConfiguration locked")
+                if (dev.note != null) append("\n\n${dev.note}")
+            }
+        }
 
     val pgpStatus: PgpStatus
         get() {

@@ -18,9 +18,7 @@ import android.text.TextWatcher
 import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
 import android.util.Log
-import android.view.GestureDetector
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -50,9 +48,13 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import kotlin.time.Duration.Companion.milliseconds
 
 class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
     companion object {
@@ -103,7 +105,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                     "${if (slotTwo == true) "TWO" else if (slotTwo == false) "ONE" else "?"}): ${e.message}", e)
                 if (!isAnySlotProgrammed()) {
                     Log.d(TAG, "requestOtp — neither slot programmed, reporting as such instead of raw error")
-                    viewModel.postResult(Result.failure(Exception(YubiOtpViewModel.NO_SLOT_CONFIGURED)))
+                    viewModel.postResult(Result.failure(Exception(OtpNfcConfig.noSlotConfigured(requireContext()))))
                 } else {
                     viewModel.postResult(Result.failure(e))
                 }
@@ -171,7 +173,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                         val configured = session.configurationState.isConfigured(slot)
                         Log.d(TAG, "onNfcDeviceForRead — freshly-tapped device reports slot $slot configured=$configured")
                         if (!configured) {
-                            throw Exception(YubiOtpViewModel.SLOT_NOT_PROGRAMMED)
+                            throw Exception(OtpNfcConfig.slotNotProgrammed(requireContext()))
                         }
                         session.setNdefConfiguration(slot, null, null)
                     }
@@ -202,7 +204,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         }
         Log.d(TAG, "decodeAndShow — decoded ${password.size} character password")
         showStaticPasswordDialog(password)
-        viewModel.postReadStatus(YubiOtpViewModel.READ_COMPLETE_STATUS)
+        viewModel.postReadStatus(OtpNfcConfig.readCompleteStatus(requireContext()))
     }
 
     private fun requireWithinMaxLength(length: Int) {
@@ -241,7 +243,29 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         super.onPause()
     }
 
+    private var nfcDotAnimationJob: Job? = null
+
+    private fun startNfcDotAnimation(baseText: String) {
+        if (nfcDotAnimationJob?.isActive == true) return
+        nfcDotAnimationJob = viewLifecycleOwner.lifecycleScope.launch {
+            val steps = arrayOf("", ".", "..", "...")
+            var step = 0
+            while (isActive) {
+                binding.mgmtDesc.text = StringBuilder(baseText).append(steps[step]).toString()
+                delay(500.milliseconds)
+                step = (step + 1) % steps.size
+            }
+        }
+    }
+
+    private fun stopNfcDotAnimation() {
+        nfcDotAnimationJob?.cancel()
+        nfcDotAnimationJob = null
+    }
+
     override fun onDestroyView() {
+        stopNfcDotAnimation()
+        viewModel.setMgmtTabActive(false)
         if (!requireActivity().isChangingConfigurations) {
             viewModel.requestClearUi()
         }
@@ -259,12 +283,14 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
 
         var currentTabIndex = 1
         var currentAnimator: ValueAnimator? = null
+        viewModel.setMgmtTabActive(false)
 
         fun updateDots(selectedIndex: Int) {
             binding.tabEraseIcon.setImageResource(if (selectedIndex == 0) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
             binding.tabWriteIcon.setImageResource(if (selectedIndex == 1) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
             binding.tabReadIcon.setImageResource(if (selectedIndex == 2) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
-            binding.tabMgmtIcon.setImageResource(if (selectedIndex == 3) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+//            binding.tabMgmtIcon.setImageResource(if (selectedIndex == 3) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+            binding.tabMgmt.visibility = View.GONE
         }
 
         val sections = listOf(binding.sectionErase, binding.sectionWrite, binding.sectionRead, binding.sectionMgmt)
@@ -279,7 +305,8 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             val cardSpacingPx = density * 460f
             val sectionWidthPx = if (isCarouselMode) (density * 448f).roundToInt() else ViewGroup.LayoutParams.MATCH_PARENT
 
-            val activeDot = effectiveIndex.roundToInt().coerceIn(0, 3)
+//            val activeDot = effectiveIndex.roundToInt().coerceIn(0, 3)
+            val activeDot = effectiveIndex.roundToInt().coerceIn(0, 2)
             updateDots(activeDot)
 
             val activeSection = sections[activeDot]
@@ -291,6 +318,11 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             activeSection.requestLayout()
 
             sections.forEachIndexed { i, view ->
+                //TODO remove this
+                if (i == 3) {
+                    view.visibility = View.GONE
+                    return@forEachIndexed
+                }
                 val lp = view.layoutParams
                 if (lp != null && lp.width != sectionWidthPx) {
                     lp.width = sectionWidthPx
@@ -352,10 +384,14 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             }
         }
 
-        fun navigateToTab(targetIndex: Int) {
+//        fun navigateToTab(targetIndex: Int) {
+        fun navigateToTab(targetIndexRaw: Int) {
+            val targetIndex = targetIndexRaw.coerceIn(0, 2)
             if (targetIndex == currentTabIndex) return
 
             currentAnimator?.cancel()
+//            viewModel.setMgmtTabActive(targetIndex == 3)
+            viewModel.setMgmtTabActive(false)
 
             val fromIndex = currentTabIndex
             val steps = targetIndex - fromIndex
@@ -393,14 +429,91 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         binding.tabErase.setOnClickListener { navigateToTab(0) }
         binding.tabWrite.setOnClickListener { navigateToTab(1) }
         binding.tabRead.setOnClickListener { navigateToTab(2) }
-        binding.tabMgmt.setOnClickListener { navigateToTab(3) }
+//        binding.tabMgmt.setOnClickListener { navigateToTab(3) }
+        binding.tabMgmt.setOnClickListener { }
+        var renderingMgmt = false
+
+        fun renderMgmt(state: YubiOtpUiState, isBusy: Boolean? = null) {
+            val busy = isBusy ?: (viewModel.pendingAction.value != null)
+            val nfc = state.nfc
+            val rowVisible = nfc == null || (nfc.applicable && nfc.hasNfc && nfc.otpSupported)
+            val note: Int? = when {
+                nfc == null -> R.string.nfc_static_password_desc
+                !nfc.applicable -> R.string.otp_nfc_reason_unsupported
+                !nfc.hasNfc -> R.string.otp_nfc_reason_no_nfc
+                !nfc.otpSupported -> R.string.otp_nfc_reason_no_otp
+                !nfc.canConfigure -> R.string.otp_nfc_reason_old_firmware
+                nfc.locked -> R.string.otp_nfc_reason_locked
+                nfc.otpOverNfc == OtpNfcState.UNKNOWN -> R.string.otp_nfc_reason_unreadable
+                nfc.otpOverNfc == OtpNfcState.ENABLED -> R.string.otp_nfc_on_note
+                nfc.otpOverNfc == OtpNfcState.DISABLED -> R.string.otp_nfc_off_note
+                else -> R.string.nfc_static_password_desc
+            }
+            val known = if (nfc != null && rowVisible) nfc.otpOverNfc else OtpNfcState.UNKNOWN
+
+            val switchLabel = getString(R.string.otp_nfc_switch_label)
+            val hintConnect = getString(R.string.otp_nfc_hint_connect)
+            if (known == OtpNfcState.UNKNOWN) {
+                startNfcDotAnimation("$switchLabel\n$hintConnect")
+            } else {
+                stopNfcDotAnimation()
+                binding.mgmtDesc.text = switchLabel
+            }
+
+            val switchOn = state.nfcRequested ?: (known == OtpNfcState.ENABLED)
+
+            val elementsEnabled = (known != OtpNfcState.UNKNOWN) && !busy
+
+            renderingMgmt = true
+            binding.mgmtNfcSwitch.isChecked = switchOn
+            renderingMgmt = false
+
+            binding.mgmtNfcSwitch.isEnabled = elementsEnabled
+            binding.mgmtNfcOffLabel.isEnabled = elementsEnabled
+            binding.mgmtNfcOnLabel.isEnabled = elementsEnabled
+
+            val status = when (known) {
+                OtpNfcState.ENABLED -> getString(R.string.otp_nfc_on)
+                OtpNfcState.DISABLED -> getString(R.string.otp_nfc_off)
+                OtpNfcState.UNKNOWN -> getString(R.string.dash)
+            }
+            binding.mgmtStatus.text =
+                if (nfc != null && nfc.viaNfc && known != OtpNfcState.UNKNOWN) {
+                    getString(R.string.otp_nfc_state_last_tap, status)
+                } else {
+                    status
+                }
+
+            if (note != null) {
+                binding.mgmtReason.setText(note)
+            }
+
+            if (currentTabIndex == 3 && currentAnimator?.isRunning != true) {
+                binding.root.post {
+                    if (isAdded) {
+                        applySectionLayout(3f, isAnimating = false)
+                    }
+                }
+            }
+        }
 
         binding.mgmtNfcSwitch.setOnCheckedChangeListener { _, isChecked ->
-            val state = if (isChecked) "ON" else "OFF"
-            binding.mgmtStatus.text = state
+            if (renderingMgmt) return@setOnCheckedChangeListener
+            Log.d(TAG, "mgmtNfcSwitch — user set static password over NFC to ${if (isChecked) "ON" else "OFF"}")
+            viewModel.queueSetOtpOverNfc(isChecked)
         }
-        binding.mgmtNfcSwitch.isChecked = true
-        binding.mgmtStatus.text = "ON"
+
+        binding.mgmtNfcOffLabel.setOnClickListener {
+            if (renderingMgmt || !binding.mgmtNfcSwitch.isEnabled) return@setOnClickListener
+            Log.d(TAG, "mgmtNfcOffLabel clicked — setting static password over NFC to OFF")
+            viewModel.queueSetOtpOverNfc(false)
+        }
+
+        binding.mgmtNfcOnLabel.setOnClickListener {
+            if (renderingMgmt || !binding.mgmtNfcSwitch.isEnabled) return@setOnClickListener
+            Log.d(TAG, "mgmtNfcOnLabel clicked — setting static password over NFC to ON")
+            viewModel.queueSetOtpOverNfc(true)
+        }
 
         binding.root.post {
             if (isAdded) {
@@ -409,7 +522,8 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         }
 
         binding.yubiotpScrollView.onSwipeLeft = {
-            if (currentTabIndex < sections.size - 1) {
+//            if (currentTabIndex < sections.size - 1) {
+        if (currentTabIndex < 2) {
                 navigateToTab(currentTabIndex + 1)
             }
         }
@@ -428,13 +542,14 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             if (state == null) return@observe
             updateButtonStates()
             updateProgressVisibility(state)
-//            renderSlotStates(state)
+            renderMgmt(state)
         }
 
         viewModel.pendingAction.observe(viewLifecycleOwner) { action ->
             val state = viewModel.uiState.value ?: return@observe
             updateProgressVisibility(state, action != null)
             updateButtonStates(action != null)
+            renderMgmt(state, action != null)
 
             if ((action == null) && (state.currentOperation != OtpOperation.NONE)) {
                 viewModel.setCurrentOperation(OtpOperation.NONE)
@@ -539,19 +654,19 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
 
         bindAutoClearStatus(
             viewModel.writeStatus, binding.saveStatus,
-            YubiOtpViewModel.slotProgrammedStatus(Slot.ONE), YubiOtpViewModel.slotProgrammedStatus(Slot.TWO),
+            OtpNfcConfig.slotProgrammedStatus(Slot.ONE), OtpNfcConfig.slotProgrammedStatus(Slot.TWO),
         ) { viewModel.postWriteStatus(it) }
         viewModel.writeStatus.observe(viewLifecycleOwner) { message ->
             if (message.isNotEmpty()) binding.editTextStaticpwdId.setText("")
         }
 
         bindAutoClearStatus(
-            viewModel.readStatus, binding.readStatus, YubiOtpViewModel.READ_COMPLETE_STATUS,
+            viewModel.readStatus, binding.readStatus, OtpNfcConfig.readCompleteStatus(requireContext()),
         ) { viewModel.postReadStatus(it) }
 
         bindAutoClearStatus(
             viewModel.resetStatus, binding.deleteStatus,
-            YubiOtpViewModel.slotResetStatus(Slot.ONE), YubiOtpViewModel.slotResetStatus(Slot.TWO),
+            OtpNfcConfig.slotResetStatus(Slot.ONE), OtpNfcConfig.slotResetStatus(Slot.TWO),
         ) { viewModel.postResetStatus(it) }
 
         binding.btnSaveStaticpwd.setOnClickListener {
@@ -593,7 +708,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                             Log.i(TAG, "pendingAction — programming slot $slot")
                             putConfiguration(slot, configuration, null, null)
                             Log.i(TAG, "pendingAction — slot $slot programmed")
-                            viewModel.postWriteStatus(YubiOtpViewModel.slotProgrammedStatus(slot))
+                            viewModel.postWriteStatus(OtpNfcConfig.slotProgrammedStatus(slot))
                             null
                         }
                     }
@@ -625,7 +740,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                 "irrelevant for USB), deviceConnected=$deviceConnected")
             if (deviceConnected && !isAnySlotProgrammed()) {
                 Log.d(TAG, "btnRequestStaticpwd — neither slot programmed, skipping read")
-                viewModel.postResult(Result.failure(Exception(YubiOtpViewModel.NO_SLOT_CONFIGURED)))
+                viewModel.postResult(Result.failure(Exception(OtpNfcConfig.noSlotConfigured(requireContext()))))
                 return@setOnClickListener
             }
             hideIme()
@@ -716,7 +831,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                         } else {
                             Log.i(TAG, "pendingAction — slot $slot already not programmed, nothing to delete")
                         }
-                        viewModel.postResetStatus(YubiOtpViewModel.slotResetStatus(slot))
+                        viewModel.postResetStatus(OtpNfcConfig.slotResetStatus(slot))
                         null
                     }
                 }
@@ -727,7 +842,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
     private fun rejectIfUnsupportedDeviceConnected(): Boolean {
         val device = activityViewModel.yubiKey.value
         if (PgpDeviceType.isUsbNitrokey3(device) || PgpDeviceType.isUsbNitrokey2(device)) {
-            viewModel.postResult(Result.failure(Exception(YubiOtpViewModel.STATIC_PASSWORDS_NOT_SUPPORTED)))
+            viewModel.postResult(Result.failure(Exception(OtpNfcConfig.staticPasswordsNotSupported(requireContext()))))
             return true
         }
         return false

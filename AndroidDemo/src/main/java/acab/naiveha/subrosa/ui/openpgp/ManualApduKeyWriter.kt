@@ -8,7 +8,8 @@ import com.yubico.yubikit.core.util.Tlv
 import com.yubico.yubikit.openpgp.KeyRef
 import com.yubico.yubikit.openpgp.OpenPgpSession
 import java.math.BigInteger
-import org.bouncycastle.asn1.sec.SECNamedCurves
+import org.bouncycastle.asn1.x9.ECNamedCurveTable
+import org.bouncycastle.asn1.x9.X9ECParameters
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
 import org.bouncycastle.crypto.params.X25519PrivateKeyParameters
 
@@ -22,7 +23,24 @@ internal object ManualApduKeyWriter {
     private val OID_ED25519   = byteArrayOf(0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA.toByte(), 0x47, 0x0F, 0x01)
     private val OID_X25519    = byteArrayOf(0x2B, 0x06, 0x01, 0x04, 0x01, 0x97.toByte(), 0x55, 0x01, 0x05, 0x01)
     private val OID_SECP256R1 = byteArrayOf(0x2A, 0x86.toByte(), 0x48, 0xCE.toByte(), 0x3D, 0x03, 0x01, 0x07)
+    private val OID_SECP384R1 = byteArrayOf(0x2B, 0x81.toByte(), 0x04, 0x00, 0x22)
     private val OID_SECP521R1 = byteArrayOf(0x2B, 0x81.toByte(), 0x04, 0x00, 0x23)
+    private val OID_BRAINPOOLP256R1 = byteArrayOf(0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07)
+    private val OID_BRAINPOOLP384R1 = byteArrayOf(0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B)
+    private val OID_BRAINPOOLP512R1 = byteArrayOf(0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D)
+    private val OID_SECP256K1 = byteArrayOf(0x2B, 0x81.toByte(), 0x04, 0x00, 0x0A)
+
+    private class WeierstrassCurve(val label: String, val oid: ByteArray, val bcName: String)
+
+    private val WEIERSTRASS_CURVES: Map<EllipticCurveValues, WeierstrassCurve> = mapOf(
+        EllipticCurveValues.SECP256R1 to WeierstrassCurve("NIST P-256", OID_SECP256R1, "secp256r1"),
+        EllipticCurveValues.SECP384R1 to WeierstrassCurve("NIST P-384", OID_SECP384R1, "secp384r1"),
+        EllipticCurveValues.SECP521R1 to WeierstrassCurve("NIST P-521", OID_SECP521R1, "secp521r1"),
+        EllipticCurveValues.BrainpoolP256R1 to WeierstrassCurve("brainpoolP256r1", OID_BRAINPOOLP256R1, "brainpoolP256r1"),
+        EllipticCurveValues.BrainpoolP384R1 to WeierstrassCurve("brainpoolP384r1", OID_BRAINPOOLP384R1, "brainpoolP384r1"),
+        EllipticCurveValues.BrainpoolP512R1 to WeierstrassCurve("brainpoolP512r1", OID_BRAINPOOLP512R1, "brainpoolP512r1"),
+        EllipticCurveValues.SECP256K1 to WeierstrassCurve("secp256k1", OID_SECP256K1, "secp256k1"),
+        )
 
     private const val EC_PUBLIC_KEY_HEADER: Byte = 0x40
 
@@ -92,10 +110,19 @@ internal object ManualApduKeyWriter {
             "${slot.ref.name}: ${e.message}"
         }
 
-    private fun unwritable(key: PrivateKeyValues) = IllegalArgumentException(
-        "${CardAlgorithmInfo.describe(key)} cannot be written to this device by this app " +
-            "(it can write RSA, NIST P-256, NIST P-521, Ed25519 and X25519 keys)"
-    )
+     fun curveLabel(oid: ByteArray): String? = when {
+        oid.contentEquals(OID_ED25519) -> "Ed25519"
+        oid.contentEquals(OID_X25519) -> "X25519"
+        else -> WEIERSTRASS_CURVES.values.firstOrNull { it.oid.contentEquals(oid) }?.label
+    }
+
+    private fun unwritable(key: PrivateKeyValues): IllegalArgumentException {
+        val curves = WEIERSTRASS_CURVES.values.joinToString(", ") { it.label }
+        return IllegalArgumentException(
+            "${CardAlgorithmInfo.describe(key)} cannot be written to this device by this app " +
+                "(it can write RSA, $curves, Ed25519 and X25519 keys)"
+        )
+    }
 
     private fun buildAlgorithmAttributes(slot: SlotData): ByteArray {
         val ref = slot.ref
@@ -106,11 +133,12 @@ internal object ManualApduKeyWriter {
                     shortBe(RSA_PUBLIC_EXPONENT_LEN_BITS) +
                     byteArrayOf(0x00)
             is PrivateKeyValues.Ec -> when (key.curveParams) {
-                EllipticCurveValues.SECP256R1 -> byteArrayOf(ecdsaOrEcdh(ref).toByte()) + OID_SECP256R1
-                EllipticCurveValues.SECP521R1 -> byteArrayOf(ecdsaOrEcdh(ref).toByte()) + OID_SECP521R1
                 EllipticCurveValues.Ed25519 -> byteArrayOf(PGP_ALGO_EDDSA_LEGACY.toByte()) + OID_ED25519
                 EllipticCurveValues.X25519 -> byteArrayOf(PGP_ALGO_ECDH.toByte()) + OID_X25519
-                else -> throw unwritable(key)
+                else -> {
+                    val curve = WEIERSTRASS_CURVES[key.curveParams] ?: throw unwritable(key)
+                    byteArrayOf(ecdsaOrEcdh(ref).toByte()) + curve.oid
+                }
             }
             else -> throw unwritable(key)
         }
@@ -127,13 +155,12 @@ internal object ManualApduKeyWriter {
         return when (val key = slot.privateKeyValues) {
             is PrivateKeyValues.Rsa -> buildRsaKeyTemplate(ref, key)
             is PrivateKeyValues.Ec -> when (key.curveParams) {
-                EllipticCurveValues.SECP256R1 ->
-                    buildNistEcTemplate(ref, key.secret, "secp256r1", omitEcPublicKeyForNistCurves)
-                EllipticCurveValues.SECP521R1 ->
-                    buildNistEcTemplate(ref, key.secret, "secp521r1", omitEcPublicKeyForNistCurves)
                 EllipticCurveValues.Ed25519 -> buildEd25519Template(ref, key.secret)
                 EllipticCurveValues.X25519 -> buildX25519Template(ref, key.secret)
-                else -> throw unwritable(key)
+                else -> {
+                    val curve = WEIERSTRASS_CURVES[key.curveParams] ?: throw unwritable(key)
+                    buildWeierstrassEcTemplate(ref, key.secret, curve.bcName, omitEcPublicKeyForNistCurves)
+                }
             }
             else -> throw unwritable(key)
         }
@@ -197,18 +224,18 @@ internal object ManualApduKeyWriter {
         }
     }
 
-    private fun buildNistEcTemplate(
+    private fun buildWeierstrassEcTemplate(
         ref: KeyRef,
         secret: ByteArray,
         bcCurveName: String,
         omitEcPublicKeyForNistCurves: Boolean,
     ): ByteArray {
-        val scalar = nistScalar(secret, bcCurveName)
+        val scalar = weierstrassScalar(secret, bcCurveName)
         try {
             return if (omitEcPublicKeyForNistCurves) {
                 buildPrivateOnlyTemplate(ref, scalar)
             } else {
-                val publicKeyBytes = nistPublicKeyBytes(scalar, bcCurveName)
+                val publicKeyBytes = weierstrassPublicKeyBytes(scalar, bcCurveName)
                 try {
                     buildPrivateAndPublicTemplate(ref, scalar, publicKeyBytes)
                 } finally {
@@ -251,15 +278,20 @@ internal object ManualApduKeyWriter {
         return secret
     }
 
-    private fun nistScalar(secret: ByteArray, bcCurveName: String): ByteArray {
-        val curve = SECNamedCurves.getByName(bcCurveName)
+    private fun domainParameters(bcCurveName: String): X9ECParameters =
+        requireNotNull(ECNamedCurveTable.getByName(bcCurveName)) {
+            "no domain parameters available for curve $bcCurveName"
+        }
+
+    private fun weierstrassScalar(secret: ByteArray, bcCurveName: String): ByteArray {
+        val curve = domainParameters(bcCurveName)
         val scalarLength = (curve.curve.fieldSize + 7) / 8
         val d = BigInteger(1, secret)
         return ByteUtils.intToLength(d, scalarLength)
     }
 
-    private fun nistPublicKeyBytes(scalar: ByteArray, bcCurveName: String): ByteArray {
-        val curve = SECNamedCurves.getByName(bcCurveName)
+    private fun weierstrassPublicKeyBytes(scalar: ByteArray, bcCurveName: String): ByteArray {
+        val curve = domainParameters(bcCurveName)
         val d = BigInteger(1, scalar)
         return curve.g.multiply(d).normalize().getEncoded(false)
     }

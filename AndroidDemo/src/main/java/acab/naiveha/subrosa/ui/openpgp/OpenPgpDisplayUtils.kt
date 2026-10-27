@@ -1,6 +1,7 @@
 package acab.naiveha.subrosa.ui.openpgp
 
 import com.yubico.yubikit.openpgp.AlgorithmAttributes
+import com.yubico.yubikit.openpgp.OpenPgpCurve
 import com.yubico.yubikit.openpgp.OpenPgpSession
 import org.bouncycastle.openpgp.PGPPublicKey
 import org.bouncycastle.openpgp.PGPSignature
@@ -22,12 +23,26 @@ internal fun AlgorithmAttributes.toDisplayString(): String = try {
         "Rsa" -> "RSA-${
             javaClass.getDeclaredField("nLen").also { it.isAccessible = true }.getInt(this)
         }"
-        "Ec"  -> javaClass.getDeclaredField("curve")
-            .also { it.isAccessible = true }
-            .get(this)?.toString() ?: "EC"
+        "Ec"  -> ecDisplayString()
         else  -> javaClass.simpleName ?: "Unknown"
     }
 } catch (_: Exception) { javaClass.simpleName ?: "Unknown" }
+
+private fun AlgorithmAttributes.ecDisplayString(): String {
+    val curve = javaClass.getDeclaredField("curve").also { it.isAccessible = true }.get(this) as? OpenPgpCurve
+        ?: return "EC"
+    val algorithmId = AlgorithmAttributes::class.java.getDeclaredField("algorithmId")
+        .also { it.isAccessible = true }.getByte(this).toInt() and 0xFF
+    val oid = OpenPgpCurve::class.java.getDeclaredMethod("getOid")
+        .also { it.isAccessible = true }.invoke(curve) as ByteArray
+    return ecAlgorithmLabel(
+        CardAlgorithmInfo.algorithmName(algorithmId),
+        ManualApduKeyWriter.curveLabel(oid) ?: curve.name,
+    )
+}
+
+internal fun ecAlgorithmLabel(algorithm: String, curve: String?): String =
+    if (curve.isNullOrBlank()) algorithm else "$algorithm ($curve)"
 
 internal fun ByteArray.toFingerprintDisplay(): String =
     joinToString("") { "%02X".format(it) }.chunked(4).joinToString(" ")

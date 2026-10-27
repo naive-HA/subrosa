@@ -11,6 +11,8 @@ data class OpenPgpCardInfo(
     val resetRetries: Int,
     val adminPinRetries: Int,
     val supportedAlgorithms: SupportedAlgorithms? = null,
+    val aidManufacturerId: Short? = null,
+    val cardProtocolVersion: String? = null,
 ) {
     data class SlotInfo(
         val ref: KeyRef,

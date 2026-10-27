@@ -79,6 +79,7 @@
             android:id="@+id/tab_mgmt"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:visibility="gone"
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
@@ -600,54 +601,88 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="@dimen/activity_margin"
                     android:minLines="2"
-                    android:maxLines="2"
-                    android:ellipsize="end"
-                    android:text="Static password NFC management" />
+                    android:text="@string/otp_nfc_switch_label" />
 
                 <LinearLayout
+                    android:id="@+id/mgmt_nfc_row"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:minHeight="48dp"
                     android:layout_marginBottom="8dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <TextView
                         android:id="@+id/mgmt_nfc_state_id"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="0.35"
-                        android:text="Current state"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                    <androidx.appcompat.widget.SwitchCompat
-                        android:id="@+id/mgmt_nfc_switch"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:checked="true"
-                        android:text="" />
+                        android:text="@string/otp_nfc_state_label"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/mgmt_status"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_weight="0.65"
-                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
                         android:gravity="start"
                         android:textAppearance="?attr/textAppearanceCaption"
-                        android:textColor="@color/binary_background"
                         android:textSize="14sp"
                         tools:text="ON" />
+
+                    <LinearLayout
+                        android:id="@+id/mgmt_nfc_switch_container"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/mgmt_nfc_off_label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:padding="4dp"
+                            android:text="@string/otp_nfc_off"
+                            android:textSize="14sp" />
+
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/mgmt_nfc_switch"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="10dp"
+                            android:contentDescription="@string/otp_nfc_switch_label"
+                            android:enabled="false"
+                            android:text=""
+                            android:switchMinWidth="50dp"
+                            app:switchMinWidth="50dp" />
+
+                        <TextView
+                            android:id="@+id/mgmt_nfc_on_label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:padding="4dp"
+                            android:text="@string/otp_nfc_on"
+                            android:textSize="14sp" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:id="@+id/mgmt_reason"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
                     android:textSize="12sp"
-                    android:layout_marginBottom="@dimen/activity_margin"
-                    android:ellipsize="end"
-                    android:text="@string/nfc_static_password_desc" />
+                    tools:text="@string/otp_nfc_hint_connect"
+                    tools:visibility="visible" />
+
             </LinearLayout>
 
             </FrameLayout>

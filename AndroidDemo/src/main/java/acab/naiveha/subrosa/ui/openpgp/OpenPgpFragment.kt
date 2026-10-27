@@ -347,6 +347,9 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                     if (viewModel.lastQueuedActionSucceeded == true) {
                         Log.i(TAG, "Save succeeded — resetting UI")
                         resetKeyState()
+                        clearCardInfoDisplay()
+                        viewModel.clearCardInfo()
+                        clearPinRetriesDisplay()
                     } else {
                         Log.i(TAG, "Save did not complete successfully — keeping the loaded key so the user can retry")
                     }
@@ -355,8 +358,13 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             }
         }
 
-        bindAutoClearStatus(viewModel.writeStatus, binding.writeStatus, OpenPgpWriter.WRITE_COMPLETE_STATUS) {
+        bindAutoClearStatus(viewModel.writeStatus, binding.writeStatus, OpenPgpWriter.WRITE_COMPLETE_STATUS, "Ready to write") {
             viewModel.postWriteStatus(it)
+            if (it == OpenPgpWriter.WRITE_COMPLETE_STATUS) {
+                clearCardInfoDisplay()
+                viewModel.clearCardInfo()
+                clearPinRetriesDisplay()
+            }
         }
         bindAutoClearStatus(viewModel.readStatus, binding.readStatus, OpenPgpReader.READ_COMPLETE_STATUS) {
             viewModel.postReadStatus(it)
@@ -364,6 +372,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         bindAutoClearStatus(viewModel.wipeStatus, binding.wipeStatus, OpenPgpWriter.WIPE_COMPLETE_STATUS) {
             viewModel.postWipeStatus(it)
             clearCardInfoDisplay()
+            viewModel.clearCardInfo()
             clearPinRetriesDisplay()
         }
         bindAutoClearStatus(
@@ -377,6 +386,11 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             shouldHide = { it.contains("Remaining attempts", ignoreCase = true) },
         ) {
             viewModel.postPinChangeStatus(it)
+            if (it == OpenPgpWriter.WIPE_COMPLETE_STATUS || it == OpenPgpViewModel.PIN_RESET_COMPLETE_STATUS) {
+                clearCardInfoDisplay()
+                viewModel.clearCardInfo()
+                clearPinRetriesDisplay()
+            }
         }
 
         binding.btnSave.setOnClickListener {
@@ -392,7 +406,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                 tag = TAG,
                 logLabel = "OpenPGP write",
                 title = R.string.openpgp_write_confirm_title,
-                message = buildWriteConfirmMessage(viewModel.uiState.value?.importedKeyInfo, bundle),
+                message = getString(R.string.openpgp_write_confirm_message),
                 confirmText = R.string.openpgp_write_confirm_action,
                 onConfirmed = {
                     lifecycleScope.launch(Dispatchers.Main) {
@@ -414,7 +428,9 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                             val writer = deviceType.writer()
                             Log.i(TAG, "pendingAction — device=$deviceType " +
                                 "writer=${writer::class.simpleName}")
-                            writer.program(this, bundle, adminPin, userPin, status = viewModel::postWriteStatus)
+                            writer.program(this, bundle, adminPin, userPin, status = viewModel::postWriteStatus).also {
+                                viewModel.clearCardInfo()
+                            }
                         }
                     }
                 },
@@ -495,7 +511,9 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                 val writer = deviceType.writer()
                 Log.i(TAG, "wipe — device=$deviceType " +
                     "writer=${writer::class.simpleName}")
-                writer.wipe(this, status = viewModel::postWipeStatus)
+                writer.wipe(this, status = viewModel::postWipeStatus).also {
+                    viewModel.clearCardInfo()
+                }
             }
         })
     }
@@ -618,6 +636,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         if (importInProgress) return
         importInProgress = true
         Toast.makeText(requireContext(), "Importing PGP key...", Toast.LENGTH_SHORT).show()
+        viewModel.postWriteStatus("Decoding armored input...")
 
         lifecycleScope.launch(Dispatchers.Main) {
             try {
@@ -675,6 +694,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             val passphrase = getSecret(requireActivity(), R.string.enter_file_passphrase, showPaste = true)
                 ?: run { Log.d(TAG, "File passphrase cancelled"); return null }
             Log.d(TAG, "File passphrase length=${passphrase.size} — decrypting…")
+            viewModel.postWriteStatus("Extracting private key...")
             binding.progressSave.visibility = View.VISIBLE
             binding.btnSave.isEnabled = false
             val attempt = withContext(Dispatchers.IO) {
@@ -720,6 +740,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             return
         }
         Log.d(TAG, "Parsing key metadata…")
+        viewModel.postWriteStatus("Decoding armored input...")
         OpenPgpKeyParser.parse(rawText)
             .onSuccess { info ->
                 Log.i(TAG, "Parsed — hasUserId=${info.userId.isNotBlank()} protected=${info.isPassphraseProtected}")
@@ -736,8 +757,9 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
     private suspend fun prepareBundleWithPassphraseRetry(armor: String): ImportBundle? {
         Log.d(TAG, "Key is passphrase-protected — collecting passphrase…")
         while (true) {
-            val passphrase = getSecret(requireContext(), R.string.enter_key_passphrase, showPaste = true)
+            val passphrase = getSecret(requireActivity(), R.string.enter_key_passphrase, showPaste = true)
                 ?: run { Log.d(TAG, "Passphrase cancelled"); return null }
+            viewModel.postWriteStatus("Extracting private key...")
             binding.progressSave.visibility = View.VISIBLE
             binding.btnSave.isEnabled = false
             val bundle = withContext(Dispatchers.IO) {
@@ -762,6 +784,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             validatedBundle?.destroy()
             validatedBundle = null
 
+            viewModel.postWriteStatus("Extracting private key...")
             val bundle = if (info.isPassphraseProtected) {
                 prepareBundleWithPassphraseRetry(armor) ?: run { resetKeyState(); return@launch }
             } else {
@@ -781,6 +804,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             }
 
             validatedBundle = bundle
+            viewModel.postWriteStatus("Ready to write")
             updateButtonStates(viewModel.uiState.value ?: OpenPgpUiState())
         }
     }

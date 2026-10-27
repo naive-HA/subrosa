@@ -56,11 +56,7 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
         )
 
         viewModel.result.observe(viewLifecycleOwner) { result ->
-            result.onSuccess {
-                it?.let {
-                    Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-                }
-            }.onFailure {
+            result.onSuccess { }.onFailure {
                 logger.error("Error:", it)
                 errorVibrate()
                 Toast.makeText(context, it.message ?: "No message", Toast.LENGTH_SHORT).show()

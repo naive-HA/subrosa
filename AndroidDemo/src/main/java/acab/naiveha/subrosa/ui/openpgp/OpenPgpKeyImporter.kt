@@ -4,7 +4,6 @@ import android.util.Log
 import com.yubico.yubikit.core.keys.PrivateKeyValues
 import com.yubico.yubikit.openpgp.KeyRef
 import org.bouncycastle.bcpg.ArmoredInputStream
-import org.bouncycastle.bcpg.sig.KeyFlags
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.openpgp.PGPObjectFactory
 import org.bouncycastle.openpgp.PGPSecretKeyRing
@@ -45,11 +44,18 @@ object OpenPgpKeyImporter {
         Log.d(TAG, "Building PBE decryptor (passphrase length=${passphrase.size})")
         val decryptor = BcPBESecretKeyDecryptorBuilder(BcPGPDigestCalculatorProvider()).build(passphrase)
         val slots = mutableListOf<SlotData>()
-        var decSeen = false
-        var autSeen = false
         var displayName = ""
         var email = ""
-        for (secretKey in ring.secretKeys) {
+        val secretKeys = ring.secretKeys.asSequence().toList()
+        val plan = SlotPlanner.plan(secretKeys.map { sk ->
+            val pk = sk.publicKey
+            KeyTraits(
+                isPrimary  = pk.isMasterKey,
+                keyFlags   = pk.keyFlags(),
+                canEncrypt = pk.isEncryptionKey,
+            )
+        })
+        for ((index, secretKey) in secretKeys.withIndex()) {
             val pubKey   = secretKey.publicKey
             val keyIdHex = java.lang.Long.toHexString(pubKey.keyID).uppercase()
             Log.d(TAG, "Processing key 0x$keyIdHex — " +
@@ -64,31 +70,12 @@ object OpenPgpKeyImporter {
                 parseUid(uid).let { (n, e) -> displayName = n; email = e }
                 Log.d(TAG, "Primary key UID='$uid' → name='$displayName' email='$email'")
             }
-            val keyFlags = pubKey.keyFlags()
-            val ref: KeyRef = when {
-                pubKey.isMasterKey -> KeyRef.SIG
-                (keyFlags and KeyFlags.AUTHENTICATION) != 0 && !autSeen -> {
-                    autSeen = true
-                    KeyRef.AUT
-                }
-                (keyFlags and (KeyFlags.ENCRYPT_COMMS or KeyFlags.ENCRYPT_STORAGE)) != 0 && !decSeen -> {
-                    decSeen = true
-                    KeyRef.DEC
-                }
-                keyFlags == 0 && pubKey.isEncryptionKey && !decSeen -> {
-                    decSeen = true
-                    KeyRef.DEC
-                }
-                keyFlags == 0 && !pubKey.isEncryptionKey && !autSeen -> {
-                    autSeen = true
-                    KeyRef.AUT
-                }
-                else -> {
-                    Log.d(TAG, "  Key 0x$keyIdHex skipped (no remaining slot, keyFlags=0x${keyFlags.toString(16)})")
-                    continue
-                }
+            val refs = plan[index]
+            if (refs.isEmpty()) {
+                Log.d(TAG, "  Key 0x$keyIdHex skipped (no slot assigned, keyFlags=0x${pubKey.keyFlags().toString(16)})")
+                continue
             }
-            Log.d(TAG, "  Key 0x$keyIdHex → slot $ref")
+            Log.d(TAG, "  Key 0x$keyIdHex → slot ${refs.joinToString(", ") { it.name }}")
             Log.d(TAG, "  Calling extractPrivateKey() on 0x$keyIdHex…")
             val pgpPrivKey = try {
                 secretKey.extractPrivateKey(decryptor)
@@ -110,21 +97,23 @@ object OpenPgpKeyImporter {
                 throw e
             }
             Log.d(TAG, "  JCA conversion succeeded — keyAlgorithm=${jcaKey.algorithm} format=${jcaKey.format}")
-            Log.d(TAG, "  Calling PrivateKeyValues.fromPrivateKey()…")
-            val privateKeyValues = try {
-                PrivateKeyValues.fromPrivateKey(jcaKey)
-            } catch (e: Exception) {
-                Log.e(TAG, "  PrivateKeyValues.fromPrivateKey() FAILED for 0x$keyIdHex: ${e::class.simpleName}: ${e.message}", e)
-                throw e
+            for (ref in refs) {
+                Log.d(TAG, "  Calling PrivateKeyValues.fromPrivateKey() for slot $ref…")
+                val privateKeyValues = try {
+                    PrivateKeyValues.fromPrivateKey(jcaKey)
+                } catch (e: Exception) {
+                    Log.e(TAG, "  PrivateKeyValues.fromPrivateKey() FAILED for 0x$keyIdHex: ${e::class.simpleName}: ${e.message}", e)
+                    throw e
+                }
+                Log.d(TAG, "  PrivateKeyValues created — type=${privateKeyValues::class.simpleName}")
+                slots += SlotData(
+                    ref                      = ref,
+                    privateKeyValues         = privateKeyValues,
+                    fingerprint              = pubKey.fingerprint,
+                    creationTimestamp        = (pubKey.creationTime.time / 1_000L).toInt(),
+                )
+                Log.i(TAG, "  Slot $ref populated ✓")
             }
-            Log.d(TAG, "  PrivateKeyValues created — type=${privateKeyValues::class.simpleName}")
-            slots += SlotData(
-                ref                      = ref,
-                privateKeyValues         = privateKeyValues,
-                fingerprint              = pubKey.fingerprint,
-                creationTimestamp        = (pubKey.creationTime.time / 1_000L).toInt(),
-            )
-            Log.i(TAG, "  Slot $ref populated ✓")
         }
         require(slots.isNotEmpty()) { "No usable private key slots found in the key ring" }
         val bundle = ImportBundle(

@@ -23,8 +23,15 @@ import androidx.lifecycle.MutableLiveData
 import acab.naiveha.subrosa.ui.PgpDeviceType
 import acab.naiveha.subrosa.ui.StatusChannel
 import acab.naiveha.subrosa.ui.YubiKeyViewModel
+import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
+import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
+import com.yubico.yubikit.core.UsbPid
+import com.yubico.yubikit.core.YubiKeyConnection
 import com.yubico.yubikit.core.YubiKeyDevice
 import com.yubico.yubikit.core.application.ApplicationNotAvailableException
+import com.yubico.yubikit.core.fido.FidoConnection
+import com.yubico.yubikit.core.otp.OtpConnection
+import com.yubico.yubikit.core.smartcard.SmartCardConnection
 import com.yubico.yubikit.yubiotp.Slot
 import com.yubico.yubikit.yubiotp.YubiOtpSession
 import org.slf4j.LoggerFactory
@@ -86,9 +93,35 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         updateUi { it.copy(currentOperation = op) }
     }
 
+    @Volatile
+    private var mgmtTabActive = false
+
+    fun setMgmtTabActive(active: Boolean) {
+        mgmtTabActive = active
+    }
+
+    private val nfcSwitchMarker: YubiOtpSession.() -> String? = { null }
+
+    fun queueSetOtpOverNfc(enabled: Boolean) {
+        logger.debug("queueSetOtpOverNfc — switch moved to ${if (enabled) "on" else "off"}, waiting for a key")
+        updateUi { it.copy(nfcRequested = enabled) }
+        pendingAction.value = nfcSwitchMarker
+    }
+
+    override fun onPendingActionDropped() {
+        if (state.nfcRequested != null) {
+            logger.debug("onPendingActionDropped — dropping the queued NFC switch change")
+            updateUi { YubiOtpUiState(nfc = null, nfcRequested = null) }
+        }
+    }
+
     override fun onDeviceDisconnected() {
-        logger.debug("onDeviceDisconnected — clearing slot status to UNKNOWN")
-        updateUi { YubiOtpUiState() }
+        if (pendingAction.value != null || state.nfcRequested != null) {
+            logger.debug("onDeviceDisconnected — action is pending, keeping UI state")
+            return
+        }
+        logger.debug("onDeviceDisconnected — clearing slot status and NFC info to UNKNOWN")
+        updateUi { YubiOtpUiState(nfc = null, nfcRequested = null) }
     }
 
     override fun getSession(
@@ -98,13 +131,24 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     ) {
         if (PgpDeviceType.isUsbNitrokey3(device) || PgpDeviceType.isUsbNitrokey2(device)) {
             logger.info("USB Nitrokey device detected — YubiOTP is not supported on this device")
-            onError(ApplicationNotAvailableException(STATIC_PASSWORDS_NOT_SUPPORTED))
+            updateUi { it.copy(nfc = OtpNfcInfo.NOT_APPLICABLE) }
+            onError(ApplicationNotAvailableException(OtpNfcConfig.staticPasswordsNotSupported()))
+            return
+        }
+
+        val requested = state.nfcRequested
+        if (requested != null && pendingAction.value != null) {
+            applyOtpOverNfc(device, requested)
             return
         }
 
         if (shouldIgnoreTap(device)) {
-            logger.debug("NFC tag detected but no pendingAction queued — ignoring tap " +
-                "(press Write/Read/Reset first, then tap)")
+            if (mgmtTabActive) {
+                readOtpOverNfcOnTap(device)
+            } else {
+                logger.debug("NFC tag detected but no pendingAction queued — ignoring tap " +
+                    "(press Write/Read/Reset first, then tap)")
+            }
             return
         }
 
@@ -116,14 +160,18 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
                 callback(session)
             } catch (e: ApplicationNotAvailableException) {
                 logger.info("YubiOTP application not available over ${transportLabel(device)}: ${e.message}")
-                onError(ApplicationNotAvailableException(STATIC_PASSWORDS_NOT_SUPPORTED))
+                onError(ApplicationNotAvailableException(OtpNfcConfig.staticPasswordsNotSupported()))
             } catch (e: IOException) {
                 logger.info("Failed to open YubiOtpSession over ${transportLabel(device)}: ${e.message}")
-                onError(ApplicationNotAvailableException(STATIC_PASSWORDS_NOT_SUPPORTED))
+                onError(ApplicationNotAvailableException(OtpNfcConfig.staticPasswordsNotSupported()))
             } catch (e: Throwable) {
                 logger.error("Failed to open YubiOtpSession over ${transportLabel(device)}: ${e.message}", e)
                 onError(e)
             }
+        }
+
+        if (device is UsbYubiKeyDevice) {
+            readOtpOverNfcUsb(device)
         }
     }
 
@@ -144,18 +192,122 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         }
     }
 
-    companion object {
-        const val STATIC_PASSWORDS_NOT_SUPPORTED =
-            "Static passwords are not supported on this device"
-
-        const val SLOT_NOT_PROGRAMMED = "Slot not programmed"
-
-        const val NO_SLOT_CONFIGURED = "No slot configured"
-
-        const val READ_COMPLETE_STATUS = "Read complete"
-
-        fun slotProgrammedStatus(slot: Slot): String = "Slot $slot programmed"
-
-        fun slotResetStatus(slot: Slot): String = "Slot $slot reset"
+    private fun readOtpOverNfcUsb(device: UsbYubiKeyDevice) {
+        if (PgpDeviceType.fromUsbDescriptor(device) != PgpDeviceType.YUBIKEY) {
+            logger.debug("readOtpOverNfcUsb — not a YubiKey, there is no NFC setting to read")
+            updateUi { it.copy(nfc = OtpNfcInfo.NOT_APPLICABLE) }
+            return
+        }
+        val pid: UsbPid? = device.pid
+        withManagementConnection(device, onFailure = { e ->
+            logger.debug("readOtpOverNfcUsb — failed: ${e::class.simpleName}: ${e.message}")
+            updateUi { it.copy(nfc = null) }
+        }) { connection ->
+            val info = OtpNfcConfig.read(connection, pid, viaNfc = false)
+            updateUi { it.copy(nfc = info) }
+        }
     }
+
+    private fun readOtpOverNfcOnTap(device: YubiKeyDevice) {
+        logger.debug("readOtpOverNfcOnTap — NFC tap on the Management tab, reading the NFC setting")
+        withManagementConnection(device, onFailure = { e ->
+            logger.debug("readOtpOverNfcOnTap — failed: ${e::class.simpleName}: ${e.message}")
+            postResult(Result.failure(describeNfcFailure(e, viaNfc = true)))
+        }) { connection ->
+            val info = OtpNfcConfig.read(connection, null, viaNfc = true)
+            updateUi { it.copy(nfc = info) }
+        }
+    }
+
+    private fun applyOtpOverNfc(device: YubiKeyDevice, enabled: Boolean) {
+        logger.debug(
+            "applyOtpOverNfc — setting YubiOTP over NFC to ${if (enabled) "enabled" else "disabled"} " +
+                "over ${transportLabel(device)}"
+        )
+        val usb = device as? UsbYubiKeyDevice
+        if (usb != null && PgpDeviceType.fromUsbDescriptor(usb) != PgpDeviceType.YUBIKEY) {
+            finishOtpOverNfc(enabled, Result.failure(IllegalStateException(OtpNfcConfig.notSupported())))
+            return
+        }
+        val pid: UsbPid? = usb?.pid
+        val viaNfc = device is NfcYubiKeyDevice
+        withManagementConnection(device, onFailure = { e ->
+            finishOtpOverNfc(enabled, Result.failure(describeNfcFailure(e, viaNfc)))
+        }) { connection ->
+            finishOtpOverNfc(enabled, Result.success(OtpNfcConfig.setOtpOverNfc(connection, pid, enabled, viaNfc)))
+        }
+    }
+
+    private fun finishOtpOverNfc(requested: Boolean, outcome: Result<OtpNfcInfo>) {
+        outcome.fold(
+            onSuccess = { info ->
+                logger.debug(
+                    "applyOtpOverNfc — the key reports ${info.otpOverNfc}, " +
+                        "requested ${if (requested) "enabled" else "disabled"}"
+                )
+                updateUi { it.copy(nfc = info, nfcRequested = null) }
+                val confirmed = info.otpOverNfc
+                postResult(
+                    when {
+                        confirmed == OtpNfcState.UNKNOWN -> Result.success(OtpNfcConfig.otpNfcSent())
+                        (confirmed == OtpNfcState.ENABLED) == requested -> Result.success(OtpNfcConfig.otpOverNfcStatus(requested))
+                        else -> Result.failure(IllegalStateException(OtpNfcConfig.notApplied(requested)))
+                    }
+                )
+            },
+            onFailure = { e ->
+                logger.debug("applyOtpOverNfc — failed: ${e::class.simpleName}: ${e.message}")
+                updateUi { it.copy(nfcRequested = null) }
+                postResult(Result.failure(e))
+            },
+        )
+        pendingAction.postValue(null)
+    }
+
+    private fun withManagementConnection(
+        device: YubiKeyDevice,
+        onFailure: (Throwable) -> Unit,
+        block: (YubiKeyConnection) -> Unit,
+    ) {
+        if (device is NfcYubiKeyDevice) {
+            try {
+                device.openConnection(SmartCardConnection::class.java).use { block(it) }
+            } catch (e: Exception) {
+                onFailure(e)
+            }
+            return
+        }
+        when {
+            device.supportsConnection(OtpConnection::class.java) ->
+                requestManagementConnection(device, OtpConnection::class.java, onFailure, block)
+            device.supportsConnection(SmartCardConnection::class.java) ->
+                requestManagementConnection(device, SmartCardConnection::class.java, onFailure, block)
+            device.supportsConnection(FidoConnection::class.java) ->
+                requestManagementConnection(device, FidoConnection::class.java, onFailure, block)
+            else -> onFailure(ApplicationNotAvailableException("No connection the Management application can use"))
+        }
+    }
+
+    private fun <C : YubiKeyConnection> requestManagementConnection(
+        device: YubiKeyDevice,
+        connectionType: Class<C>,
+        onFailure: (Throwable) -> Unit,
+        block: (YubiKeyConnection) -> Unit,
+    ) {
+        logger.debug("requestManagementConnection — Management over ${connectionType.simpleName} (${transportLabel(device)})")
+        device.requestConnection(connectionType) { result ->
+            if (result.isSuccess) {
+                try {
+                    block(result.value)
+                } catch (e: Exception) {
+                    onFailure(e)
+                }
+            } else {
+                onFailure(result.error ?: IOException("${connectionType.simpleName} request failed"))
+            }
+        }
+    }
+
+    private fun describeNfcFailure(e: Throwable, viaNfc: Boolean): Throwable =
+        if (viaNfc && (e is IOException || e is SecurityException)) Exception(OtpNfcConfig.nfcCommunicationFailed(), e) else e
 }

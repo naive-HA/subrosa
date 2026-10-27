@@ -245,7 +245,7 @@ internal class CardAlgorithmInfo private constructor(
 
         private fun curveName(oid: String) = CURVE_NAMES[oid] ?: "curve OID $oid"
 
-        private fun algorithmName(id: Int) = when (id) {
+        internal fun algorithmName(id: Int) = when (id) {
             ALGORITHM_ECDH -> "ECDH"
             ALGORITHM_ECDSA -> "ECDSA"
             ALGORITHM_EDDSA -> "EdDSA"

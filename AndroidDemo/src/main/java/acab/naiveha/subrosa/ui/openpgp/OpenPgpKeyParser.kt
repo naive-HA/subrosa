@@ -2,9 +2,11 @@ package acab.naiveha.subrosa.ui.openpgp
 
 import android.util.Log
 import org.bouncycastle.bcpg.ArmoredInputStream
+import org.bouncycastle.bcpg.ECPublicBCPGKey
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags
 import org.bouncycastle.bcpg.sig.KeyFlags
 import org.bouncycastle.openpgp.PGPObjectFactory
+import org.bouncycastle.openpgp.PGPPublicKey
 import org.bouncycastle.openpgp.PGPSecretKeyRing
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator
 import org.bouncycastle.util.encoders.Hex
@@ -62,7 +64,7 @@ object OpenPgpKeyParser {
             }
         }
         val fingerprint = formatFingerprint(primaryPublicKey.fingerprint)
-        val algorithm = algorithmLabel(primaryPublicKey.algorithm, primaryPublicKey.bitStrength)
+        val algorithm = algorithmLabel(primaryPublicKey)
         
         val allSecretKeys = ring.secretKeys.asSequence().toList()
         val allPublicKeys = ring.publicKeys.asSequence().toList()
@@ -94,7 +96,7 @@ object OpenPgpKeyParser {
 
             OpenPgpSubkeyInfo(
                 fingerprint = formatFingerprint(pk.fingerprint),
-                algorithm = algorithmLabel(pk.algorithm, pk.bitStrength),
+                algorithm = algorithmLabel(pk),
                 creationDate = subCreationDate,
                 expirationDate = subExpirationDate,
                 usage = usage.joinToString(", ").ifEmpty { "General" }
@@ -132,8 +134,9 @@ object OpenPgpKeyParser {
         Log.e(TAG, "parse() failed: ${e::class.simpleName}: ${e.message}", e)
     }
     @Suppress("DEPRECATION")
-    private fun algorithmLabel(algo: Int, bitStrength: Int): String {
-        val bits = if (bitStrength > 0) " $bitStrength" else ""
+    private fun algorithmLabel(key: PGPPublicKey): String {
+        val algo = key.algorithm
+        val bits = if (key.bitStrength > 0) " ${key.bitStrength}" else ""
         return when (algo) {
             PublicKeyAlgorithmTags.RSA_GENERAL,
             PublicKeyAlgorithmTags.RSA_SIGN,
@@ -141,14 +144,22 @@ object OpenPgpKeyParser {
             PublicKeyAlgorithmTags.DSA             -> "DSA$bits"
             PublicKeyAlgorithmTags.ELGAMAL_ENCRYPT,
             PublicKeyAlgorithmTags.ELGAMAL_GENERAL -> "ElGamal$bits"
-            PublicKeyAlgorithmTags.ECDSA           -> "ECDSA"
-            PublicKeyAlgorithmTags.ECDH            -> "ECDH"
-            PublicKeyAlgorithmTags.EDDSA_LEGACY    -> "EdDSA (Ed25519)"
+            PublicKeyAlgorithmTags.ECDSA           -> ecAlgorithmLabel("ECDSA", curveLabel(key))
+            PublicKeyAlgorithmTags.ECDH            -> ecAlgorithmLabel("ECDH", curveLabel(key))
+            PublicKeyAlgorithmTags.EDDSA_LEGACY    -> ecAlgorithmLabel("EdDSA", curveLabel(key) ?: "Ed25519")
             27                                     -> "Ed25519 (RFC 9580)"
             29                                     -> "Ed448 (RFC 9580)"
             25                                     -> "X25519 (RFC 9580)"
             30                                     -> "X448 (RFC 9580)"
             else                                   -> "Unknown (tag $algo)"
         }
+    }
+
+    private fun curveLabel(key: PGPPublicKey): String? {
+        val oid = (key.publicKeyPacket.key as? ECPublicBCPGKey)?.curveOID ?: return null
+        return runCatching {
+            val der = oid.encoded
+            ManualApduKeyWriter.curveLabel(der.copyOfRange(2, der.size))
+        }.getOrNull() ?: "OID ${oid.id}"
     }
 }

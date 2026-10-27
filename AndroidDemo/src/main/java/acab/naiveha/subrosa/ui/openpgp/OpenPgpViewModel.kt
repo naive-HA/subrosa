@@ -202,6 +202,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
                 val writer = currentState.connectedDevice.type.writer()
                 logger.info("pendingAction — resetting OpenPGP applet, writer=${writer::class.simpleName}")
                 writer.wipe(this, status = this@OpenPgpViewModel::postPinChangeStatus)
+                clearCardInfo()
                 updatePinRetries(user = 3, admin = 3)
                 null
             } catch (e: Exception) {
@@ -277,7 +278,8 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
     override fun onDeviceDisconnected() {
         updateUi {
             OpenPgpUiState(
-                pendingImportUri = it.pendingImportUri
+                pendingImportUri = it.pendingImportUri,
+                importedKeyInfo = it.importedKeyInfo,
             )
         }
         setCurrentOperation(OpenPgpOperation.NONE)

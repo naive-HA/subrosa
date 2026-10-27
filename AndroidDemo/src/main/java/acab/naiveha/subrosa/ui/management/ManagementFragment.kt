@@ -72,9 +72,8 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             binding.progressLoading.visibility = if (state.loading) View.VISIBLE else View.GONE
             stopDotAnimation()
             binding.emptyView.text = ""
-            val infoLines = state.infoText.lines()
-            binding.deviceModel.text = infoLines.find { it.startsWith("Device:") }?.substringAfter("Device:")?.trim() ?: dash
-            binding.deviceFirmware.text = infoLines.find { it.startsWith("Firmware:") }?.substringAfter("Firmware:")?.trim() ?: dash
+            binding.deviceModel.text = state.resolvedDeviceName.ifBlank { dash }
+            binding.deviceFirmware.text = state.resolvedFirmware.ifBlank { dash }
 
             renderPgpStatus(state.pgpStatus)
             renderSupportedAlgorithms(state.pgpCardInfo)

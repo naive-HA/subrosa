@@ -201,10 +201,10 @@ importing OpenPGP keys in sub rosa is a breeze.\n\nThe source code is available 
 
     <string name="supported_algorithms">Supported algorithms</string>
     <string name="supported_algorithms_not_reported">Not reported by this card</string>
-    <string name="algorithms_slot_sig" translatable="false">SIG</string>
-    <string name="algorithms_slot_dec" translatable="false">DEC</string>
-    <string name="algorithms_slot_aut" translatable="false">AUT</string>
-    <string name="algorithms_slot_att" translatable="false">ATT</string>
+    <string name="algorithms_slot_sig">SIG</string>
+    <string name="algorithms_slot_dec">DEC</string>
+    <string name="algorithms_slot_aut">AUT</string>
+    <string name="algorithms_slot_att">ATT</string>
 
     <string name="tab_write">Write</string>
     <string name="tab_read">Read</string>
@@ -212,11 +212,39 @@ importing OpenPGP keys in sub rosa is a breeze.\n\nThe source code is available 
     <string name="tab_mgmt">Management</string>
     <string name="nfc_static_password_desc">By default, a YubiKey programmed with a static password will return the static password over NFC,
         without any guard, like a touch guards when connected over USB.\n
-Any generic phone app, not just sub rosa, with no touch, can read the static password over NFC.\n
 Ideally, you would live by the sub rosa philosophy and program the static password, use it and then wipe it.
-This way, an attacker cannot get your secrete password when losing the device or read it over NFC when the device is in your pocket.\n
-But if you do not, then disabling the static password over NFC is your best alternative. \n
+But if you do not, then disabling the static password over NFC is your best alternative.\n\n
 Disabling the static password over NFC does not disable OpenPGP over NFC. Also, the static password over NFC can be re-enabled later on
 so that you can program the static password over NFC, not just over USB.</string>
+
+    <string name="otp_nfc_switch_label">Manage the static password over NFC</string>
+    <string name="otp_nfc_hint_connect">Plug in or tap your device to read this setting</string>
+    <string name="otp_nfc_state_label">Current state</string>
+    <string name="otp_nfc_state_unknown">unknown</string>
+    <string name="otp_nfc_off">Off</string>
+    <string name="otp_nfc_on">On</string>
+    <string name="otp_nfc_state_last_tap">%1$s</string>
+    <string name="otp_nfc_reason_unsupported">Not available on this device.</string>
+    <string name="otp_nfc_reason_no_nfc">This device has no NFC. There is nothing to change.</string>
+    <string name="otp_nfc_reason_no_otp">This device does not support static passwords over NFC.</string>
+    <string name="otp_nfc_reason_old_firmware">The firmware does not support this features.</string>
+    <string name="otp_nfc_reason_locked">The configuration is locked with a lock code and cannot be changed.</string>
+    <string name="otp_nfc_reason_unreadable">The device did not report its NFC setting. Nothing was changed.</string>
+    <string name="otp_nfc_not_applied">The device did not apply the change: static password over NFC is still %1$s.</string>
+    <string name="otp_nfc_on_note">While this is on, the static password over NFC can be written, read, tested or erased.
+        However, any generic phone app, not just sub rosa, with no touch, can read the static password over NFC.</string>
+    <string name="otp_nfc_off_note">While this is off, the static password over NFC cannot be written, read, tested or erased.
+        Static passwords over USB work as usual. OpenPGP feature works over NFC and USB as usual.</string>
+
+    <string name="otp_static_passwords_not_supported">Static passwords are not supported on this device</string>
+    <string name="otp_slot_not_programmed">Slot not programmed</string>
+    <string name="otp_no_slot_configured">No slot configured</string>
+    <string name="status_read_complete">Read complete</string>
+    <string name="otp_nfc_communication_failed">NFC communication failed. Hold the key still against the phone and try again.</string>
+    <string name="otp_nfc_sent">Change sent. Plug in or tap the key again to read the new setting.</string>
+    <string name="otp_nfc_status_on">Static password over NFC is now on</string>
+    <string name="otp_nfc_status_off">Static password over NFC is now off</string>
+    <string name="otp_slot_programmed">Slot %1$s programmed</string>
+    <string name="otp_slot_reset">Slot %1$s reset</string>
 
 </resources>

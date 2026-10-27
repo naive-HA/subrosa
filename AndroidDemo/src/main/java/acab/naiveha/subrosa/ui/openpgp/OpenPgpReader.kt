@@ -64,6 +64,9 @@ object OpenPgpReader {
                 rawVersion
             }
 
+            val aidMfg = runCatching { session.aid.manufacturer }.getOrNull()
+            val pgpVer = runCatching { "${session.aid.version.first}.${session.aid.version.second}" }.getOrNull() ?: displayVersion
+
             val info = OpenPgpCardInfo(
                 version = displayVersion,
                 cardholderName = name.fromNameDo(),
@@ -73,6 +76,8 @@ object OpenPgpReader {
                 resetRetries = pw.attemptsReset,
                 adminPinRetries = pw.attemptsAdmin,
                 supportedAlgorithms = supportedAlgorithms,
+                aidManufacturerId = aidMfg,
+                cardProtocolVersion = pgpVer,
             )
 
             Log.i(TAG, "read() complete — v=${info.version} hasName=${info.cardholderName != "—"} " +
