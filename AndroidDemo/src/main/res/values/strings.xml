@@ -265,8 +265,10 @@ so that you can program the static password over NFC, not just over USB.</string
     <string name="nitrokey3updater_reboot_app">RETURN TO APPLICATION MODE</string>
     <string name="nitrokey3updater_confirm_integrity">I have checked the sha256sum and confirm the firmware archive\'s integrity</string>
     <string name="nitrokey3updater_test">TEST</string>
-    <string name="nitrokey3updater_flash_title">Update firmware?</string>
-    <string name="nitrokey3updater_flash_message">Install firmware %1$s on your Nitrokey 3?\n\nDo not unplug the key or close the app until the update has finished. It takes about a minute.</string>
+    <string name="nitrokey3updater_flash_title">Update firmware</string>
+    <string name="nitrokey3updater_flash_message">The firmware of your device will be updated.\n\n
+        Do not unplug the device or close the app until the update has finished.\n
+        Once the update has finished, unplug the device only after the light has turned off.</string>
     <string name="nitrokey3updater_flash_confirm">Update</string>
     <string name="nitrokey3updater_update_in_progress">Update in progress, do not unplug your Nitrokey 3</string>
     <string name="nitrokey3updater_status_import_first">Import a firmware archive to continue</string>

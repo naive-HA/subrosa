@@ -424,6 +424,21 @@ When logging into your remote server via SSH, you will be prompted for a PIN. Th
 
 > **Note:** If any of the above instructions are incomplete or need updating, please feel free to open an issue or pull request to contribute to the project!
 
+# Nitrokey 3 firmware update
+
+Since version 3.0.0 *sub rosa* can update the firmware of Nitrokey 3 devices. Well, some Nitrokey 3 devices... 
+Only those using LCP55 hardware: 3A and 3C. Extensive tests were performed with Nitrokey 3C NFC.
+
+Nitrokey 3A mini uses nRF52 hardware and are not supported by sub rosa. Yet
+
+<table>
+  <tr>
+    <td><img src="fastlane/metadata/android/en-US/images/Other/NK3Firmware1.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/Other/NK3Firmware2.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/Other/NK3Firmware3.png" height="400"></td>
+  </tr>
+</table>
+
 Coffee tips can be sent to: `1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh`
 
 <table>

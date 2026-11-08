@@ -376,7 +376,9 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
     private suspend fun install(context: Context, device: BootloaderDevice, image: FirmwareImage) {
         when (image.variant) {
             Nk3Variant.LPC55 -> installLpc55(context, device, image)
-            Nk3Variant.NRF52 -> Nrf52Flasher().flash(image, ::publishProgress)
+            Nk3Variant.NRF52 -> withContext(Dispatchers.IO) {
+                Nrf52Flasher().flash(image, ::publishProgress)
+            }
         }
     }
 
