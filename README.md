@@ -306,9 +306,9 @@ Because this backup code—consisting of 36 numbers and dashes—cannot be copie
 
 <table>
   <tr>
-    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" height="400"></td>
-    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7.png" height="400"></td>
-    <td><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/Other/OpenKeychain1.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/Other/OpenKeychain2.png" height="400"></td>
+    <td><img src="fastlane/metadata/android/en-US/images/Other/OpenKeychain3.png" height="400"></td>
   </tr>
 </table>
 
