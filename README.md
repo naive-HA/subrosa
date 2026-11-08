@@ -429,7 +429,7 @@ When logging into your remote server via SSH, you will be prompted for a PIN. Th
 Since version 3.0.0 *sub rosa* can update the firmware of Nitrokey 3 devices. Well, some Nitrokey 3 devices... 
 Only those using LCP55 hardware: 3A and 3C. Extensive tests were performed with Nitrokey 3C NFC.
 
-Nitrokey 3A mini uses nRF52 hardware and are not supported by sub rosa. Yet
+Nitrokey 3A mini use nRF52 hardware and are not supported by sub rosa. Yet
 
 <table>
   <tr>
