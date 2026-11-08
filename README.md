@@ -20,7 +20,7 @@ How do you stay safe online and still log into your accounts on other devices wh
 How do you type your passwords while enjoying coffee at your local cafe without worrying about surveillance cameras or shoulder surfers?
 
 Introducing **sub rosa**. Effortlessly simple.
-
+ 
 *sub rosa* allows you to program a static password onto a hardware security key, which can act as a keyboard when touched. 
 Plug it into your phone, tablet, or laptop, touch it, and it automatically types out a sequence of characters.
 
