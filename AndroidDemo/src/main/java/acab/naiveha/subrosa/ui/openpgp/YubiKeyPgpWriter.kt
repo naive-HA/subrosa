@@ -1,0 +1,57 @@
+package acab.naiveha.subrosa.ui.openpgp
+
+import android.util.Log
+import com.yubico.yubikit.openpgp.OpenPgpSession
+
+object YubiKeyPgpWriter : OpenPgpWriter {
+
+    private const val TAG = "YubiKeyPgpWriter"
+
+    override fun validate(session: OpenPgpSession, bundle: ImportBundle): List<String> =
+        OpenPgpWriterUtils.validate(session, bundle, TAG)
+
+    override fun program(
+        session: OpenPgpSession,
+        bundle: ImportBundle,
+        adminPin: CharArray,
+        userPin: CharArray,
+        status: (String) -> Unit,
+    ): String? {
+        requireValid(session, bundle)
+        return OpenPgpWriterUtils.programCommon(session, bundle, adminPin, userPin, TAG, status) { s, slot, tag, st ->
+            Log.d(tag, "  putKey(${slot.ref.name})…")
+            s.putKey(slot.ref, slot.privateKeyValues)
+            Log.d(tag, "  putKey(${slot.ref.name}) done")
+            st("Key material written for ${slot.ref.name}")
+        }
+    }
+
+    override fun wipe(session: OpenPgpSession, status: (String) -> Unit): String? {
+        Log.i(TAG, "wipe() — calling session.reset()")
+        var succeeded = false
+        try {
+            status("Resetting YubiKey…")
+            resetApplet(session)
+            Log.i(TAG, "wipe() complete")
+            status(OpenPgpWriter.WIPE_COMPLETE_STATUS)
+            succeeded = true
+            return null
+        } finally {
+            if (!succeeded) status("")
+        }
+    }
+
+    private fun resetApplet(session: OpenPgpSession) {
+        val pinStatus = session.pinStatus
+        Log.d(TAG, "wipe() — PIN attempts left: user=${pinStatus.attemptsUser}, admin=${pinStatus.attemptsAdmin}")
+
+        try {
+            session.reset()
+        } catch (e: UnsupportedOperationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "wipe() INTERRUPTED after the YubiKey was modified: ${e::class.simpleName}: ${e.message}", e)
+            throw WipeInterruptedException(e)
+        }
+    }
+}

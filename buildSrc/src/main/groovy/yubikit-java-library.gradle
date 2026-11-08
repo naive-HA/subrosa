@@ -1,0 +1,11 @@
+plugins {
+    id 'project-convention-java-library'
+    id 'project-convention-spotless'
+    id 'project-convention-logging'
+}
+
+dependencies {
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.bouncycastle:bcprov-jdk18on:1.85.2'
+}

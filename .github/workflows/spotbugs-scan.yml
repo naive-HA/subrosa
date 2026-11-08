@@ -1,0 +1,100 @@
+name: "SpotBugs"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ main ]
+  schedule:
+    - cron: "25 16 * * 0"
+
+jobs:
+  analyze:
+    name: SpotBugs Analyze
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ "java" ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Build with Gradle
+        run: ./gradlew spotbugsRelease spotbugsMain
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sarif-files
+          path: ./build/spotbugs/*.sarif
+          retention-days: 1
+
+  upload:
+    name: Upload SARIF
+    needs: analyze
+    runs-on: ubuntu-latest
+
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          [
+            "android",
+            "AndroidDemo",
+            "core",
+            "desktop",
+            "DesktopDemo",
+            "fido",
+            "management",
+            "oath",
+            "openpgp",
+            "piv",
+            "support",
+            "testing",
+            "yubiotp",
+          ]
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sarif-files
+
+      - run: |
+          MODULE=${{ matrix.module }}
+          BASE_NAME=spotbugs-${MODULE}
+          INPUT=${BASE_NAME}.sarif
+          OUTPUT=${BASE_NAME}.json
+          jq '.runs |= map( if .taxonomies == [null] then .taxonomies = [] else . end)' < ${INPUT} |
+          jq ".runs[].results[].locations[].physicalLocation.artifactLocation.uri |= \"${MODULE}/src/main/java/\" + ." |
+          jq ".runs[].results[].locations[].physicalLocation.artifactLocation.uriBaseId |= \"%SRC_ROOT%\" " |
+          jq '.runs[].tool.driver.rules |= map( . += { fullDescription: { text: .shortDescription.text } } )' |
+          jq '.runs[].tool.driver.rules |= map( . += { name: ("SpotBugs_" + .id | ascii_downcase | sub("(^|_)(?<x>[a-z])";"\(.x|ascii_upcase)";"g")) } )' |
+          jq '.runs[].tool.driver.rules |= map( . += { help: { text: .helpUri } } )' |
+          jq '.runs[].invocations |= map( . += { executionSuccessful: true } )' |
+          jq 'del(.runs[].originalUriBaseIds)' |
+          jq -c '.' > ${OUTPUT}
+
+      - name: Upload SARIF for ${{ matrix.module }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: spotbugs-${{ matrix.module }}.json
+          category: spotbugs-analysis-${{ matrix.module }}

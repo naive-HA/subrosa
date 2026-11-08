@@ -1,0 +1,425 @@
+/*
+ * Copyright (C) 2019-2023 Yubico.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.yubico.yubikit.android.transport.usb.connection;
+
+import android.hardware.usb.UsbDeviceConnection;
+import android.hardware.usb.UsbEndpoint;
+import android.hardware.usb.UsbInterface;
+import com.yubico.yubikit.core.Transport;
+import com.yubico.yubikit.core.internal.Logger;
+import com.yubico.yubikit.core.smartcard.SmartCardConnection;
+import com.yubico.yubikit.core.util.StringUtils;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.Locale;
+import org.slf4j.LoggerFactory;
+
+/**
+ * USB service for interacting with the YubiKey
+ *
+ * @see <a
+ *     href="https://www.usb.org/sites/default/files/DWG_Smart-Card_CCID_Rev110.pdf">https://www.usb.org/sites/default/files/DWG_Smart-Card_CCID_Rev110.pdf</a>
+ */
+public class UsbSmartCardConnection extends UsbYubiKeyConnection implements SmartCardConnection {
+
+  private static final int TIMEOUT = 1000;
+
+  /**
+   * Command Pipe, Bulk-OUT Messages
+   *
+   * <table>
+   * <tr><th>Message Name</th><th>type</th></tr>
+   * <tr><td>PC_to_RDR_IccPowerOn</td><td>62h</td></tr>
+   * <tr><td>PC_to_RDR_IccPowerOff</td><td>63h</td></tr>
+   * <tr><td>PC_to_RDR_GetSlotStatus</td><td>65h</td></tr>
+   * <tr><td>PC_to_RDR_XfrBlock</td><td>6Fh</td></tr>
+   * <tr><td>PC_to_RDR_GetParameters</td><td>6Ch</td></tr>
+   * <tr><td>PC_to_RDR_ResetParameters</td><td>6Dh</td></tr>
+   * <tr><td>PC_to_RDR_SetParameters</td><td>61h</td></tr>
+   * <tr><td>PC_to_RDR_Escape</td><td>6Bh</td></tr>
+   * <tr><td>PC_to_RDR_IccClock</td><td>6Eh</td></tr>
+   * <tr><td>PC_to_RDR_T0APDU</td><td>6Ah</td></tr>
+   * <tr><td>PC_to_RDR_Secure</td><td>69h</td></tr>
+   * <tr><td>PC_to_RDR_Mechanical</td><td>71h</td></tr>
+   * <tr><td>PC_to_RDR_Abort</td><td>72h</td></tr>
+   * <tr><td>PC_to_RDR_SetDataRateAndClockFrequency</td><td>73h</td></tr>
+   * </table>
+   */
+  private static final byte POWER_ON_MESSAGE_TYPE = (byte) 0x62;
+
+  private static final byte REQUEST_MESSAGE_TYPE = (byte) 0x6f;
+  private static final byte RESPONSE_DATA_BLOCK = (byte) 0x80;
+
+  private static final byte STATUS_TIME_EXTENSION = (byte) 0x80;
+
+  private static final int CCID_CLASS_DESCRIPTOR_TYPE = 0x21;
+
+  private static final int CCID_CLASS_DESCRIPTOR_MIN_LENGTH = 0x36;
+  private static final int DW_FEATURES_OFFSET = 40;
+  private static final int DW_FEATURES_TPDU_LEVEL_EXCHANGE = 0x00010000;
+
+  // Some readers (e.g. Gnuk/Nitrokey Start) can return a garbled response to the very first
+  // bulk transfer sent right after the interface is claimed, before their firmware has
+  // finished settling.
+  private static final int MAX_POWER_ON_ATTEMPTS = 2;
+  private static final int POWER_ON_RETRY_DELAY_MS = 150;
+
+  private final UsbDeviceConnection connection;
+  private final UsbEndpoint endpointOut, endpointIn;
+  private final byte[] atr;
+  private final T1Protocol t1Protocol;
+
+  private byte sequence = 0;
+
+  private static final org.slf4j.Logger logger =
+      LoggerFactory.getLogger(UsbSmartCardConnection.class);
+
+  /**
+   * Sets endpoints and connection and sends power on command if ATR is invalid then throws
+   * YubikeyCommunicationException
+   *
+   * @param connection open usb connection
+   * @param ccidInterface ccid interface that was claimed
+   * @param endpointIn channel for sending data over USB.
+   * @param endpointOut channel for receiving data over USB.
+   */
+  UsbSmartCardConnection(
+      UsbDeviceConnection connection,
+      UsbInterface ccidInterface,
+      UsbEndpoint endpointIn,
+      UsbEndpoint endpointOut)
+      throws IOException {
+    super(connection, ccidInterface);
+
+    this.connection = connection;
+    this.endpointIn = endpointIn;
+    this.endpointOut = endpointOut;
+    if (isTpduLevelExchange(connection)) {
+      Logger.debug(
+          logger, "CCID reader requires TPDU-level exchange — using host-side T=1 framing");
+      this.t1Protocol = new T1Protocol(this::transceiveT1Block);
+    } else {
+      this.t1Protocol = null;
+    }
+    // PC_to_RDR_IccPowerOn command makes the slot "active" if it was "inactive"
+    atr = powerOn();
+  }
+
+  private byte[] powerOn() throws IOException {
+    IOException lastError = null;
+    for (int attempt = 1; attempt <= MAX_POWER_ON_ATTEMPTS; attempt++) {
+      try {
+        return transceive(POWER_ON_MESSAGE_TYPE, new byte[0]);
+      } catch (IOException e) {
+        lastError = e;
+        if (attempt < MAX_POWER_ON_ATTEMPTS) {
+          Logger.debug(logger, "Power on attempt {} failed, retrying: {}", attempt, e.getMessage());
+          try {
+            Thread.sleep(POWER_ON_RETRY_DELAY_MS);
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while retrying power on", ie);
+          }
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  private static boolean isTpduLevelExchange(UsbDeviceConnection connection) {
+    byte[] raw = connection.getRawDescriptors();
+    if (raw == null) {
+      return false;
+    }
+    int pos = 0;
+    while (pos + 2 <= raw.length) {
+      int len = raw[pos] & 0xFF;
+      int type = raw[pos + 1] & 0xFF;
+      if (len == 0) {
+        break;
+      }
+      if (type == CCID_CLASS_DESCRIPTOR_TYPE
+          && len >= CCID_CLASS_DESCRIPTOR_MIN_LENGTH
+          && pos + len <= raw.length) {
+        int dwFeatures =
+            ByteBuffer.wrap(raw, pos + DW_FEATURES_OFFSET, 4)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .getInt();
+        return (dwFeatures & DW_FEATURES_TPDU_LEVEL_EXCHANGE) != 0;
+      }
+      pos += len;
+    }
+    return false;
+  }
+
+  private byte[] transceiveT1Block(byte[] block) throws IOException {
+    return transceive(REQUEST_MESSAGE_TYPE, block);
+  }
+
+  @Override
+  public Transport getTransport() {
+    return Transport.USB;
+  }
+
+  /**
+   * This connection generally supports Extended length APDUs. This can be limited by firmware
+   * version of connected YubiKey.
+   */
+  @Override
+  public boolean isExtendedLengthApduSupported() {
+    return true;
+  }
+
+  @Override
+  public byte[] sendAndReceive(byte[] apdu) throws IOException {
+    if (t1Protocol != null) {
+      return t1Protocol.transceiveApdu(apdu);
+    }
+    return transceive(REQUEST_MESSAGE_TYPE, apdu);
+  }
+
+  @Override
+  public byte[] getAtr() {
+    return atr.clone();
+  }
+
+  /**
+   * Does the data exchange between phone and connected usb device with bulk messages All bulk
+   * messages begin with a 10-bytes header, followed by message-specific data.
+   *
+   * @param type the message type identifies the message
+   *     <table>
+   * <tr><th>Message Name</th><th>type</th></tr>
+   * <tr><td>PC_to_RDR_IccPowerOn</td><td>62h</td></tr>
+   * <tr><td>PC_to_RDR_IccPowerOff</td><td>63h</td></tr>
+   * <tr><td>PC_to_RDR_GetSlotStatus</td><td>65h</td></tr>
+   * <tr><td>PC_to_RDR_XfrBlock</td><td>6Fh</td></tr>
+   * <tr><td>PC_to_RDR_GetParameters</td><td>6Ch</td></tr>
+   * <tr><td>PC_to_RDR_ResetParameters</td><td>6Dh</td></tr>
+   * <tr><td>PC_to_RDR_SetParameters</td><td>61h</td></tr>
+   * <tr><td>PC_to_RDR_Escape</td><td>6Bh</td></tr>
+   * <tr><td>PC_to_RDR_IccClock</td><td>6Eh</td></tr>
+   * <tr><td>PC_to_RDR_T0APDU</td><td>6Ah</td></tr>
+   * <tr><td>PC_to_RDR_Secure</td><td>69h</td></tr>
+   * <tr><td>PC_to_RDR_Mechanical</td><td>71h</td></tr>
+   * <tr><td>PC_to_RDR_Abort</td><td>72h</td></tr>
+   * <tr><td>PC_to_RDR_SetDataRateAndClockFrequency</td><td>73h</td></tr>
+   * </table>
+   *
+   * @param data message-specific data that needs to be sent to usb device
+   * @return received message-specific data from usb device
+   * @throws IOException in case if there is communication error occurs or received data is invalid
+   */
+  private byte[] transceive(byte type, byte[] data) throws IOException {
+    return transceive(type, data, (short) 0);
+  }
+
+  private byte[] transceive(byte type, byte[] data, short levelParameter) throws IOException {
+    // 1. prepare data for sending
+    MessageHeader prefix = new MessageHeader(type, data.length, sequence++, levelParameter);
+    ByteBuffer byteBuffer =
+        ByteBuffer.allocate(prefix.size() + data.length)
+            .order(ByteOrder.LITTLE_ENDIAN)
+            .put(prefix.array())
+            .put(data);
+
+    // 2. sent data to device
+    byte[] bufferOut = byteBuffer.array();
+    int bytesSent = 0;
+    int bytesSentPackage = 0;
+    while (bytesSent < bufferOut.length || bytesSentPackage == endpointOut.getMaxPacketSize()) {
+      bytesSentPackage =
+          connection.bulkTransfer(
+              endpointOut, bufferOut, bytesSent, bufferOut.length - bytesSent, TIMEOUT);
+      if (bytesSentPackage > 0) {
+        Logger.trace(
+            logger,
+            "{} bytes sent over ccid: {}",
+            bytesSentPackage,
+            StringUtils.bytesToHex(bufferOut, bytesSent, bytesSentPackage));
+        bytesSent += bytesSentPackage;
+      } else if (bytesSentPackage < 0) {
+        throw new IOException("Failed to send " + (bufferOut.length - bytesSent) + " bytes");
+      } else {
+        // 0 is still considered as success in bulkTransfer description
+        // Scenario: if last package size was equal to endpointOut.getMaxPacketSize()
+        // we are sending empty package after that to notify end of bulk transfer
+        break;
+      }
+    }
+
+    return receiveResponse();
+  }
+
+  private byte[] receiveResponse() throws IOException {
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    int bytesRead;
+    MessageHeader messageHeader = null;
+
+    boolean receivedExpectedPrefix = false;
+    byte[] bufferRead = new byte[endpointIn.getMaxPacketSize()];
+    boolean responseRequiresTimeExtension = false;
+    do {
+      bytesRead = connection.bulkTransfer(endpointIn, bufferRead, bufferRead.length, TIMEOUT);
+      if (bytesRead > 0) {
+        Logger.trace(
+            logger,
+            "{} bytes received: {}",
+            bytesRead,
+            StringUtils.bytesToHex(bufferRead, 0, bytesRead));
+
+        if (receivedExpectedPrefix) {
+          stream.write(bufferRead, 0, bytesRead);
+        } else {
+          messageHeader = new MessageHeader(bufferRead);
+          responseRequiresTimeExtension =
+              (messageHeader.status & STATUS_TIME_EXTENSION) == STATUS_TIME_EXTENSION;
+          if (messageHeader.verify((byte) (sequence - 1))) {
+            receivedExpectedPrefix = true;
+            stream.write(bufferRead, 0, bytesRead);
+          } else if (messageHeader.error != 0 && !responseRequiresTimeExtension) {
+            Logger.debug(
+                logger,
+                "Invalid response from card reader bStatus={} and bError={}",
+                String.format(Locale.ROOT, "0x%02X", messageHeader.status),
+                String.format(Locale.ROOT, "0x%02X", messageHeader.error));
+            throw new IOException("Invalid response from card reader");
+          }
+        }
+      } else if (bytesRead < 0) {
+        throw new IOException("Failed to read response");
+      }
+    } while (responseRequiresTimeExtension
+        || (bytesRead >= 0
+            && !(receivedExpectedPrefix
+                && messageHeader != null
+                && stream.size() >= messageHeader.size() + messageHeader.dataLength)));
+
+    byte[] output = stream.toByteArray();
+    if (messageHeader == null || output.length < messageHeader.size()) {
+      throw new IOException("Response is invalid");
+    }
+    int dataLength = Math.min(output.length - messageHeader.size(), messageHeader.dataLength);
+    byte[] responseData =
+        Arrays.copyOfRange(output, messageHeader.size(), messageHeader.size() + dataLength);
+
+    if (messageHeader.chainParameter == 0x01 || messageHeader.chainParameter == 0x03) {
+      Logger.debug(
+          logger,
+          "CCID response chaining bChainParameter=0x{} — sending continuation XfrBlock (wLevelParameter=0x0010)",
+          String.format(Locale.ROOT, "%02X", messageHeader.chainParameter));
+      byte[] rest = transceive(REQUEST_MESSAGE_TYPE, new byte[0], (short) 0x0010);
+      byte[] combined = new byte[responseData.length + rest.length];
+      System.arraycopy(responseData, 0, combined, 0, responseData.length);
+      System.arraycopy(rest, 0, combined, responseData.length, rest.length);
+      return combined;
+    }
+
+    return responseData;
+  }
+
+  /**
+   * Class parses 10-bytes header of CCID message
+   *
+   * <p>The header consists of a message type (1 byte), a dataLength field (four bytes), the slot
+   * number (1 byte), a sequence number field (1 byte), and either three message specific bytes, or
+   * a status field (1 byte), an error field and one message specific byte. The purpose of the
+   * 10-byte header is to provide a constant offset at which message data begins across all
+   * messages.
+   */
+  private static class MessageHeader {
+    private static final int SIZE_OF_CCID_PREFIX = 10;
+    private static final byte SLOT_NUMBER = 0;
+
+    private byte type;
+    private int dataLength;
+    private byte slot;
+    private byte sequence;
+    private byte status;
+    private byte error;
+    byte chainParameter;
+    private short levelParameter;
+
+    private MessageHeader(byte[] buffer) {
+      if (buffer.length > SIZE_OF_CCID_PREFIX) {
+        ByteBuffer responseBuffer =
+            ByteBuffer.wrap(buffer, 0, SIZE_OF_CCID_PREFIX).order(ByteOrder.LITTLE_ENDIAN);
+        type = responseBuffer.get();
+        dataLength = responseBuffer.getInt();
+        slot = responseBuffer.get();
+        sequence = responseBuffer.get();
+        status = responseBuffer.get();
+        error = responseBuffer.get();
+        chainParameter = responseBuffer.get(); // bChainParameter / messageSpecificByte
+      }
+    }
+
+    private MessageHeader(byte type, int length, byte sequence) {
+      this(type, length, sequence, (short) 0);
+    }
+
+    private MessageHeader(byte type, int length, byte sequence, short levelParameter) {
+      this.type = type;
+      this.dataLength = length;
+      this.slot = SLOT_NUMBER;
+      this.sequence = sequence;
+      this.levelParameter = levelParameter;
+    }
+
+    private byte[] array() {
+      ByteBuffer byteBuffer =
+          ByteBuffer.allocate(SIZE_OF_CCID_PREFIX)
+              .order(ByteOrder.LITTLE_ENDIAN)
+              .put(type)
+              .putInt(dataLength)
+              .put(slot)
+              .put(sequence)
+              .put((byte) 0) // bBWI
+              .putShort(levelParameter); // wLevelParameter (little-endian)
+      return byteBuffer.array();
+    }
+
+    private int size() {
+      return SIZE_OF_CCID_PREFIX;
+    }
+
+    /**
+     * The response (Bulk-IN message) always contains the exact same slot number, and sequence
+     * number fields from the header that was contained in the Bulk-OUT command message.
+     *
+     * @param sequence Bulk-OUT message sequence
+     * @return true if prefix has expected format
+     */
+    private boolean verify(byte sequence) {
+      if (this.type != RESPONSE_DATA_BLOCK) {
+        return false;
+      }
+      if (this.slot != SLOT_NUMBER) {
+        return false;
+      }
+      if (this.sequence != sequence) {
+        return false;
+      }
+
+      // Note: according to documentation ignore error if status is 0
+      return this.status == 0;
+    }
+  }
+}

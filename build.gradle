@@ -1,0 +1,30 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+plugins {
+    id 'maven-publish'
+    alias libs.plugins.diffplug.spotless apply false
+    id 'project-convention-publishing'
+}
+
+allprojects {
+    repositories {
+        mavenCentral()
+        google()
+        maven {url = uri("https://jitpack.io") }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.compilerArgs.addAll(['-Xlint:deprecation', '-Xlint:unchecked'])
+    }
+
+    group = 'com.yubico.yubikit'
+}
+
+subprojects {
+    version = '2.3.3'
+    ext.pomName = "Yubico YubiKit ${project.name.replaceFirst("^.", { it.toUpperCase() })}"
+
+    tasks.withType(Javadoc).configureEach {
+        options.addStringOption('Xdoclint:all,-missing', '-quiet')
+    }
+}

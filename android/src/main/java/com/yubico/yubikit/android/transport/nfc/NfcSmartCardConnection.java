@@ -1,0 +1,109 @@
+/*
+ * Copyright (C) 2019-2023 Yubico.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.yubico.yubikit.android.transport.nfc;
+
+import android.nfc.Tag;
+import android.nfc.tech.IsoDep;
+import com.yubico.yubikit.core.Transport;
+import com.yubico.yubikit.core.internal.Logger;
+import com.yubico.yubikit.core.smartcard.SmartCardConnection;
+import com.yubico.yubikit.core.util.StringUtils;
+import java.io.IOException;
+import org.slf4j.LoggerFactory;
+
+/** NFC service for interacting with the YubiKey */
+public class NfcSmartCardConnection implements SmartCardConnection {
+
+  /** Provides access to ISO-DEP (ISO 14443-4) properties and I/O operations on a {@link Tag}. */
+  private final IsoDep card;
+
+  private static final org.slf4j.Logger logger =
+      LoggerFactory.getLogger(NfcSmartCardConnection.class);
+
+  /**
+   * Instantiates session for nfc tag interaction
+   *
+   * @param card the tag that has been discovered
+   */
+  NfcSmartCardConnection(IsoDep card) {
+    this.card = card;
+    Logger.debug(
+        logger,
+        "nfc connection opened — maxTransceiveLength={} extendedLengthApduSupported={} "
+            + "timeout={} historicalBytes={}",
+        card.getMaxTransceiveLength(),
+        card.isExtendedLengthApduSupported(),
+        card.getTimeout(),
+        StringUtils.bytesToHex(getAtr()));
+  }
+
+  @Override
+  public Transport getTransport() {
+    return Transport.NFC;
+  }
+
+  @Override
+  public boolean isExtendedLengthApduSupported() {
+    return card.isExtendedLengthApduSupported();
+  }
+
+  @Override
+  public byte[] sendAndReceive(byte[] apdu) throws IOException {
+    Logger.debug(logger, "APDU sent ({} bytes): {}", apdu.length, StringUtils.bytesToHex(apdu));
+    long start = System.nanoTime();
+    byte[] received;
+    try {
+      received = card.transceive(apdu);
+    } catch (IOException e) {
+      long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+      Logger.error(
+          logger,
+          "APDU transceive FAILED after {}ms — apdu={}: {}: {}",
+          elapsedMs,
+          StringUtils.bytesToHex(apdu),
+          e.getClass().getSimpleName(),
+          e.getMessage());
+      throw e;
+    }
+    long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+    String sw =
+        received.length >= 2
+            ? StringUtils.bytesToHex(
+                java.util.Arrays.copyOfRange(received, received.length - 2, received.length))
+            : "??";
+    Logger.debug(
+        logger,
+        "APDU received ({} bytes, {}ms, SW={}): {}",
+        received.length,
+        elapsedMs,
+        sw,
+        StringUtils.bytesToHex(received));
+    return received;
+  }
+
+  @Override
+  public void close() throws IOException {
+    card.close();
+    Logger.debug(logger, "nfc connection closed");
+  }
+
+  @Override
+  public byte[] getAtr() {
+    byte[] historicalBytes = card.getHistoricalBytes();
+    return historicalBytes != null ? historicalBytes.clone() : new byte[] {};
+  }
+}

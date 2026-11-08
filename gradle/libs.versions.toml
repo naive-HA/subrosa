@@ -1,0 +1,58 @@
+[versions]
+appcompat = "1.8.0"
+bouncycastle = "1.86"
+coreKtx = "1.19.1"
+desugar_jdk_libs = "2.1.5"
+diffplugSpotless = "8.11.0"
+espressoCore = "3.7.0"
+findsecbugsPlugin = "1.14.0"
+fragmentKtx = "1.9.1"
+gradle = "9.5.1"
+junit = "4.13.2"
+junitVersion = "1.3.0"
+kotlinGradlePlugin = "2.4.21"
+kotlinxCoroutinesAndroid = "1.11.0"
+legacySupportV4 = "1.0.0"
+lifecycleViewmodelKtx = "2.11.0"
+logbackAndroid = "3.0.0"
+material = "1.14.0"
+mockitoCore = "5.24.0"
+moshi = "1.15.2"
+navigation = "2.10.2"
+recyclerview = "1.4.0"
+slf4jApi = "2.0.20"
+spotbugs = "4.10.5"
+spotbugsGradlePlugin = "6.5.11"
+tesseract4androidOpenmp = "4.9.0"
+
+[libraries]
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "fragmentKtx" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-legacy-support-v4 = { group = "androidx.legacy", name = "legacy-support-v4", version.ref = "legacySupportV4" }
+androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycleViewmodelKtx" }
+androidx-navigation-fragment-ktx = { group = "androidx.navigation", name = "navigation-fragment-ktx", version.ref = "navigation" }
+androidx-navigation-ui-ktx = { group = "androidx.navigation", name = "navigation-ui-ktx", version.ref = "navigation" }
+androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
+bcpg-jdk18on = { group = "org.bouncycastle", name = "bcpg-jdk18on", version.ref = "bouncycastle" }
+bcpkix-jdk18on = { group = "org.bouncycastle", name = "bcpkix-jdk18on", version.ref = "bouncycastle" }
+desugar_jdk_libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
+findsecbugs-plugin = { module = "com.h3xstream.findsecbugs:findsecbugs-plugin", version.ref = "findsecbugsPlugin" }
+gradle = { group = "com.android.tools.build", name = "gradle", version.ref = "gradle" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlinGradlePlugin" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesAndroid" }
+logback-android = { group = "com.github.tony19", name = "logback-android", version.ref = "logbackAndroid" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockitoCore" }
+moshi = { group = "com.squareup.moshi", name = "moshi", version.ref = "moshi" }
+slf4j-api = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4jApi" }
+spotbugs = { module = "com.github.spotbugs:spotbugs", version.ref = "spotbugs" }
+spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs" }
+spotbugs-gradle-plugin = { group = "com.github.spotbugs.snom", name = "spotbugs-gradle-plugin", version.ref = "spotbugsGradlePlugin" }
+tesseract4android-openmp = { group = "cz.adaptech.tesseract4android", name = "tesseract4android-openmp", version.ref = "tesseract4androidOpenmp" }
+
+[plugins]
+diffplug-spotless = { id = "com.diffplug.spotless", version.ref = "diffplugSpotless" }

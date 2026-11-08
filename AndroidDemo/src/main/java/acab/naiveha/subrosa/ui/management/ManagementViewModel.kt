@@ -1,0 +1,515 @@
+/*
+ * Copyright (C) 2022-2023 Yubico.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package acab.naiveha.subrosa.ui.management
+
+import android.os.Handler
+import android.os.Looper
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import acab.naiveha.subrosa.ui.PgpDeviceType
+import acab.naiveha.subrosa.ui.YubiKeyViewModel
+import acab.naiveha.subrosa.ui.nitrokey3updater.Nk3UsbIds
+import acab.naiveha.subrosa.ui.openpgp.Nitrokey3AdminVersion
+import acab.naiveha.subrosa.ui.openpgp.OpenPgpCardInfo
+import acab.naiveha.subrosa.ui.openpgp.OpenPgpReader
+import acab.naiveha.subrosa.ui.openpgp.nitrokey2VersionLabel
+import com.yubico.yubikit.openpgp.OpenPgpSession
+import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
+import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
+import com.yubico.yubikit.core.UsbPid
+import com.yubico.yubikit.core.YubiKeyConnection
+import com.yubico.yubikit.core.YubiKeyDevice
+import com.yubico.yubikit.core.application.ApplicationNotAvailableException
+import com.yubico.yubikit.core.fido.FidoConnection
+import com.yubico.yubikit.core.otp.OtpConnection
+import com.yubico.yubikit.core.smartcard.SmartCardConnection
+import com.yubico.yubikit.core.util.StringUtils
+import com.yubico.yubikit.fido.ctap.Ctap2Session
+import com.yubico.yubikit.management.ManagementSession
+import com.yubico.yubikit.support.DeviceUtil
+
+import org.slf4j.LoggerFactory
+
+import java.io.IOException
+
+class ManagementViewModel : YubiKeyViewModel<ManagementSession>() {
+
+    private val logger = LoggerFactory.getLogger(ManagementViewModel::class.java)
+
+    @Volatile
+    private var state = ManagementUiState()
+
+    private val _uiState = MutableLiveData(state)
+    val uiState: LiveData<ManagementUiState> = _uiState
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private fun updateUi(update: (ManagementUiState) -> ManagementUiState) {
+        synchronized(this) {
+            val next = update(state)
+            state = if (next.connectedDevice != null) next.copy(loading = false) else next
+        }
+        if (Looper.getMainLooper().thread == Thread.currentThread()) {
+            _uiState.value = state
+        } else {
+            mainHandler.post { _uiState.value = state }
+        }
+    }
+
+    val currentState: ManagementUiState
+        get() = state
+
+    fun requestClearUi() {
+        updateUi { ManagementUiState() }
+    }
+
+    override fun onDeviceDisconnected() {
+        requestClearUi()
+    }
+
+    override fun getSession(
+        device: YubiKeyDevice,
+        onError: (Throwable) -> Unit,
+        callback: (ManagementSession) -> Unit
+    ) {
+        updateUi { it.copy(loading = true, pgpCardInfo = null) }
+        readDeviceInfo(device, onError, callback)
+    }
+
+    override fun ManagementSession.updateState() {
+        // Nothing to refresh automatically on the management screen.
+    }
+
+    private fun readDeviceInfo(
+        device: YubiKeyDevice,
+        onError: (Throwable) -> Unit,
+        callback: (ManagementSession) -> Unit,
+    ) {
+
+        val usbPid: UsbPid? = (device as? UsbYubiKeyDevice)?.pid
+
+        if (PgpDeviceType.isUsbNitrokey3(device)) {
+            readNitrokeyInfoUsb(device)
+            return
+        }
+
+        if (PgpDeviceType.isUsbNitrokey2(device)) {
+            readNitrokey2InfoUsb(device)
+            return
+        }
+
+        if (device is NfcYubiKeyDevice) {
+            readNfcDevice(device)
+            return
+        }
+
+        readYubicoInfo(device, usbPid, onError, callback)
+    }
+
+    private fun readYubicoInfo(
+        device: YubiKeyDevice,
+        usbPid: UsbPid?,
+        onError: (Throwable) -> Unit,
+        callback: (ManagementSession) -> Unit,
+    ) {
+        val pgpType = if (device is UsbYubiKeyDevice) {
+            PgpDeviceType.fromUsbDescriptor(device)
+        } else {
+            PgpDeviceType.UNKNOWN
+        }
+        val readInfo: (YubiKeyConnection) -> Unit = { conn ->
+            try {
+                val atr = StringUtils.bytesToHex(
+                    (conn as? SmartCardConnection)?.atr ?: byteArrayOf()
+                )
+                val devInfo = DeviceUtil.readInfo(conn, usbPid)
+                val usbName = (device as? UsbYubiKeyDevice)?.usbDevice?.productName
+                    ?: DeviceUtil.getName(devInfo, usbPid?.type)
+                val info = ConnectedDeviceInfo(
+                    deviceInfo        = devInfo,
+                    type              = pgpType,
+                    atr               = atr,
+                    isNfc             = false,
+                    usbName           = usbName,
+                    rawFirmware       = devInfo.version.toString(),
+                )
+                updateUi { it.copy(connectedDevice = info) }
+                logDeviceDetails(info)
+
+                (conn as? SmartCardConnection)?.let { readPgpInfo(it) } ?: updateUi { it.copy(loading = false) }
+
+                try {
+                    val managementSession = when (conn) {
+                        is SmartCardConnection -> ManagementSession(conn)
+                        is OtpConnection -> ManagementSession(conn)
+                        is FidoConnection -> ManagementSession(conn)
+                        else -> throw ApplicationNotAvailableException("Unsupported connection type")
+                    }
+                    callback(managementSession)
+                } catch (e: ApplicationNotAvailableException) {
+                    updateUi { s -> s.copy(loading = false) }
+                    onError(e)
+                } catch (e: IOException) {
+                    updateUi { s -> s.copy(loading = false) }
+                    onError(e)
+                }
+            } catch (e: IllegalArgumentException) {
+                if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                    requestClearUi()
+                } else {
+                    updateUi { it.copy(errorInfo = "Failed to identify device. Is it a supported security key?", connectedDevice = null, loading = false) }
+                }
+                onError(e)
+            } catch (e: Exception) {
+                if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                    requestClearUi()
+                } else {
+                    updateUi { it.copy(errorInfo = "Error reading device info: ${e.message}", connectedDevice = null, loading = false) }
+                }
+                onError(e)
+            }
+        }
+
+        val tried = tryConnection(device, SmartCardConnection::class.java, readInfo, onError)
+            || tryConnection(device, OtpConnection::class.java, readInfo, onError)
+            || tryConnection(device, FidoConnection::class.java, readInfo, onError)
+        if (!tried) {
+            if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                requestClearUi()
+            } else {
+                updateUi { it.copy(loading = false) }
+            }
+            onError(ApplicationNotAvailableException("Cannot read device info"))
+        }
+    }
+
+    private fun <C : YubiKeyConnection> tryConnection(
+        device: YubiKeyDevice,
+        connClass: Class<C>,
+        readInfo: (YubiKeyConnection) -> Unit,
+        onError: (Throwable) -> Unit,
+    ): Boolean {
+        if (!device.supportsConnection(connClass)) return false
+        device.requestConnection(connClass) {
+            if (it.isSuccess) {
+                logger.debug("readInfo on ${connClass.simpleName}")
+                readInfo(it.value)
+            } else {
+                logger.debug("${connClass.simpleName} request failed")
+                if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                    requestClearUi()
+                } else {
+                    updateUi { s -> s.copy(loading = false) }
+                }
+                onError(it.error ?: IOException("${connClass.simpleName} request failed"))
+            }
+        }
+        return true
+    }
+
+    private fun readNitrokeyInfoUsb(device: YubiKeyDevice) {
+        if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+            requestClearUi()
+            return
+        }
+        val inBootloader = isNitrokey3Bootloader(device)
+        var fwVersion: String? = null
+        val productName = (device as? UsbYubiKeyDevice)?.usbDevice?.productName ?: "Nitrokey 3"
+        try {
+            (device as? UsbYubiKeyDevice)
+                ?.openConnection(SmartCardConnection::class.java)
+                ?.use { sc ->
+                    fwVersion = Nitrokey3AdminVersion.query(sc)
+                    readPgpInfo(sc, knownFirmwareVersion = fwVersion)
+                }
+        } catch (e: Exception) {
+            logger.debug("readNitrokeyInfoUsb: SmartCard block failed: ${e.message}")
+            if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                requestClearUi()
+                return
+            }
+            if (!device.supportsConnection(FidoConnection::class.java)) {
+                updateUi { it.copy(loading = false) }
+            }
+        }
+
+        if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+            requestClearUi()
+            return
+        }
+
+        val fwLabel = fwVersion ?: "unavailable"
+
+        if (!device.supportsConnection(FidoConnection::class.java)) {
+            logger.debug("readNitrokeyInfoUsb: device has no FIDO interface — skipping CTAP2 query")
+            if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                requestClearUi()
+            } else {
+                val info = buildNitrokeyInfo(productName, fwLabel, inBootloader = inBootloader)
+                updateUi { it.copy(connectedDevice = info) }
+                logDeviceDetails(info)
+            }
+            return
+        }
+
+        device.requestConnection(FidoConnection::class.java) { result ->
+            if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                requestClearUi()
+                return@requestConnection
+            }
+            if (!result.isSuccess) {
+                logger.debug("readNitrokeyInfoUsb: FIDO connection request failed — falling back: ${result.error?.message}")
+                if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                    requestClearUi()
+                } else {
+                    val info = buildNitrokeyInfo(productName, fwLabel, inBootloader = inBootloader)
+                    updateUi { it.copy(connectedDevice = info, loading = false) }
+                    logDeviceDetails(info)
+                }
+                return@requestConnection
+            }
+            try {
+                Ctap2Session(result.value) // confirms a genuine CTAP2/FIDO applet is present
+                if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                    requestClearUi()
+                } else {
+                    val info = buildNitrokeyInfo(productName.ifBlank { "Nitrokey 3" }, fwLabel, inBootloader = inBootloader)
+                    updateUi { it.copy(connectedDevice = info) }
+                    logDeviceDetails(info)
+                }
+            } catch (e: Exception) {
+                logger.debug("readNitrokeyInfoUsb: CTAP2 session failed — falling back: ${e.message}")
+                if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                    requestClearUi()
+                } else {
+                    val info = buildNitrokeyInfo(productName, fwLabel, inBootloader = inBootloader)
+                    updateUi { it.copy(connectedDevice = info) }
+                    logDeviceDetails(info)
+                }
+            } finally {
+                if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+                    requestClearUi()
+                } else {
+                    updateUi { it.copy(loading = false) }
+                }
+            }
+        }
+    }
+
+    private fun readNitrokey2InfoUsb(device: YubiKeyDevice) {
+        if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+            requestClearUi()
+            return
+        }
+        var atr = ""
+        var pgpInfo: OpenPgpCardInfo? = null
+        var productName: String? = null
+        try {
+            (device as? UsbYubiKeyDevice)?.let { productName = it.usbDevice.productName }
+            (device as? UsbYubiKeyDevice)
+                ?.openConnection(SmartCardConnection::class.java)
+                ?.use { sc ->
+                    atr = StringUtils.bytesToHex(sc.atr ?: byteArrayOf())
+                    val session = OpenPgpSession(sc)
+                    pgpInfo = buildPgpCardInfo(session, knownFirmwareVersion = session.nitrokey2VersionLabel())
+                    updateUi { it.copy(pgpCardInfo = pgpInfo) }
+                }
+        } catch (e: Exception) {
+            logger.debug("readNitrokey2InfoUsb: SmartCard block failed: ${e.message}")
+        }
+        if (device is UsbYubiKeyDevice && !device.hasPermission()) {
+            requestClearUi()
+            return
+        }
+        val info = ConnectedDeviceInfo(
+            deviceInfo        = null,
+            type              = PgpDeviceType.NITROKEY2,
+            atr               = atr,
+            isNfc             = false,
+            usbName           = productName?.takeIf { n -> n.isNotBlank() } ?: "Nitrokey 2",
+            rawFirmware       = pgpInfo?.version,
+            aidManufacturerId = 0x0005.toShort(),
+        )
+        updateUi {
+            it.copy(
+                connectedDevice = info,
+                loading = false,
+            )
+        }
+        logDeviceDetails(info)
+    }
+
+    private fun readNfcDevice(device: NfcYubiKeyDevice) {
+        try {
+            device.openConnection(SmartCardConnection::class.java).use { conn ->
+                val atr = StringUtils.bytesToHex(conn.atr ?: byteArrayOf())
+
+                val fwVersion = Nitrokey3AdminVersion.query(conn)
+                if (fwVersion != null) {
+                    postNfcNitrokey3Info(fwVersion, atr)
+                    return@use
+                }
+
+                readNfcOpenPgpDevice(device, conn, atr)
+            }
+        } catch (e: Exception) {
+            postNfcReadFailure(e)
+        } finally {
+            updateUi { it.copy(loading = false) }
+        }
+    }
+
+    private fun postNfcNitrokey3Info(fwVersion: String, atr: String) {
+        logger.debug("readNfcDevice: Nitrokey 3 detected (firmware $fwVersion) — " +
+                     "OpenPGP applet is not reachable over NFC, not attempting it")
+        val info = ConnectedDeviceInfo(
+            deviceInfo        = null,
+            type              = PgpDeviceType.NITROKEY3,
+            atr               = atr,
+            isNfc             = true,
+            usbName           = null,
+            rawFirmware       = fwVersion,
+            aidManufacturerId = 0x000F.toShort(),
+            note              = Nitrokey3AdminVersion.NFC_NOT_SUPPORTED_MESSAGE,
+        )
+        updateUi {
+            it.copy(
+                pgpCardInfo = null,
+                connectedDevice = info,
+            )
+        }
+        logDeviceDetails(info)
+    }
+
+    private fun readNfcOpenPgpDevice(device: NfcYubiKeyDevice, conn: SmartCardConnection, atr: String) {
+        val pgpSession = try {
+            OpenPgpSession(conn)
+        } catch (e: ApplicationNotAvailableException) {
+            logger.debug("readNfcDevice: OpenPGP applet absent: ${e.message}")
+            updateUi { it.copy(errorInfo = "OpenPGP applet not available on this NFC device.", connectedDevice = null) }
+            return
+        }
+
+        val mfgId = pgpSession.aid.manufacturer
+        val pgpType = PgpDeviceType.detect(device, mfgId, pgpSession.version)
+
+        val pgpInfo = buildPgpCardInfo(pgpSession)
+        updateUi { it.copy(pgpCardInfo = pgpInfo) }
+        val devInfo = try {
+            DeviceUtil.readInfo(conn, null)
+        } catch (e: Exception) {
+            logger.debug("readNfcDevice: DeviceUtil.readInfo failed: ${e.message}")
+            null
+        }
+
+        val info = ConnectedDeviceInfo(
+            deviceInfo        = devInfo,
+            type              = pgpType,
+            atr               = atr,
+            isNfc             = true,
+            usbName           = null,
+            rawFirmware       = devInfo?.version?.toString(),
+            aidManufacturerId = mfgId,
+        )
+        updateUi {
+            it.copy(
+                connectedDevice = info,
+            )
+        }
+        logDeviceDetails(info)
+    }
+
+    private fun postNfcReadFailure(e: Exception) {
+        logger.debug("readNfcDevice failed: ${e::class.simpleName}: ${e.message}")
+        val msg = e.message ?: ""
+        val userMessage = when {
+            e is SecurityException
+            || msg.contains("out of date", ignoreCase = true)
+            || msg.contains("Tag was lost", ignoreCase = true) ->
+                "NFC connection lost. Hold the device still over the reader and try again."
+            else ->
+                "NFC read failed: $msg"
+        }
+        updateUi { it.copy(errorInfo = userMessage, connectedDevice = null) }
+    }
+
+    private fun readPgpInfo(conn: SmartCardConnection, knownFirmwareVersion: String? = null) {
+        try {
+            val info = buildPgpCardInfo(OpenPgpSession(conn), knownFirmwareVersion)
+            updateUi { it.copy(pgpCardInfo = info) }
+            val currentUiState = state
+            logger.info(
+                "OpenPGP info updated: model='${currentUiState.resolvedDeviceName}', " +
+                "firmware='${currentUiState.resolvedFirmware}', AID manufacturer=0x${info?.aidManufacturerId?.let { "%04X".format(it) } ?: "null"}"
+            )
+        } catch (e: Exception) {
+            logger.debug("OpenPGP info not available: ${e::class.simpleName}: ${e.message}")
+            updateUi { it.copy(pgpCardInfo = null) }
+        } finally {
+            updateUi { it.copy(loading = false) }
+        }
+    }
+
+    private fun buildPgpCardInfo(
+        session: OpenPgpSession,
+        knownFirmwareVersion: String? = null,
+    ): OpenPgpCardInfo? = try {
+        OpenPgpReader.read(session, knownFirmwareVersion, useCache = true, includeSupportedAlgorithms = true).also {
+            logger.debug(
+                "buildPgpCardInfo: v=${it.version}, ${it.slots.count { s -> s.hasKey }} key(s), " +
+                    "DO 0xFA ${if (it.supportedAlgorithms != null) "read" else "not reported"}"
+            )
+        }
+    } catch (e: Exception) {
+        logger.debug("buildPgpCardInfo failed: ${e::class.simpleName}: ${e.message}")
+        null
+    }
+
+    private fun buildNitrokeyInfo(
+        deviceName: String,
+        fwVersion: String,
+        atr: String = "",
+        inBootloader: Boolean = false,
+    ): ConnectedDeviceInfo {
+        return ConnectedDeviceInfo(
+            deviceInfo        = null,
+            type              = PgpDeviceType.NITROKEY3,
+            atr               = atr,
+            isNfc             = false,
+            usbName           = deviceName,
+            rawFirmware       = fwVersion,
+            aidManufacturerId = 0x000F.toShort(),
+            inBootloader      = inBootloader,
+        )
+    }
+
+    private fun isNitrokey3Bootloader(device: YubiKeyDevice): Boolean {
+        val usbDevice = (device as? UsbYubiKeyDevice)?.usbDevice ?: return false
+        return Nk3UsbIds.bootloaderVariant(usbDevice.vendorId, usbDevice.productId) != null
+    }
+
+    private fun logDeviceDetails(info: ConnectedDeviceInfo) {
+        val currentUiState = state
+        val nameResult = currentUiState.resolvedDeviceNameResult
+        logger.info(
+            "Device connected [NFC=${info.isNfc}]: model='${nameResult.name}' (source=${nameResult.source}), " +
+            "firmware='${currentUiState.resolvedFirmware}', " +
+            "AID manufacturer=0x${info.aidManufacturerId?.let { "%04X".format(it) } ?: "null"}, " +
+            "ATR='${info.atr}'"
+        )
+    }
+}

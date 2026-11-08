@@ -1,0 +1,297 @@
+<resources>
+
+    <string name="app_name">sub rosa</string>
+    <string name="error_dialog_title">Operation failed</string>
+    <string name="nav_header_title">sub rosa</string>
+    <string name="nav_header_desc">Navigation header</string>
+
+    <string name="menu_mgmt">Device Information</string>
+    <string name="menu_otp">Static Password</string>
+    <string name="menu_web">WebView</string>
+    <string name="menu_openpgp">OpenPGP</string>
+    <string name="menu_licenses">Licenses</string>
+    <string name="nitrokey3_updater_title">Nitrokey 3 Updater</string>
+    <string name="update">update</string>
+    <string name="update_firmware">Update firmware</string>
+    <string name="openpgp_header">OpenPGP Configuration</string>
+
+    <string name="need_key_generic">Plug in your security key or tap over NFC</string>
+    <string name="insert_key">Insert Security Key</string>
+    <string name="hold_key">Hold your device flat until operation is completed</string>
+    <string name="remove_key">Remove your device now</string>
+    <string name="app_missing">Application not available on this device</string>
+
+    <string name="pin">PIN</string>
+    <string name="enter_pin">Enter PIN</string>
+    <string name="password">Password</string>
+    <string name="enter_password">Enter Password</string>
+    <string name="placeholder_text">Lorem ipsum dolor sit amet</string>
+    <string name="save">Save</string>
+    <string name="openpgp_btn_write">WRITE OPENPGP KEY</string>
+    <string name="randomize">randomize</string>
+
+    <string name="transport_usb">USB</string>
+    <string name="transport_nfc">NFC</string>
+
+    <string name="application_otp">OTP</string>
+    <string name="application_u2f">FIDO U2F</string>
+    <string name="application_fido2">FIDO2</string>
+
+    <string name="mgmt_subtitle"> </string>
+
+    <string name="otp_yubistatic">Static Password</string>
+    <string name="otp_yubistatic_desc">Program a static password.\nWARNING: Operation CANNOT be undone!</string>
+    <string name="otp_clipboard_paste">Paste from clipboard</string>
+    <string name="otp_yubistatic_id">Type or paste from clipboard</string>
+    <string name="otp_yubistatic_hint">Static password</string>
+    <string name="otp_illegal_char_desc">Error: illegal character \'%1$s\' for selected keyboard</string>
+    <string name="otp_unknown_keyboard_desc">Error: unknown keyboard layout \'%1$s\'</string>
+    <string name="otp_unknown_scan_code_desc">Could not decode password for selected keyboard \u2014 try a different keyboard layout</string>
+    <string name="otp_no_slot_selected">No slot selected</string>
+    <string name="otp_static_password_too_long">Static password cannot exceed %1$d characters</string>
+    <string name="otp_slot_status">Slot 1: %1$s\nSlot 2: %2$s</string>
+    <string name="otp_slot_state_programmed">programmed</string>
+    <string name="otp_slot_state_empty">empty</string>
+    <string name="otp_extras_desc">Extras</string>
+    <string name="otp_extras_cr_desc">Append \'enter\'</string>
+    <string name="otp_extras_tab1_desc">Prepend \'tab\'</string>
+    <string name="otp_extras_tab2_desc">Append \'tab\'</string>
+    <string name="otp_keyboard_selection_desc">Keyboard selection</string>
+    <string name="otp_keyboard_us_desc">US</string>
+    <string name="otp_keyboard_uk_desc">UK</string>
+    <string name="otp_keyboard_de_desc">DE</string>
+    <string name="otp_keyboard_fr_desc">FR</string>
+    <string name="otp_keyboard_it_desc">IT</string>
+    <string name="otp_keyboard_modhex_desc">MODHEX</string>
+    <string name="otp_yubistatic_slot_desc">Slot selection</string>
+    <string name="otp_yubistatic_read">Read static password</string>
+    <string name="otp_yubistatic_read_desc">Test the static password</string>
+    <string name="otp_slot_one_state">Slot 1: %1$s</string>
+    <string name="otp_slot_two_state">Slot 2: %1$s</string>
+    <string name="otp_slot_state_unknown">unknown — tap Read to check</string>
+    <string name="otp_yubistatic_show_pwd_desc">Show password</string>
+    <string name="otp_btn_write_static">WRITE STATIC PASSWORD</string>
+
+    <string name="otp_slot_1">Slot 1 (short press)</string>
+    <string name="otp_slot_2">Slot 2 (long press)</string>
+
+    <string name="about">About</string>
+    <string name="about_app">Effortlessly simple: if you manage your long, complex, and secure passwords in a password manager app (like KeePassDroid) on your Android device,
+you can now “type” them easily, in public, without worrying about surveillance cameras or shoulder surfing, on any other device—phone, tablet, or PC—running Windows, Linux, or
+macOS.\nsub rosa allows you to program the static password on your YubiKey, so you can “type” the password with the touch of a finger.\nWhen you’re done “typing” your long, complex,
+and secure password, be sure to wipe your YubiKey clean.\nIt isn’t much security if someone else can “type” your password by touching the YubiKey.\nsub rosa has support for OpenPGP.
+You can provision an OpenPGP key onto your YubiKey, Nitrokey 3, Nitrokey Pro or Librem Key.\nIn keeping with the app’s motto, “Effortlessly simple,” sub rosa allows you to encrypt, decrypt, sign,
+and authenticate with your security key, then wipe it clean and write another OpenPGP key to change your digital identity.\nIf you manage your OpenPGP keys with OpenKeychain or PGPony,
+importing OpenPGP keys in sub rosa is a breeze.\n\nThe source code is available at:\nhttps://github.com/naive-HA/subrosa
+    </string>
+    <string name="yubico">Yubico</string>
+    <string name="version">Version %s</string>
+    <string name="copyright"> </string>
+    <string name="copied_to_clipboard">BTC address copied to clipboard! </string>
+    <string name="github_url">https://github.com/naive-HA/subrosa</string>
+    <string name="footer_title_version">sub rosa by naiveHA %s</string>
+    <string name="coffee_tips">Coffee tips go to:</string>
+    <string name="btc_address">1HwgShr1TniuBxNQwy2xAhpQaNuZhtw6sh</string>
+    <string name="copied_to_clipboard_msg">Copied to clipboard: %s</string>
+    <string name="openpgp_desc">Program an OpenPGP private key.\nWARNING: Operation CANNOT be undone!</string>
+
+    <string name="openpgp_tap_to_paste">Import from OpenKeychain via \"Share backup\" or PGPony via \"Export Private Key\" and then \"Share\", or tap to import from file</string>
+
+    <string name="openpgp_admin_pin_title">Admin PIN</string>
+    <string name="openpgp_admin_pin_message">Enter the YubiKey Admin PIN to program the key.\n\nDefault: 12345678</string>
+    <string name="openpgp_admin_pin_hint">Admin PIN</string>
+    <string name="openpgp_program">Program</string>
+
+    <string name="enter_admin_pin">Enter Admin PIN</string>
+    <string name="enter_key_passphrase">Protected OpenPGP key</string>
+    <string name="enter_file_passphrase">Decrypt OpenPGP key backup</string>
+
+    <string name="openpgp_key_user_id">User ID</string>
+    <string name="openpgp_key_algorithm">Algorithm</string>
+    <string name="openpgp_key_created">Created</string>
+    <string name="openpgp_key_expires">Expires</string>
+    <string name="openpgp_key_no_expiry">No expiry</string>
+    <string name="openpgp_key_fingerprint">Fingerprint</string>
+    <string name="openpgp_key_subkeys">Keys</string>
+    <string name="openpgp_key_slots">── Card slots</string>
+    <string name="openpgp_key_not_written">── Not written</string>
+    <string name="openpgp_subkeys_not_written">Subkeys not written to the OpenPGP card</string>
+    <string name="openpgp_slot_empty">Empty</string>
+    <string name="openpgp_key_expired">Expired %1$s</string>
+    <string name="openpgp_key_revoked">Revoked</string>
+    <string name="openpgp_skip_slot_filled">%1$s already filled by another key</string>
+    <string name="openpgp_skip_certify_only">Certify-only keys have no card slot</string>
+    <string name="openpgp_skip_no_card_role">Not marked for signing, encryption or authentication</string>
+    <string name="openpgp_skip_no_private_key">No private key in the file</string>
+
+    <string name="openpgp_btn_read">READ OPENPGP CARD</string>
+    <string name="openpgp_btn_reset">RESET OPENPGP CARD</string>
+    <string name="openpgp_reset_title">Reset OpenPGP Application</string>
+    <string name="openpgp_reset_message">This will permanently delete all keys, certificates, and data stored in the OpenPGP application.\n\nThis cannot be undone.</string>
+    <string name="reset_confirm">Reset</string>
+    <string name="openpgp_reset_success">OpenPGP application reset successfully</string>
+
+    <string name="openpgp_write_confirm_title">Erase and Write Key</string>
+    <string name="openpgp_write_confirm_message">This will permanently erase all keys, certificates, and PINs currently on the device. It will then be set up with the key below, and the PINs you enter next.</string>
+    <string name="openpgp_write_confirm_action">Erase and write</string>
+
+    <string name="openpgp_file_wrong_passphrase">Wrong file passphrase — please try again</string>
+    <string name="openpgp_file_read_error">Could not read the file</string>
+    <string name="openpgp_key_invalid">Clipboard does not contain an OpenPGP private key.</string>
+    <string name="openpgp_no_key_loaded">No key loaded — paste a key first</string>
+    <string name="openpgp_wrong_passphrase">Wrong passphrase — please try again</string>
+    <string name="openpgp_key_prepare_failed">Failed to read key material</string>
+    <string name="openpgp_admin_pin_too_short">Admin PIN must be at least 8 characters long</string>
+    <string name="openpgp_user_pin_too_short">User PIN must be at least 6 characters long</string>
+    <string name="openpgp_new_pin_mismatch">New PIN and confirmation do not match</string>
+
+    <string name="openpgp_device_management">Device Management</string>
+    <string name="openpgp_device_management_desc">OpenPGP PIN management</string>
+    <string name="openpgp_pin_retries">User PIN retries: %1$d\nAdmin PIN retries: %2$d</string>
+    <string name="openpgp_btn_change_admin_pin">Change Admin PIN</string>
+    <string name="openpgp_btn_change_user_pin">Change User PIN</string>
+    <string name="openpgp_btn_reset_user_pin">Reset Blocked User PIN</string>
+
+    <string name="openpgp_import_file">Import .pgp File…</string>
+    <string name="openpgp_subkey_meta">Created: %1$s | Expires: %2$s</string>
+
+    <string name="openpgp_card_details_title">OpenPGP Card Details</string>
+
+    <string name="yubikit_prompt_activity_title">Connect device</string>
+    <string name="yubikit_otp_activity_title">Connect device</string>
+    <string name="yubikit_prompt_plug_in">Connect your device.</string>
+    <string name="yubikit_prompt_plug_in_or_tap">Hold your device flat against the back of your phone, or connect it via USB.</string>
+    <string name="openpgp_prompt_keep_in_place_write">Keep the key on the phone (or plugged in) until the operation completes. Removing it part-way can leave it erased and only partly written.</string>
+    <string name="openpgp_prompt_keep_in_place_erase">Keep the key on the phone (or plugged in) until the operation completes. Removing it part-way can leave its PINs blocked.</string>
+    <string name="yubikit_prompt_remove">Remove your device.</string>
+    <string name="yubikit_otp_touch">Touch the sensor on your device.</string>
+
+    <string name="licenses_details">sub rosa by naiveHA is licensed under Apache-2.0\nSource code is found at: https://github.com/naive-HA/subrosa,
+        while the license is found at: https://github.com/naive-HA/subrosa/blob/master/LICENSE\n\n
+        This software project is based on yubikit-android published by Yubico and found at: https://github.com/Yubico/yubikit-android and
+        licensed under Apache-2.0 (https://github.com/Yubico/yubikit-android/blob/main/LICENSE)\n\n
+        YubiKey and the Yubico logo are trademarks of the Yubico AB. This project is not affiliated with, endorsed by, or sponsored by the Yubico AB.
+        All references to YubiKey are for descriptive and interoperability purposes only.
+        No copyright or trademark claims are made to YubiKey or any related Yubico AB intellectual property.\n\n
+        Nitrokey is a trademark of Nitrokey GmbH. This project is not affiliated with, endorsed by, or sponsored by Nitrokey GmbH.
+        All references to Nitrokey are for descriptive and interoperability purposes only.
+        No copyright or trademark claims are made to Nitrokey or any related Nitrokey GmbH intellectual property.\n\n
+        Librem Key is a trademark of Puri&#8288;․&#8288;sm. This project is not affiliated with, endorsed by, or sponsored by Puri&#8288;․&#8288;sm.
+        All references to Librem Key are for descriptive and interoperability purposes only.
+        No copyright or trademark claims are made to Librem Key or any related Puri&#8288;․&#8288;sm intellectual property.\n\n
+        This software project is using tessdata from tesseract-ocr project for optical character recognition. tesseract-ocr/tessdata is licensed under the Apache License 2.0.
+        The data can be found at: https://github.com/tesseract-ocr/tessdata.
+        No copyright or trademark claims are made to tesseract-ocr or any related tesseract-ocr intellectual property.</string>
+    <string name="wipe_the_openpgp_key">Wipe the OpenPGP key\nWARNING: Operation CANNOT be undone!</string>
+    <string name="test_the_openpgp_card">Test the OpenPGP card</string>
+    <string name="reset_yubikey_static_password">Reset the static password\nWARNING: Operation CANNOT be undone!</string>
+    <string name="staticpwd_reset_title">Reset Static Password</string>
+    <string name="staticpwd_reset_message">This will overwrite %1$s, erasing the currently programmed static password.\n\nThis cannot be undone.</string>
+    <string name="staticpwd_slot_1">Slot 1</string>
+    <string name="staticpwd_slot_2">Slot 2</string>
+
+    <string name="staticpwd_overwrite_title">Overwrite Slot</string>
+    <string name="staticpwd_overwrite_message">%1$s configuration will be permanently replaced with the new static password\n\nThis cannot be undone.</string>
+    <string name="staticpwd_overwrite_confirm">Overwrite</string>
+
+    <string name="usage">Usage</string>
+    <string name="meta_info">Meta info</string>
+    <string name="dash">—</string>
+    <string name="dash_newline">—\n</string>
+
+    <string name="static_password_supported">Static password: supported</string>
+    <string name="static_password_not_supported">Static password: not supported</string>
+    <string name="openpgp_card_programmed">OpenPGP card: programmed</string>
+    <string name="openpgp_card_not_programmed">OpenPGP card: not programmed</string>
+    <string name="openpgp_not_supported_nfc">OpenPGP: not supported over NFC</string>
+    <string name="openpgp_tap_again">OpenPGP: tap again to read key info</string>
+
+    <string name="supported_algorithms">Supported algorithms</string>
+    <string name="supported_algorithms_not_reported">Not reported by this card</string>
+    <string name="algorithms_slot_sig">SIG</string>
+    <string name="algorithms_slot_dec">DEC</string>
+    <string name="algorithms_slot_aut">AUT</string>
+    <string name="algorithms_slot_att">ATT</string>
+
+    <string name="tab_write">Write</string>
+    <string name="tab_read">Read</string>
+    <string name="tab_erase">Erase</string>
+    <string name="tab_mgmt">Management</string>
+    <string name="nfc_static_password_desc">By default, a YubiKey programmed with a static password will return the static password over NFC,
+        without any guard, like a touch guards when connected over USB.\n
+Ideally, you would live by the sub rosa philosophy and program the static password, use it and then wipe it.
+But if you do not, then disabling the static password over NFC is your best alternative.\n\n
+Disabling the static password over NFC does not disable OpenPGP over NFC. Also, the static password over NFC can be re-enabled later on
+so that you can program the static password over NFC, not just over USB.</string>
+
+    <string name="otp_nfc_switch_label">Manage the static password over NFC</string>
+    <string name="otp_nfc_hint_connect">Plug in or tap your device to read this setting</string>
+    <string name="otp_nfc_state_label">Current state</string>
+    <string name="otp_nfc_state_unknown">unknown</string>
+    <string name="otp_nfc_off">Off</string>
+    <string name="otp_nfc_on">On</string>
+    <string name="otp_nfc_state_last_tap">%1$s</string>
+    <string name="otp_nfc_reason_unsupported">Not available on this device.</string>
+    <string name="otp_nfc_reason_no_nfc">This device has no NFC. There is nothing to change.</string>
+    <string name="otp_nfc_reason_no_otp">This device does not support static passwords over NFC.</string>
+    <string name="otp_nfc_reason_old_firmware">The firmware does not support this feature.</string>
+    <string name="otp_nfc_reason_locked">The configuration is locked with a lock code and cannot be changed.</string>
+    <string name="otp_nfc_reason_unreadable">The device did not report its NFC setting. Nothing was changed.</string>
+    <string name="otp_nfc_not_applied">The device did not apply the change: static password over NFC is still %1$s.</string>
+    <string name="otp_nfc_on_note">While this is on, the static password over NFC can be written, read, tested or erased.
+        However, any generic phone app, not just sub rosa, with no touch, can read the static password over NFC.</string>
+    <string name="otp_nfc_off_note">While this is off, the static password over NFC cannot be written, read, tested or erased.
+        Static passwords over USB work as usual. OpenPGP feature works over NFC and USB as usual.</string>
+
+    <string name="otp_static_passwords_not_supported">Static passwords are not supported on this device</string>
+    <string name="otp_slot_not_programmed">Slot not programmed</string>
+    <string name="otp_no_slot_configured">No slot configured</string>
+    <string name="status_read_complete">Read complete</string>
+    <string name="otp_nfc_communication_failed">NFC communication failed. Hold the key still against the phone and try again.</string>
+    <string name="otp_nfc_sent">Change sent. Plug in or tap the key again to read the new setting.</string>
+    <string name="otp_nfc_status_on">Static password over NFC is now on</string>
+    <string name="otp_nfc_status_off">Static password over NFC is now off</string>
+    <string name="otp_slot_programmed">Slot %1$s programmed</string>
+    <string name="otp_slot_reset">Slot %1$s reset</string>
+
+    <string name="nitrokey3updater_desc">Update Nitrokey 3 firmware.\nWARNING: Operation CANNOT be undone!</string>
+    <string name="nitrokey3updater_firmware_selection_desc">New firmware file selection</string>
+    <string name="nitrokey3updater_instructions">Navigate to https://github.com/Nitrokey/nitrokey-3-firmware/releases, download firmware-nk3-v*.zip file and import it here.</string>
+    <string name="firmware_binaries">Firmware archive</string>
+    <string name="tap_to_import">tap to import</string>
+    <string name="sha256sum_label">sha256sum</string>
+    <string name="nitrokey3updater_write">UPDATE FIRMWARE</string>
+    <string name="nitrokey3updater_reboot_bootloader">REBOOT TO BOOTLOADER</string>
+    <string name="nitrokey3updater_reboot_app">RETURN TO APPLICATION MODE</string>
+    <string name="nitrokey3updater_confirm_integrity">I have checked the sha256sum and confirm the firmware archive\'s integrity</string>
+    <string name="nitrokey3updater_test">TEST</string>
+    <string name="nitrokey3updater_flash_title">Update firmware?</string>
+    <string name="nitrokey3updater_flash_message">Install firmware %1$s on your Nitrokey 3?\n\nDo not unplug the key or close the app until the update has finished. It takes about a minute.</string>
+    <string name="nitrokey3updater_flash_confirm">Update</string>
+    <string name="nitrokey3updater_update_in_progress">Update in progress, do not unplug your Nitrokey 3</string>
+    <string name="nitrokey3updater_status_import_first">Import a firmware archive to continue</string>
+    <string name="nitrokey3updater_status_preparing">Checking firmware archive…</string>
+    <string name="nitrokey3updater_status_ready">Firmware %1$s ready to install</string>
+    <string name="nitrokey3updater_tests_completed">Tests completed successfully</string>
+    <string name="nitrokey3updater_status_connecting">Connecting to the bootloader…</string>
+    <string name="nitrokey3updater_status_installing">Installing firmware… %1$d%%</string>
+    <string name="nitrokey3updater_status_restarting">Update installed, restarting your Nitrokey 3…</string>
+    <string name="nitrokey3updater_status_done">Firmware %1$s installed</string>
+    <string name="nitrokey3updater_status_done_app_mode">Firmware %1$s installed. Application mode confirmed.</string>
+    <string name="nitrokey3updater_status_failed">Update failed: %1$s\n\nYour Nitrokey 3 normally stays in bootloader mode, so you can try again.</string>
+    <string name="nitrokey3updater_status_not_nitrokey_bootloader">Not a Nitrokey 3 bootloader, updating is disabled</string>
+    <string name="nitrokey3updater_status_nrf52_unsupported">Updating nRF52 hardware is not supported yet</string>
+    <string name="nitrokey3updater_check_transfer">TEST LONG TRANSFERS…</string>
+    <string name="nitrokey3updater_check_transfer_title">Test long transfers?</string>
+    <string name="nitrokey3updater_check_transfer_message">This sends only the first %1$d bytes of the firmware file (%2$d data reports of up to %3$d bytes) to the bootloader. That part holds the signed header of the file, which comes before any data that is written to the flash, so nothing is installed.\n\nThe bootloader then waits for the rest of the file. Afterwards unplug your Nitrokey 3 and plug it in again, and use REBOOT TO BOOTLOADER once more before you check or update.</string>
+    <string name="nitrokey3updater_check_transfer_confirm">Send</string>
+    <string name="nitrokey3updater_check_in_progress">Check in progress, do not unplug your Nitrokey 3</string>
+    <string name="nitrokey3updater_status_checking">Checking the bootloader…</string>
+    <string name="nitrokey3updater_status_checking_transfer">Sending the start of the firmware file…</string>
+    <string name="nitrokey3updater_status_replug">Unplug your Nitrokey 3 and plug it in again, then use REBOOT TO BOOTLOADER. The bootloader is waiting for the rest of a file.</string>
+    <string name="nitrokey3updater_status_replugged">Nitrokey 3 unplugged. Plug it in again to continue.</string>
+    <string name="nitrokey3updater_status_check_ok">Bootloader check finished successfully</string>
+    <string name="nitrokey3updater_status_check_problems">Bootloader check failed</string>
+    <string name="nitrokey3updater_status_check_import_hint">Import the firmware archive to test long transfers as well.</string>
+
+</resources>

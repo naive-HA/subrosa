@@ -1,0 +1,254 @@
+/*
+ * Copyright (C) 2019-2025 Yubico.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.yubico.yubikit.android.transport.nfc;
+
+import android.nfc.FormatException;
+import android.nfc.NdefMessage;
+import android.nfc.Tag;
+import android.nfc.tech.IsoDep;
+import android.nfc.tech.Ndef;
+import com.yubico.yubikit.core.Transport;
+import com.yubico.yubikit.core.YubiKeyConnection;
+import com.yubico.yubikit.core.YubiKeyDevice;
+import com.yubico.yubikit.core.application.ApplicationNotAvailableException;
+import com.yubico.yubikit.core.internal.Logger;
+import com.yubico.yubikit.core.smartcard.AppId;
+import com.yubico.yubikit.core.smartcard.SmartCardConnection;
+import com.yubico.yubikit.core.smartcard.SmartCardProtocol;
+import com.yubico.yubikit.core.util.Callback;
+import com.yubico.yubikit.core.util.Result;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.IOException;
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.LoggerFactory;
+
+public class NfcYubiKeyDevice implements YubiKeyDevice {
+  private static final org.slf4j.Logger logger = LoggerFactory.getLogger(NfcYubiKeyDevice.class);
+
+  private final AtomicBoolean removed = new AtomicBoolean();
+  private final ExecutorService executorService;
+  private final Tag tag;
+  private final int timeout;
+
+  /**
+   * Instantiates session for nfc tag interaction
+   *
+   * @param tag the tag that has been discovered
+   * @param timeout timeout, in milliseconds, to use for NFC communication
+   */
+  public NfcYubiKeyDevice(Tag tag, int timeout, ExecutorService executorService) {
+    this.executorService = executorService;
+    this.tag = tag;
+    this.timeout = timeout;
+  }
+
+  /**
+   * @return NFC tag that has been discovered
+   */
+  public Tag getTag() {
+    return tag;
+  }
+
+  private NfcSmartCardConnection openIso7816Connection() throws IOException {
+    Logger.debug(
+        logger,
+        "openIso7816Connection: tagId={} techList={} timeoutMs={}",
+        bytesToHex(tag.getId()),
+        java.util.Arrays.toString(tag.getTechList()),
+        timeout);
+
+    IsoDep card = IsoDep.get(tag);
+    if (card == null) {
+      Logger.warn(
+          logger,
+          "openIso7816Connection: IsoDep.get() returned null for tagId={} — techList={}. "
+              + "Tag does not support ISO-DEP; cannot select any smart-card applet.",
+          bytesToHex(tag.getId()),
+          java.util.Arrays.toString(tag.getTechList()));
+      throw new IOException("the tag does not support ISO-DEP");
+    }
+    card.setTimeout(timeout);
+    try {
+      card.connect();
+    } catch (IOException e) {
+      Logger.error(
+          logger,
+          "openIso7816Connection: IsoDep.connect() FAILED for tagId={}: {}: {}",
+          bytesToHex(tag.getId()),
+          e.getClass().getSimpleName(),
+          e.getMessage());
+      throw e;
+    }
+    Logger.debug(
+        logger,
+        "openIso7816Connection: connected — isConnected={} maxTransceiveLength={} "
+            + "extendedLengthApduSupported={} timeout={} historicalBytes={} hiLayerResponse={}",
+        card.isConnected(),
+        card.getMaxTransceiveLength(),
+        card.isExtendedLengthApduSupported(),
+        card.getTimeout(),
+        bytesToHex(card.getHistoricalBytes()),
+        bytesToHex(card.getHiLayerResponse()));
+    return new NfcSmartCardConnection(card);
+  }
+
+  @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
+  public byte[] readNdef() throws IOException {
+    try (Ndef ndef = Ndef.get(tag)) {
+      if (ndef == null) {
+        throw new IOException("Invalid NDEF data. Try again");
+      }
+      ndef.connect();
+      NdefMessage message = ndef.getNdefMessage();
+      if (message == null) {
+        throw new IOException("Invalid NDEF data. Try again");
+      }
+      return message.toByteArray();
+    } catch (FormatException e) {
+      throw new IOException(e);
+    }
+  }
+
+  /**
+   * Closes the device and waits for physical removal.
+   *
+   * <p>This method signals that we are done with the device and can be used to wait for the user to
+   * physically remove the YubiKey from NFC scan range, to avoid triggering NFC YubiKey detection
+   * multiple times in quick succession.
+   */
+  public void remove(Runnable onRemoved) {
+    removed.set(true);
+    if (executorService.isShutdown()) {
+      onRemoved.run();
+      return;
+    }
+    executorService.submit(
+        () -> {
+          try {
+            IsoDep isoDep = IsoDep.get(tag);
+            isoDep.connect();
+            while (isoDep.isConnected()) {
+              //noinspection BusyWait
+              Thread.sleep(250);
+            }
+          } catch (SecurityException | InterruptedException | IOException e) {
+          }
+          onRemoved.run();
+        });
+  }
+
+  @Override
+  public Transport getTransport() {
+    return Transport.NFC;
+  }
+
+  @Override
+  public boolean supportsConnection(Class<? extends YubiKeyConnection> connectionType) {
+    return connectionType.isAssignableFrom(NfcSmartCardConnection.class);
+  }
+
+  public <T extends YubiKeyConnection> T openConnection(Class<T> connectionType)
+      throws IOException {
+    if (connectionType.isAssignableFrom(NfcSmartCardConnection.class)) {
+      return Objects.requireNonNull(connectionType.cast(openIso7816Connection()));
+    }
+    throw new IllegalStateException("The connection type is not supported by this session");
+  }
+
+  @Override
+  public <T extends YubiKeyConnection> void requestConnection(
+      Class<T> connectionType, Callback<Result<T, IOException>> callback) {
+    boolean isRemoved = removed.get();
+    if (isRemoved) {
+      callback.invoke(
+          Result.failure(new IOException("Can't requestConnection after calling remove()")));
+    } else if (executorService.isShutdown()) {
+      callback.invoke(Result.failure(new IOException("Device has been closed")));
+    } else {
+      executorService.submit(
+          () -> {
+            try (T connection = openConnection(connectionType)) {
+              callback.invoke(Result.success(connection));
+            } catch (IOException ioException) {
+              Logger.warn(
+                  logger,
+                  "requestConnection({}): openConnection failed: {}: {}",
+                  connectionType.getSimpleName(),
+                  ioException.getClass().getSimpleName(),
+                  ioException.getMessage());
+              callback.invoke(Result.failure(ioException));
+            } catch (Exception exception) {
+              Logger.error(
+                  logger,
+                  "requestConnection({}): unexpected exception: {}: {}",
+                  connectionType.getSimpleName(),
+                  exception.getClass().getSimpleName(),
+                  exception.getMessage());
+              callback.invoke(
+                  Result.failure(
+                      new IOException(
+                          "openConnection("
+                              + connectionType.getSimpleName()
+                              + ") exception: "
+                              + exception.getMessage(),
+                          exception)));
+            }
+          });
+    }
+  }
+
+  /**
+   * Probe the nfc device whether it is a Yubico hardware.
+   *
+   * @return true if this device is a YubiKey or a Security Key by Yubico.
+   */
+  public boolean isYubiKey() {
+    try (SmartCardConnection connection = openConnection(SmartCardConnection.class)) {
+      SmartCardProtocol protocol = new SmartCardProtocol(connection);
+      try {
+        protocol.select(AppId.MANAGEMENT);
+        return true;
+      } catch (ApplicationNotAvailableException managementNotAvailable) {
+        try {
+          protocol.select(AppId.OTP);
+          return true;
+        } catch (ApplicationNotAvailableException otpNotAvailable) {
+          // neither app present — not a YubiKey
+        }
+      }
+    } catch (Exception e) {
+      // tag not responsive or wrong protocol
+    }
+    return false;
+  }
+
+  @Override
+  public String toString() {
+    return "NfcYubiKeyDevice{tagId=" + bytesToHex(tag.getId()) + ", timeout=" + timeout + '}';
+  }
+
+  private static String bytesToHex(byte[] bytes) {
+    if (bytes == null) return "null";
+    StringBuilder sb = new StringBuilder(bytes.length * 2);
+    for (byte b : bytes) {
+      sb.append(String.format("%02X", b));
+    }
+    return sb.toString();
+  }
+}

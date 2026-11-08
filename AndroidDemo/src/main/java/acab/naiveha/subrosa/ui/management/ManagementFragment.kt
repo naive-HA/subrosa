@@ -1,0 +1,170 @@
+/*
+ * Copyright (C) 2022-2023 Yubico.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package acab.naiveha.subrosa.ui.management
+
+import android.annotation.SuppressLint
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
+import acab.naiveha.subrosa.R
+import acab.naiveha.subrosa.ui.PgpDeviceType
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import acab.naiveha.subrosa.databinding.FragmentManagementBinding
+import acab.naiveha.subrosa.ui.YubiKeyFragment
+import acab.naiveha.subrosa.ui.openpgp.OpenPgpCardInfo
+import acab.naiveha.subrosa.ui.setupCoffeeTipsClipboard
+import com.yubico.yubikit.management.ManagementSession
+import com.yubico.yubikit.openpgp.KeyRef
+import kotlin.time.Duration.Companion.milliseconds
+
+class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewModel>() {
+    override val viewModel: ManagementViewModel by activityViewModels()
+
+    private lateinit var binding: FragmentManagementBinding
+
+    override fun onCreateView(
+            inflater: LayoutInflater,
+            container: ViewGroup?,
+            savedInstanceState: Bundle?
+    ): View {
+        binding = FragmentManagementBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    @SuppressLint("SetTextI18n")
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        binding.btnUpdateFirmware.setOnClickListener {
+            findNavController().navigate(R.id.nitrokey3UpdaterFragment)
+        }
+
+        viewModel.uiState.observe(viewLifecycleOwner) { state ->
+            val dash = getString(R.string.dash)
+            state.errorInfo?.let { binding.deviceModel.text = "Error: $it" }
+
+            val showUpdate = state.connectedDevice != null &&
+                             state.connectedDevice.type == PgpDeviceType.NITROKEY3 &&
+                             !state.connectedDevice.isNfc
+
+            if (!state.isDeviceConnected && !state.loading) {
+                binding.progressLoading.visibility = View.GONE
+                startDotAnimation(state.errorInfo)
+                binding.deviceModel.text = dash
+                binding.deviceFirmware.text = dash
+                binding.btnUpdateFirmware.visibility = View.GONE
+                binding.staticPasswordStatus.text = dash
+                binding.openpgpCardStatus.text = dash
+                renderSupportedAlgorithms(null)
+                return@observe
+            }
+
+            binding.progressLoading.visibility = if (state.loading) View.VISIBLE else View.GONE
+            stopDotAnimation()
+            binding.emptyView.text = ""
+            binding.deviceModel.text = state.resolvedDeviceName.ifBlank { dash }
+            binding.deviceFirmware.text = state.resolvedFirmware.ifBlank { dash }
+            binding.btnUpdateFirmware.visibility = if (showUpdate) View.VISIBLE else View.GONE
+
+            renderPgpStatus(state.pgpStatus)
+            renderSupportedAlgorithms(state.pgpCardInfo)
+        }
+
+        setupCoffeeTipsClipboard(binding.coffeeTipsContainer)
+    }
+
+    private fun renderPgpStatus(status: PgpStatus) {
+        val dash = getString(R.string.dash)
+        val (staticText, pgpText) = when (status) {
+            is PgpStatus.YubiKey -> {
+                val pgpLine = if (status.programmed) "programmed" else "not programmed"
+                Pair("supported", pgpLine)
+            }
+            is PgpStatus.Nitrokey -> {
+                val staticLine = "not supported"
+                val pgpLine = when {
+                    status.programmed != null -> if (status.programmed) "programmed" else "not programmed"
+                    status.nfcUnsupported -> "not supported over NFC"
+                    else -> null
+                }
+                Pair(staticLine, pgpLine ?: dash)
+            }
+            PgpStatus.NitrokeyBootloader -> Pair(dash, dash)
+            is PgpStatus.OtherDevice -> {
+                val pgpLine = if (status.programmed) "programmed" else "not programmed"
+                val staticLine = if (status.staticPasswordSupported == false) "not supported" else dash
+                Pair(staticLine, pgpLine)
+            }
+            PgpStatus.AwaitingSecondTap -> Pair(dash, "tap again")
+            PgpStatus.None -> Pair(dash, dash)
+        }
+        binding.staticPasswordStatus.text = staticText
+        binding.openpgpCardStatus.text = pgpText
+    }
+
+    private fun renderSupportedAlgorithms(info: OpenPgpCardInfo?) {
+        if (info == null) {
+            binding.supportedAlgorithmsContainer.visibility = View.GONE
+            return
+        }
+        binding.supportedAlgorithmsContainer.visibility = View.VISIBLE
+
+        val algorithms = info.supportedAlgorithms
+        binding.algorithmsNotReported.visibility = if (algorithms == null) View.VISIBLE else View.GONE
+        binding.algorithmGroups.visibility = if (algorithms == null) View.GONE else View.VISIBLE
+        if (algorithms == null) return
+
+        val dash = getString(R.string.dash)
+        fun textFor(slot: KeyRef) = algorithms.linesFor(slot).joinToString("\n").ifEmpty { dash }
+        binding.algorithmsSig.text = textFor(KeyRef.SIG)
+        binding.algorithmsDec.text = textFor(KeyRef.DEC)
+        binding.algorithmsAut.text = textFor(KeyRef.AUT)
+    }
+
+    private var dotAnimationJob: Job? = null
+
+    private fun startDotAnimation(errorInfo: String?) {
+        if (dotAnimationJob?.isActive == true) return
+        val baseText = errorInfo ?: getString(R.string.need_key_generic)
+        dotAnimationJob = viewLifecycleOwner.lifecycleScope.launch {
+            val steps = arrayOf("", ".", "..", "...")
+            var step = 0
+            while (isActive) {
+                binding.emptyView.text = StringBuilder(baseText).append(steps[step]).toString()
+                delay(500.milliseconds)
+                step = (step + 1) % steps.size
+            }
+        }
+    }
+
+    private fun stopDotAnimation() {
+        dotAnimationJob?.cancel()
+        dotAnimationJob = null
+    }
+
+    override fun onDestroyView() {
+        stopDotAnimation()
+        super.onDestroyView()
+    }
+}

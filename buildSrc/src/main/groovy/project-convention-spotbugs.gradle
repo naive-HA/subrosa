@@ -1,0 +1,35 @@
+plugins {
+    id 'com.github.spotbugs'
+}
+
+dependencies {
+    spotbugs libs.spotbugs
+    spotbugsPlugins libs.findsecbugs.plugin
+
+    implementation libs.spotbugs.annotations
+}
+
+spotbugs {
+    ignoreFailures = true
+    showStackTraces = false
+    showProgress = false
+
+    effort = 'more'
+    reportLevel = 'medium'
+    excludeFilter = file("../spotbugs/excludeFilter.xml")
+}
+
+tasks.withType(com.github.spotbugs.snom.SpotBugsTask).configureEach {
+    enabled = name.toLowerCase().contains('main') || name.toLowerCase().contains('release')
+
+    reports {
+        html {
+            required = true
+            outputLocation = file("${project.rootDir}/build/spotbugs-html/spotbugs-${project.name}.html")
+        }
+        sarif {
+            required = true
+            outputLocation = file("${project.rootDir}/build/spotbugs/spotbugs-${project.name}.sarif")
+        }
+    }
+}

@@ -1,0 +1,12 @@
+<resources>
+    <!-- YubiKey — all models (VID 0x1050 = 4176) -->
+    <usb-device vendor-id="4176" />
+    <!-- Nitrokey — all models (VID 0x20A0 = 8352) -->
+    <usb-device vendor-id="8352" />
+    <!-- Purism Librem Key (VID 0x316D = 12653) -->
+    <usb-device vendor-id="12653" />
+    <!-- NXP Bootloader (VID 0x1FC9 = 8137) -->
+    <usb-device vendor-id="8137" />
+    <!-- Nordic Semiconductor DFU (VID 0x1915 = 6421) -->
+    <usb-device vendor-id="6421" />
+</resources>
