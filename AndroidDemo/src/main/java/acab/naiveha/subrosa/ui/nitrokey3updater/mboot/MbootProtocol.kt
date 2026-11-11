@@ -23,7 +23,7 @@ internal object MbootProtocol {
     const val PROPERTY_CURRENT_VERSION = 0x01
     const val PROPERTY_MAX_PACKET_SIZE = 0x0B
 
-    const val DEFAULT_MAX_PACKET_SIZE = 32
+    const val MIN_DATA_PACKET_SIZE = 8
 
     private const val COMMAND_HEADER_SIZE = 4
 
@@ -115,6 +115,27 @@ internal sealed class MbootFrame {
     class Data(val reportId: Int, val payload: ByteArray) : MbootFrame()
 
     object Abort : MbootFrame()
+}
+
+internal class ExpectedResponse private constructor(private val tag: Int, private val commandTag: Int?) {
+
+    fun matches(frame: MbootFrame.Response): Boolean =
+        frame.tag == tag && (commandTag == null || frame.params.getOrNull(1) == commandTag)
+
+    override fun toString(): String = if (commandTag == null) {
+        "a response with tag 0x%02X".format(tag)
+    } else {
+        "a response with tag 0x%02X to command 0x%02X".format(tag, commandTag)
+    }
+
+    companion object {
+        fun forCommand(commandTag: Int): ExpectedResponse =
+            if (commandTag == MbootProtocol.CMD_GET_PROPERTY) {
+                ExpectedResponse(MbootProtocol.RESPONSE_GET_PROPERTY, null)
+            } else {
+                ExpectedResponse(MbootProtocol.RESPONSE_GENERIC, commandTag)
+            }
+    }
 }
 
 internal class MbootProtocolException(message: String) : IOException(message)

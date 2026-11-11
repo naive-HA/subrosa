@@ -160,7 +160,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
                 queuedPins.compareAndSet(queued, null)
             }
         }
-        pendingAction.value = task
+        setPendingAction(task)
     }
 
     private val preflightOutcome = AtomicReference<CompletableDeferred<Boolean>?>()
@@ -174,7 +174,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         preflightOutcome.set(outcome)
         setCurrentOperation(OpenPgpOperation.PREFLIGHT)
         postWriteStatus("Checking key compatibility…")
-        pendingAction.value = {
+        setPendingAction {
             var supported = false
             try {
                 logger.info("pendingAction — pre-flight check of the key against the device")
@@ -234,7 +234,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
 
     fun resetOpenPgpApplet() {
         setCurrentOperation(OpenPgpOperation.RESET_ADMIN_PIN)
-        pendingAction.value = {
+        setPendingAction {
             try {
                 val writer = currentState.connectedDevice.type.writer()
                 logger.info("pendingAction — resetting OpenPGP applet, writer=${writer::class.simpleName}")
@@ -263,7 +263,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
     fun refreshPinCounters() {
         if (pendingAction.value != null) return
         postPinChangeStatus("Refreshing PIN retries…")
-        pendingAction.value = {
+        setPendingAction {
             try {
                 postPinChangeStatus("Reading PIN status…")
                 refreshPinRetries(this)

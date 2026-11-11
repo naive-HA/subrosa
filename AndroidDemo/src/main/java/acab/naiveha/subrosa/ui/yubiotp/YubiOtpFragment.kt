@@ -87,13 +87,21 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
     }
 
     private val requestOtp = registerForActivityResult(OtpContract()) { result ->
-        if (!isAdded) return@registerForActivityResult
-        activityViewModel.setYubiKeyListenerEnabled(true)
+        enableListenerAfterRead()
         val slotTwo = lastUsbReadSlotTwo
         lastUsbReadSlotTwo = null
+        try {
+            onOtpResult(result, slotTwo)
+        } finally {
+            clearReadOperation()
+        }
+    }
+
+    private fun onOtpResult(result: Result<ByteArray>?, slotTwo: Boolean?) {
+        if (!isAdded) return
         if (result == null) {
             Log.d(TAG, "requestOtp — OtpActivity returned no result (cancelled)")
-            return@registerForActivityResult
+            return
         }
         result.fold(
             onSuccess = { scancodes ->
@@ -116,6 +124,32 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
     private var pendingReadSlotTwo: Boolean? = null
     private var lastUsbReadSlotTwo: Boolean? = null
     private lateinit var readPrompt: YubiKeyPromptDialog
+
+    private var listenerDisabledByRead = false
+
+    private fun disableListenerForRead() {
+        listenerDisabledByRead = true
+        activityViewModel.setYubiKeyListenerEnabled(false)
+    }
+
+    private fun enableListenerAfterRead() {
+        listenerDisabledByRead = false
+        activityViewModel.setYubiKeyListenerEnabled(true)
+    }
+
+    private fun clearReadOperation() {
+        if (viewModel.uiState.value?.currentOperation == OtpOperation.READ) {
+            viewModel.setCurrentOperation(OtpOperation.NONE)
+        }
+    }
+
+    private fun cancelPendingRead() {
+        if (pendingReadSlotTwo == null) return
+        Log.d(TAG, "cancelPendingRead — dropping the read that was waiting for a key")
+        pendingReadSlotTwo = null
+        if (::readPrompt.isInitialized && readPrompt.isShowing) readPrompt.dismiss()
+        clearReadOperation()
+    }
 
     private fun startRead(slotTwo: Boolean) {
         pendingReadSlotTwo = slotTwo
@@ -154,8 +188,16 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             Log.d(TAG, "dispatchRead — USB device available, launching OtpActivity for slot ${if (slotTwo) "TWO" else "ONE"}")
             lastUsbReadSlotTwo = slotTwo
             pendingReadSlotTwo = null
-            activityViewModel.setYubiKeyListenerEnabled(false)
-            requestOtp.launch(Unit)
+            disableListenerForRead()
+            try {
+                requestOtp.launch(Unit)
+            } catch (e: Exception) {
+                Log.w(TAG, "dispatchRead — OtpActivity could not be launched: ${e.message}", e)
+                lastUsbReadSlotTwo = null
+                enableListenerAfterRead()
+                clearReadOperation()
+                viewModel.postResult(Result.failure(e))
+            }
         }
     }
 
@@ -166,31 +208,35 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         Log.d(TAG, "onNfcDeviceForRead — reading slot ${if (slotTwo) "TWO" else "ONE"} over NFC")
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = withContext(activityViewModel.singleDispatcher) {
-                runCatching {
-                    device.openConnection(SmartCardConnection::class.java).use { connection ->
-                        val session = YubiOtpSession(connection)
-                        val configured = session.configurationState.isConfigured(slot)
-                        Log.d(TAG, "onNfcDeviceForRead — freshly-tapped device reports slot $slot configured=$configured")
-                        if (!configured) {
-                            throw Exception(OtpNfcConfig.slotNotProgrammed(requireContext()))
+            try {
+                val result = withContext(activityViewModel.singleDispatcher) {
+                    runCatching {
+                        device.openConnection(SmartCardConnection::class.java).use { connection ->
+                            val session = YubiOtpSession(connection)
+                            val configured = session.configurationState.isConfigured(slot)
+                            Log.d(TAG, "onNfcDeviceForRead — freshly-tapped device reports slot $slot configured=$configured")
+                            if (!configured) {
+                                throw Exception(OtpNfcConfig.slotNotProgrammed(requireContext()))
+                            }
+                            session.setNdefConfiguration(slot, null, null)
                         }
-                        session.setNdefConfiguration(slot, null, null)
+                        NdefUtils.getNdefPayloadBytes(device.readNdef())
                     }
-                    NdefUtils.getNdefPayloadBytes(device.readNdef())
                 }
+                result.fold(
+                    onSuccess = { scancodes ->
+                        Log.d(TAG, "onNfcDeviceForRead — NDEF read succeeded (${scancodes.size} bytes)")
+                        decodeAndShow(scancodes)
+                    },
+                    onFailure = { e ->
+                        Log.w(TAG, "onNfcDeviceForRead — failed: ${e.message}", e)
+                        viewModel.postResult(Result.failure(e))
+                    },
+                )
+                device.remove {}
+            } finally {
+                clearReadOperation()
             }
-            result.fold(
-                onSuccess = { scancodes ->
-                    Log.d(TAG, "onNfcDeviceForRead — NDEF read succeeded (${scancodes.size} bytes)")
-                    decodeAndShow(scancodes)
-                },
-                onFailure = { e ->
-                    Log.w(TAG, "onNfcDeviceForRead — failed: ${e.message}", e)
-                    viewModel.postResult(Result.failure(e))
-                },
-            )
-            device.remove {}
         }
     }
 
@@ -243,6 +289,21 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         super.onPause()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (pendingReadSlotTwo != null && activityViewModel.yubiKey.value == null &&
+            ::readPrompt.isInitialized && !readPrompt.isShowing
+        ) {
+            readPrompt.setHelpText(getString(R.string.yubikit_prompt_plug_in_or_tap))
+            readPrompt.show()
+        }
+    }
+
+    override fun onStop() {
+        cancelPendingRead()
+        super.onStop()
+    }
+
     private var nfcDotAnimationJob: Job? = null
 
     private fun startNfcDotAnimation(baseText: String) {
@@ -267,7 +328,12 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         stopNfcDotAnimation()
         clearInputFields()
         viewModel.setMgmtTabActive(false)
-        if (!requireActivity().isChangingConfigurations) {
+        val changingConfigurations = requireActivity().isChangingConfigurations
+        if (listenerDisabledByRead && !changingConfigurations) {
+            Log.w(TAG, "onDestroyView — OtpActivity has not reported back, re-enabling device detection")
+            enableListenerAfterRead()
+        }
+        if (!changingConfigurations) {
             viewModel.requestClearUi()
         }
         super.onDestroyView()
@@ -571,7 +637,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             }
         }
 
-        readPrompt = YubiKeyPromptDialog(requireContext()) { pendingReadSlotTwo = null }
+        readPrompt = YubiKeyPromptDialog(requireContext()) { cancelPendingRead() }
         activityViewModel.yubiKey.observe(viewLifecycleOwner) { device ->
             if (device != null && pendingReadSlotTwo != null) {
                 dispatchRead(device)
@@ -709,7 +775,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                         Log.d(TAG, "btnSaveStaticpwd — queuing program of slot $slot (${staticpwd.size} chars, " +
                             "keyboard=$keyboard, overwriteConfirmed=$overwriteConfirmed)")
                         viewModel.setCurrentOperation(OtpOperation.SAVE)
-                        viewModel.pendingAction.value = {
+                        viewModel.setPendingAction {
                             if (!overwriteConfirmed && configurationState.isConfigured(slot)) {
                                 throw IllegalStateException(
                                     "Slot ${if (slot == Slot.ONE) 1 else 2} is not empty. Confirm the overwrite and tap again."
@@ -832,7 +898,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                 runValidated(viewModel) {
                     Log.d(TAG, "onConfirmed — queuing reset of slot $slot")
                     viewModel.setCurrentOperation(OtpOperation.RESET)
-                    viewModel.pendingAction.value = {
+                    viewModel.setPendingAction {
                         if (configurationState.isConfigured(slot)) {
                             Log.i(TAG, "pendingAction — deleting slot $slot")
                             deleteConfiguration(slot, null)

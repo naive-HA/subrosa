@@ -186,6 +186,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             if (state.pendingImportUri != null) {
+                navigateToTab(1)
                 handleImportedFileUri(state.pendingImportUri)
             }
 
@@ -269,44 +270,6 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                     }
                 }
             }
-        }
-
-        fun navigateToTab(targetIndex: Int) {
-            if (targetIndex == currentTabIndex) return
-
-            currentAnimator?.cancel()
-
-            val fromIndex = currentTabIndex
-            val steps = targetIndex - fromIndex
-
-            val totalDuration = if (abs(steps) > 1) 360L else 220L
-
-            val animator = ValueAnimator.ofFloat(0f, steps.toFloat())
-            animator.duration = totalDuration
-            animator.interpolator = AccelerateDecelerateInterpolator()
-
-            animator.addUpdateListener { anim ->
-                val progress = anim.animatedValue as Float
-                val effectiveIndex = fromIndex + progress
-                applySectionLayout(effectiveIndex, isAnimating = true)
-            }
-
-            animator.addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    currentTabIndex = targetIndex
-                    applySectionLayout(targetIndex.toFloat(), isAnimating = false)
-                    if (binding.openpgpScrollView.scrollY > 0) {
-                        val scrollAnim = ObjectAnimator.ofInt(binding.openpgpScrollView, "scrollY", binding.openpgpScrollView.scrollY, 0)
-                        scrollAnim.duration = totalDuration
-                        scrollAnim.interpolator = AccelerateDecelerateInterpolator()
-                        scrollAnim.start()
-                    }
-                    currentAnimator = null
-                }
-            })
-
-            currentAnimator = animator
-            animator.start()
         }
 
         binding.tabErase.setOnClickListener { navigateToTab(0) }
@@ -440,7 +403,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             Log.d(TAG, "Read tapped — device=${viewModel.uiState.value?.connectedDevice?.type}")
             viewModel.postReadStatus("Reading card status…")
             viewModel.setCurrentOperation(OpenPgpOperation.READ)
-            viewModel.pendingAction.value = {
+            viewModel.setPendingAction {
                 val info = OpenPgpReader.read(
                     this,
                     knownFirmwareVersion = viewModel.uiState.value?.connectedDevice?.firmwareVersion,
@@ -541,7 +504,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         showOpenPgpAppletResetDialog(TAG, onConfirmed = {
             Log.i(TAG, "Reset confirmed — device=${viewModel.uiState.value?.connectedDevice?.type}")
             viewModel.setCurrentOperation(OpenPgpOperation.WIPE)
-            viewModel.pendingAction.value = {
+            viewModel.setPendingAction {
                 val deviceType = viewModel.currentState.connectedDevice.type
                 val writer = deviceType.writer()
                 Log.i(TAG, "wipe — device=$deviceType " +
@@ -627,6 +590,44 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         }
     }
 
+    private fun navigateToTab(targetIndex: Int) {
+        if (targetIndex == currentTabIndex) return
+
+        currentAnimator?.cancel()
+
+        val fromIndex = currentTabIndex
+        val steps = targetIndex - fromIndex
+
+        val totalDuration = if (abs(steps) > 1) 360L else 220L
+
+        val animator = ValueAnimator.ofFloat(0f, steps.toFloat())
+        animator.duration = totalDuration
+        animator.interpolator = AccelerateDecelerateInterpolator()
+
+        animator.addUpdateListener { anim ->
+            val progress = anim.animatedValue as Float
+            val effectiveIndex = fromIndex + progress
+            applySectionLayout(effectiveIndex, isAnimating = true)
+        }
+
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                currentTabIndex = targetIndex
+                applySectionLayout(targetIndex.toFloat(), isAnimating = false)
+                if (binding.openpgpScrollView.scrollY > 0) {
+                    val scrollAnim = ObjectAnimator.ofInt(binding.openpgpScrollView, "scrollY", binding.openpgpScrollView.scrollY, 0)
+                    scrollAnim.duration = totalDuration
+                    scrollAnim.interpolator = AccelerateDecelerateInterpolator()
+                    scrollAnim.start()
+                }
+                currentAnimator = null
+            }
+        })
+
+        currentAnimator = animator
+        animator.start()
+    }
+
     private fun onResetOpenPgpClicked() {
         Log.d(TAG, "Reset OpenPGP applet tapped (Admin PIN retries exhausted)")
         showOpenPgpAppletResetDialog(TAG, onConfirmed = { viewModel.resetOpenPgpApplet() })
@@ -669,6 +670,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
 
     private fun handleImportedFileUri(uri: Uri) {
         if (importInProgress) return
+        navigateToTab(1)
         importInProgress = true
         resetKeyState()
         viewModel.postWriteStatus("Decoding armored input...")

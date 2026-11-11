@@ -33,3 +33,22 @@ internal fun MbootTransport.readWithin(buffer: ByteArray, deadline: ReadDeadline
     }
     throw MbootTimeoutException("no report received within ${deadline.limitMs} ms")
 }
+
+internal const val DRAIN_TIMEOUT_MS = 50
+internal const val MAX_DRAIN_READS = 16
+
+internal fun MbootTransport.drainStaleReports(buffer: ByteArray, onReport: (length: Int) -> Unit = {}): Int {
+    var discarded = 0
+    repeat(MAX_DRAIN_READS) {
+        val length = try {
+            readWithin(buffer, ReadDeadline(DRAIN_TIMEOUT_MS))
+        } catch (_: MbootTimeoutException) {
+            return discarded
+        }
+        if (length > 0) {
+            discarded++
+            onReport(length)
+        }
+    }
+    return discarded
+}

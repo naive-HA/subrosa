@@ -108,7 +108,7 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
     fun queueSetOtpOverNfc(enabled: Boolean) {
         logger.debug("queueSetOtpOverNfc — switch moved to ${if (enabled) "on" else "off"}, waiting for a key")
         updateUi { it.copy(nfcRequested = enabled) }
-        pendingAction.value = nfcSwitchMarker
+        setPendingAction(nfcSwitchMarker)
     }
 
     override fun onPendingActionDropped() {
@@ -140,7 +140,7 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         }
 
         val requested = state.nfcRequested
-        if (requested != null && pendingAction.value != null) {
+        if (requested != null && claimPendingAction(nfcSwitchMarker)) {
             applyOtpOverNfc(device, requested)
             return
         }
@@ -264,7 +264,7 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
                 postResult(Result.failure(e))
             },
         )
-        pendingAction.postValue(null)
+        finishPendingAction()
     }
 
     private fun withManagementConnection(

@@ -55,6 +55,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.security.MessageDigest
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.core.graphics.toColorInt
 
 class Nitrokey3UpdaterFragment : Fragment() {
     companion object {
@@ -89,6 +90,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
     private var isToggling = false
     private var lastAnnouncedInvalidImage: String? = null
     private var lastAnnouncedFailedCheckReport: String? = null
+    private var defaultButtonTint: ColorStateList? = null
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -248,6 +250,10 @@ class Nitrokey3UpdaterFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        if (defaultButtonTint == null) {
+            defaultButtonTint = binding.btnWrite.backgroundTintList
+        }
 
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -416,7 +422,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
                 flash.announced = true
                 Log.e(TAG, "Flash operation failed: ${flash.message}")
                 errorVibrate()
-                showErrorDialog(flash.message, title = getString(R.string.error_dialog_title))
+                showErrorDialog(failureText(flash), title = getString(R.string.error_dialog_title))
             }
             render()
         }
@@ -446,12 +452,12 @@ class Nitrokey3UpdaterFragment : Fragment() {
 
     private fun confirmFlash() {
         if (updaterViewModel.isBusy) return
-        val image = updaterViewModel.input.value?.flashableImage ?: return
+        if (updaterViewModel.input.value?.flashableImage == null) return
         showConfirmationDialog(
             tag = TAG,
             logLabel = "Firmware update",
             title = R.string.nitrokey3updater_flash_title,
-            message = getString(R.string.nitrokey3updater_flash_message, image.displayVersion ?: image.fileName),
+            message = getString(R.string.nitrokey3updater_flash_message),
             confirmText = R.string.nitrokey3updater_flash_confirm,
             onConfirmed = { updaterViewModel.startFlash(requireContext()) },
         )
@@ -492,9 +498,13 @@ class Nitrokey3UpdaterFragment : Fragment() {
             frameParams.width = 0
             frameParams.weight = 1f
             frameParams.marginStart = (4 * resources.displayMetrics.density).toInt()
-            b.btnWrite.text = getString(
-                if (testSucceeded) R.string.nitrokey3updater_write else R.string.nitrokey3updater_test
-            )
+            if (testSucceeded) {
+                b.btnWrite.text = getString(R.string.nitrokey3updater_write)
+                b.btnWrite.backgroundTintList = ColorStateList.valueOf("#B71C1C".toColorInt())
+            } else {
+                b.btnWrite.text = getString(R.string.nitrokey3updater_test)
+                b.btnWrite.backgroundTintList = defaultButtonTint
+            }
         } else {
             frameParams.width = LinearLayout.LayoutParams.MATCH_PARENT
             frameParams.weight = 0f
@@ -502,6 +512,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
             b.btnWrite.text = getString(
                 if (isInBootloaderMode) R.string.nitrokey3updater_reboot_app else R.string.nitrokey3updater_reboot_bootloader
             )
+            b.btnWrite.backgroundTintList = defaultButtonTint
         }
         b.btnWriteFrame.layoutParams = frameParams
 
@@ -529,7 +540,8 @@ class Nitrokey3UpdaterFragment : Fragment() {
         statusText(input, flash, checkState)?.let { msg ->
             val testSucceeded = isInBootloaderMode && checkState is CheckState.Finished && checkState.report.worst != CheckLevel.FAIL
             val isSuccess = flash is FlashState.Succeeded || testSucceeded || isInBootloaderMode
-            updateWriteStatus(msg, autoClear = isSuccess)
+            val mustStay = flash is FlashState.Failed || input.replugRequired
+            updateWriteStatus(msg, autoClear = isSuccess && !mustStay)
         }
     }
 
@@ -548,6 +560,17 @@ class Nitrokey3UpdaterFragment : Fragment() {
             }
         }
     }
+
+    private fun failureText(failed: FlashState.Failed): String = getString(
+        when (failed.advice) {
+            FailureAdvice.RETRY -> R.string.nitrokey3updater_failed_retry
+            FailureAdvice.REPLUG_NO_DATA -> R.string.nitrokey3updater_failed_replug_no_data
+            FailureAdvice.REPLUG_PARTIAL -> R.string.nitrokey3updater_failed_replug_partial
+            FailureAdvice.REPLUG_UNCONFIRMED -> R.string.nitrokey3updater_failed_replug_unconfirmed
+            FailureAdvice.REPLUG_RESTART -> R.string.nitrokey3updater_failed_replug_restart
+        },
+        failed.message,
+    )
 
     private fun statusText(input: UpdaterInput, flash: FlashState, checkState: CheckState): String? {
         if (isToggling) return null
@@ -572,7 +595,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
                 },
                 flash.label
             )
-            is FlashState.Failed -> return getString(R.string.nitrokey3updater_status_failed, flash.message)
+            is FlashState.Failed -> return failureText(flash)
             is FlashState.Idle -> Unit
         }
 

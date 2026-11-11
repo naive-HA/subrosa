@@ -29,17 +29,26 @@ internal class UsbBootloaderConnector(context: Context) {
                     val answeredFor = IntentCompat.getParcelableExtra(intent, UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
                     if (answeredFor != null && answeredFor.deviceName != device.deviceName) return
                     unregister(this)
+                    val granted = usbManager.hasPermission(device)
+                    if (granted != intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                        Log.w(TAG, "USB permission broadcast disagreed with the system; using the system's answer (granted=$granted)")
+                    }
                     if (continuation.isActive) {
-                        continuation.resume(intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false))
+                        continuation.resume(granted)
                     }
                 }
             }
             ContextCompat.registerReceiver(appContext, receiver, IntentFilter(action), ContextCompat.RECEIVER_NOT_EXPORTED)
             continuation.invokeOnCancellation { unregister(receiver) }
 
-            val intent = Intent(action).setPackage(appContext.packageName)
-            val pendingIntent = PendingIntent.getBroadcast(appContext, 0, intent, PendingIntent.FLAG_MUTABLE)
-            usbManager.requestPermission(device, pendingIntent)
+            try {
+                val intent = Intent(action).setPackage(appContext.packageName)
+                val pendingIntent = PendingIntent.getBroadcast(appContext, 0, intent, PendingIntent.FLAG_MUTABLE)
+                usbManager.requestPermission(device, pendingIntent)
+            } catch (e: Exception) {
+                unregister(receiver)
+                throw e
+            }
         }
     }
 

@@ -17,8 +17,39 @@ internal class MbootClient(
 ) {
     private val readBuffer = ByteArray(READ_BUFFER_SIZE)
 
+    var dataPhaseMayBeOpen: Boolean = true
+        private set
+
+    var transferStage: TransferStage = TransferStage.NOT_STARTED
+        private set
+
+    var bytesSent: Int = 0
+        private set
+
+    var lastStatus: Int? = null
+        private set
+
+    private var inputDrained = false
+
+    private val receiveSbFileResponse = ExpectedResponse.forCommand(CMD_RECEIVE_SB_FILE)
+
+    private val resetResponse = ExpectedResponse.forCommand(CMD_RESET)
+
+    var drainedReports: Int = 0
+        private set
+
+    var skippedReports: Int = 0
+        private set
+
     fun getProperty(propertyTag: Int, memoryIndex: Int = 0): IntArray? {
-        val response = command(CMD_GET_PROPERTY, FLAG_NONE, intArrayOf(propertyTag, memoryIndex))
+        val response = command(
+            CMD_GET_PROPERTY,
+            FLAG_NONE,
+            intArrayOf(propertyTag, memoryIndex),
+            ExpectedResponse.forCommand(CMD_GET_PROPERTY),
+        )
+        dataPhaseMayBeOpen = false
+        lastStatus = response.status
         val values = response.propertyValues
         if (values == null) {
             log("get-property 0x%02X: %s".format(propertyTag, MbootStatus.label(response.status)))
@@ -37,22 +68,31 @@ internal class MbootClient(
         requirePacketSize(packetSize)
 
         log("receive-sb-file: $total bytes in $packetSize byte packets")
-        val start = command(CMD_RECEIVE_SB_FILE, FLAG_HAS_DATA_PHASE, intArrayOf(total))
+        beginTransfer()
+        val start = command(CMD_RECEIVE_SB_FILE, FLAG_HAS_DATA_PHASE, intArrayOf(total), receiveSbFileResponse)
+        lastStatus = start.status
         if (start.status != MbootStatus.SUCCESS) {
+            dataPhaseMayBeOpen = false
             throw MbootStatusException(
                 start.status,
                 "The bootloader refused to start the update: ${MbootStatus.describe(start.status)}",
             )
         }
 
+        transferStage = TransferStage.SENDING
         val outcome = sendReports(image, total, packetSize, pausePoint, onProgress)
         outcome.failure?.let { throw explainWriteFailure(it, outcome.sent, total) }
 
+        transferStage = TransferStage.FINISHING
         val finalResponse = try {
-            readResponse(FINAL_RESPONSE_TIMEOUT_MS)
+            readResponse(receiveSbFileResponse, FINAL_RESPONSE_TIMEOUT_MS)
         } catch (e: MbootTimeoutException) {
-            throw IOException("The bootloader did not confirm the update. All data was sent; reconnect the device to see whether it starts.", e)
+            throw unconfirmed(e)
+        } catch (e: MbootProtocolException) {
+            throw unconfirmed(e)
         }
+        dataPhaseMayBeOpen = false
+        lastStatus = finalResponse.status
         log("receive-sb-file finished: ${MbootStatus.label(finalResponse.status)}")
         if (!MbootStatus.isSuccessfulCompletion(finalResponse.status)) {
             throw MbootStatusException(
@@ -60,6 +100,7 @@ internal class MbootClient(
                 "The bootloader rejected the firmware: ${MbootStatus.describe(finalResponse.status)}",
             )
         }
+        transferStage = TransferStage.FINISHED
     }
 
     fun sendSbFilePrefix(
@@ -73,12 +114,16 @@ internal class MbootClient(
         requirePacketSize(packetSize)
 
         log("receive-sb-file (prefix only): announcing $total bytes, sending the first $prefixLength in $packetSize byte packets")
-        val start = command(CMD_RECEIVE_SB_FILE, FLAG_HAS_DATA_PHASE, intArrayOf(total))
+        beginTransfer()
+        val start = command(CMD_RECEIVE_SB_FILE, FLAG_HAS_DATA_PHASE, intArrayOf(total), receiveSbFileResponse)
+        lastStatus = start.status
         if (start.status != MbootStatus.SUCCESS) {
+            dataPhaseMayBeOpen = false
             log("receive-sb-file refused: ${MbootStatus.label(start.status)}")
             return PrefixTransfer.Refused(start.status)
         }
 
+        transferStage = TransferStage.SENDING
         val outcome = sendReports(image, prefixLength, packetSize, 0) { _, _ -> }
         val failure = outcome.failure
         if (failure != null) {
@@ -92,35 +137,52 @@ internal class MbootClient(
         }
 
         val reply = listenForReply(listenMs)
-        log("prefix of ${outcome.sent} bytes sent in ${outcome.reports} reports, bootloader reply: $reply. Bootloader is left in data phase expecting remaining bytes.")
+        dataPhaseMayBeOpen = reply is PrefixReply.Silence
+        val phase = if (dataPhaseMayBeOpen) "Bootloader is left in data phase expecting remaining bytes." else "Bootloader has left the data phase."
+        log("prefix of ${outcome.sent} bytes sent in ${outcome.reports} reports, bootloader reply: $reply. $phase")
         return PrefixTransfer.Sent(outcome.sent, outcome.reports, outcome.longestFrame, reply)
     }
 
-    fun abortDataPhase() {
+    fun abortDataPhase(budgetMs: Int? = null): AbortOutcome {
         log("abortDataPhase() — sending empty data report to abort active write/data phase")
+        val deadline = budgetMs?.let { ReadDeadline(it) }
         try {
+            drainStaleInputOnce()
             val emptyFrame = MbootProtocol.encodeFrame(REPORT_DATA_OUT, ByteArray(0))
-            transport.write(emptyFrame, emptyFrame.size, WRITE_TIMEOUT_MS)
+            transport.write(emptyFrame, emptyFrame.size, budgetMs ?: WRITE_TIMEOUT_MS)
         } catch (e: IOException) {
             log("abortDataPhase write failed: ${e.message}")
-            return
+            return AbortOutcome.NOT_SENT
         }
-        try {
-            val response = readResponse(DIAGNOSE_TIMEOUT_MS)
+        val answerTimeoutMs = if (deadline != null) {
+            deadline.remainingMs().coerceAtLeast(MIN_ABORT_ANSWER_MS).toInt()
+        } else {
+            DIAGNOSE_TIMEOUT_MS
+        }
+        return try {
+            val response = readResponse(receiveSbFileResponse, answerTimeoutMs)
+            dataPhaseMayBeOpen = false
             log("abortDataPhase response: tag=0x%02X status=%d (%s)".format(
                 response.tag, response.status, MbootStatus.label(response.status)
             ))
+            AbortOutcome.ACKNOWLEDGED
         } catch (e: IOException) {
             log("abortDataPhase: no response to abort frame: ${e.message}")
+            AbortOutcome.NO_ANSWER
         }
     }
 
     fun reset(): Boolean {
-        log("reset() starting — ensuring any active write/data phase is aborted first")
-        abortDataPhase()
+        if (dataPhaseMayBeOpen) {
+            log("reset() starting — a data phase may still be open, aborting it first")
+            abortDataPhase()
+        } else {
+            log("reset() starting — bootloader is in command mode, no abort needed")
+        }
 
         log("sending CMD_RESET frame")
         try {
+            drainStaleInputOnce()
             writeFrame(REPORT_CMD_OUT, MbootProtocol.encodeCommandPacket(CMD_RESET, FLAG_NONE))
             log("reset command frame sent")
         } catch (e: IOException) {
@@ -128,15 +190,17 @@ internal class MbootClient(
             return false
         }
         return try {
-            val response = readResponse(RESET_RESPONSE_TIMEOUT_MS)
+            val response = readResponse(resetResponse, RESET_RESPONSE_TIMEOUT_MS)
+            lastStatus = response.status
             log("reset response: tag=0x%02X status=%d (%s) params=%s".format(
                 response.tag, response.status, MbootStatus.label(response.status), response.params.joinToString()
             ))
             if (response.status != MbootStatus.SUCCESS) {
                 log("reset command returned error status ${response.status} (${MbootStatus.label(response.status)}). " +
-                    "Re-sending CMD_RESET now that data phase is cleared...")
+                    "Re-sending CMD_RESET once...")
                 writeFrame(REPORT_CMD_OUT, MbootProtocol.encodeCommandPacket(CMD_RESET, FLAG_NONE))
-                val secondResponse = readResponse(RESET_RESPONSE_TIMEOUT_MS)
+                val secondResponse = readResponse(resetResponse, RESET_RESPONSE_TIMEOUT_MS)
+                lastStatus = secondResponse.status
                 log("second reset response: tag=0x%02X status=%d (%s)".format(
                     secondResponse.tag, secondResponse.status, MbootStatus.label(secondResponse.status)
                 ))
@@ -148,6 +212,12 @@ internal class MbootClient(
             log("no answer to reset (device is restarting): ${e.message}")
             true
         }
+    }
+
+    private fun beginTransfer() {
+        dataPhaseMayBeOpen = true
+        transferStage = TransferStage.STARTING
+        bytesSent = 0
     }
 
     private fun requirePacketSize(packetSize: Int) {
@@ -180,6 +250,7 @@ internal class MbootClient(
             }
             sent += count
             reports++
+            bytesSent = sent
             longestFrame = maxOf(longestFrame, frameLength)
             onProgress(sent, image.size)
             if (!paused && pausePoint > 0 && sent > pausePoint) {
@@ -220,9 +291,16 @@ internal class MbootClient(
         return if (sawAbort) PrefixReply.Aborted(null) else PrefixReply.Silence
     }
 
-    private fun command(tag: Int, flags: Int, params: IntArray, timeoutMs: Int = COMMAND_TIMEOUT_MS): MbootFrame.Response {
+    private fun command(
+        tag: Int,
+        flags: Int,
+        params: IntArray,
+        expected: ExpectedResponse,
+        timeoutMs: Int = COMMAND_TIMEOUT_MS,
+    ): MbootFrame.Response {
+        drainStaleInputOnce()
         writeFrame(REPORT_CMD_OUT, MbootProtocol.encodeCommandPacket(tag, flags, *params))
-        return readResponse(timeoutMs)
+        return readResponse(expected, timeoutMs)
     }
 
     private fun writeFrame(reportId: Int, packet: ByteArray) {
@@ -230,24 +308,61 @@ internal class MbootClient(
         transport.write(frame, frame.size, WRITE_TIMEOUT_MS)
     }
 
-    private fun readResponse(timeoutMs: Int): MbootFrame.Response {
+    private fun readResponse(expected: ExpectedResponse, timeoutMs: Int): MbootFrame.Response {
         val deadline = ReadDeadline(timeoutMs)
         repeat(MAX_REPORTS_TO_SKIP) {
             val length = transport.readWithin(readBuffer, deadline)
             if (length == 0) return@repeat
             when (val frame = MbootProtocol.parseFrame(readBuffer, length)) {
                 is MbootFrame.Response -> {
-                    log("readResponse: received response frame (tag=0x%02X, status=%d (%s), params=%s)".format(
-                        frame.tag, frame.status, MbootStatus.label(frame.status), frame.params.joinToString()
+                    if (expected.matches(frame)) {
+                        log("readResponse: received response frame (tag=0x%02X, status=%d (%s), params=%s)".format(
+                            frame.tag, frame.status, MbootStatus.label(frame.status), frame.params.joinToString()
+                        ))
+                        return frame
+                    }
+                    skippedReports++
+                    log("readResponse: skipping response frame (tag=0x%02X, status=%d (%s), params=%s) while waiting for %s".format(
+                        frame.tag, frame.status, MbootStatus.label(frame.status), frame.params.joinToString(), expected
                     ))
-                    return frame
                 }
-                is MbootFrame.Abort -> log("readResponse: skipping abort report (device aborted active data phase)")
-                is MbootFrame.Data -> log("readResponse: skipping data report ${frame.reportId} (${frame.payload.size} bytes)")
+                is MbootFrame.Abort -> {
+                    skippedReports++
+                    log("readResponse: skipping abort report (device aborted active data phase)")
+                }
+                is MbootFrame.Data -> {
+                    skippedReports++
+                    log("readResponse: skipping data report ${frame.reportId} (${frame.payload.size} bytes)")
+                }
             }
         }
-        throw MbootProtocolException("The bootloader did not send a command response")
+        log("readResponse: gave up after $MAX_REPORTS_TO_SKIP reports without $expected")
+        throw MbootProtocolException("The bootloader did not send the response to the command (it sent other reports instead)")
     }
+
+    private fun drainStaleInputOnce() {
+        if (inputDrained) return
+        drainedReports = transport.drainStaleReports(readBuffer) { length ->
+            log("drain: discarding a stale report (${describeStale(length)})")
+        }
+        inputDrained = true
+        log("drained $drainedReports stale report(s) before the first command")
+    }
+
+    private fun describeStale(length: Int): String = try {
+        when (val frame = MbootProtocol.parseFrame(readBuffer, length)) {
+            is MbootFrame.Response -> "response tag=0x%02X params=%s".format(frame.tag, frame.params.joinToString())
+            is MbootFrame.Data -> "data report ${frame.reportId}, ${frame.payload.size} bytes"
+            is MbootFrame.Abort -> "empty report"
+        }
+    } catch (_: MbootProtocolException) {
+        "$length bytes that are not a valid report"
+    }
+
+    private fun unconfirmed(cause: IOException) = IOException(
+        "The bootloader did not confirm the update (${cause.message}).",
+        cause,
+    )
 
     private fun explainWriteFailure(cause: IOException, sent: Int, total: Int): IOException {
         val status = try {
@@ -272,7 +387,19 @@ internal class MbootClient(
             if (length == 0) return@repeat
             val frame = MbootProtocol.parseFrame(readBuffer, length)
             if (frame is MbootFrame.Response) {
-                return frame.status.takeIf { it != MbootStatus.SUCCESS }
+                if (!receiveSbFileResponse.matches(frame)) {
+                    skippedReports++
+                    log("pollForErrorStatus: skipping response frame (tag=0x%02X, params=%s)".format(
+                        frame.tag, frame.params.joinToString()
+                    ))
+                    return@repeat
+                }
+                val status = frame.status.takeIf { it != MbootStatus.SUCCESS }
+                if (status != null) {
+                    dataPhaseMayBeOpen = false
+                    lastStatus = status
+                }
+                return status
             }
         }
         return null
@@ -286,8 +413,23 @@ internal class MbootClient(
         const val RESET_RESPONSE_TIMEOUT_MS = 2_000
         const val DIAGNOSE_TIMEOUT_MS = 1_000
         const val PAUSE_AFTER_HEADER_MS = 100L
+        private const val MIN_ABORT_ANSWER_MS = 50L
         private const val MAX_REPORTS_TO_SKIP = 16
     }
+}
+
+internal enum class TransferStage {
+    NOT_STARTED,
+    STARTING,
+    SENDING,
+    FINISHING,
+    FINISHED,
+}
+
+internal enum class AbortOutcome {
+    ACKNOWLEDGED,
+    NO_ANSWER,
+    NOT_SENT,
 }
 
 internal sealed interface PrefixTransfer {

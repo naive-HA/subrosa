@@ -57,7 +57,7 @@ fun <S : Closeable> Fragment.bindDeviceActions(
                 if (isTapSuspended()) return@observe
                 lastDevice = device
                 dispatch(device)
-            } else if (viewModel.pendingAction.value != null) {
+            } else if (viewModel.hasQueuedAction) {
                 dispatch(device)
             }
         } else {
@@ -70,12 +70,14 @@ fun <S : Closeable> Fragment.bindDeviceActions(
 
     viewModel.pendingAction.observe(viewLifecycleOwner) { action ->
         if (action != null) {
-            val device = activityViewModel.yubiKey.value
-            if (device != null) {
-                dispatch(device)
-            } else {
-                prompt.setHelpText(waitingForDeviceText(viewModel.pendingPromptHint()))
-                prompt.show()
+            if (viewModel.hasQueuedAction) {
+                val device = activityViewModel.yubiKey.value
+                if (device != null) {
+                    dispatch(device)
+                } else {
+                    prompt.setHelpText(waitingForDeviceText(viewModel.pendingPromptHint()))
+                    prompt.show()
+                }
             }
         } else if (prompt.isShowing) {
             prompt.dismiss()

@@ -54,6 +54,12 @@ internal data class UpdaterInput(
             return image.takeIf { it.variant == variant && isFlashSupported(variant) }
         }
 
+    fun withBootloader(device: BootloaderDevice?): UpdaterInput =
+        if (bootloader == device) this else copy(bootloader = device, replugRequired = false)
+
+    fun afterFlashFailure(failed: FlashState.Failed): UpdaterInput =
+        if (failed.replugRequired) copy(replugRequired = true) else this
+
     private fun isFlashSupported(variant: Nk3Variant): Boolean = when (variant) {
         Nk3Variant.LPC55 -> true
         Nk3Variant.NRF52 -> Nrf52Flasher.IS_SUPPORTED
@@ -67,8 +73,32 @@ internal sealed interface FlashState {
 
     class Succeeded(val label: String) : FlashState
 
-    class Failed(val message: String) : FlashState {
+    class Failed(
+        val message: String,
+        val stage: FlashStage = FlashStage.CONNECT,
+        val bytesSent: Long = 0,
+        val total: Long = 0,
+        val status: Int? = null,
+        val replugRequired: Boolean = false,
+    ) : FlashState {
         var announced: Boolean = false
+
+        val advice: FailureAdvice get() = FailureAdvice.of(stage, bytesSent, replugRequired)
+
+        companion object {
+            fun from(e: FlashException): Failed {
+                val message = e.message ?: "The firmware update failed."
+                val failure = e.failure ?: return Failed(message)
+                return Failed(
+                    message,
+                    failure.stage,
+                    failure.bytesSent,
+                    failure.total,
+                    failure.status,
+                    failure.replugRequired,
+                )
+            }
+        }
     }
 }
 
@@ -149,7 +179,7 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
     fun onBootloaderChanged(device: BootloaderDevice?) {
         val current = currentInput()
         if (current.bootloader == device) return
-        _input.value = current.copy(bootloader = device, replugRequired = false)
+        _input.value = current.withBootloader(device)
         if (device != null && !isChecking) _check.value = CheckState.Idle
         if (!isFlashing) prepareImage()
     }
@@ -364,10 +394,13 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
                 throw e
             } catch (e: FlashException) {
                 Log.w(TAG, "Firmware update failed: ${e.message}", e)
-                FlashState.Failed(e.message ?: "The firmware update failed.")
+                FlashState.Failed.from(e)
             } catch (e: Exception) {
                 Log.e(TAG, "Unexpected error during the firmware update", e)
                 FlashState.Failed("Unexpected error: ${e.message ?: e.javaClass.simpleName}")
+            }
+            if (outcome is FlashState.Failed && outcome.replugRequired) {
+                _input.value = currentInput().afterFlashFailure(outcome)
             }
             _flash.value = outcome
         }
@@ -384,7 +417,11 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
 
     private suspend fun installLpc55(context: Context, device: BootloaderDevice, image: FirmwareImage) {
         withBootloader(context, device) { transport ->
-            Lpc55Flasher(transport, log = { line -> Log.d(TAG, "mboot: $line") }).flash(image, ::publishProgress)
+            Lpc55Flasher(
+                transport,
+                log = { line -> Log.d(TAG, "mboot: $line") },
+                declaredDataReportBytes = transport.linkInfo().declaredDataReportBytes(),
+            ).flash(image, ::publishProgress)
         }
     }
 

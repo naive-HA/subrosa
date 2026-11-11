@@ -10,6 +10,7 @@ import acab.naiveha.subrosa.ui.nitrokey3updater.mboot.MbootTransport
 import acab.naiveha.subrosa.ui.nitrokey3updater.mboot.PrefixReply
 import acab.naiveha.subrosa.ui.nitrokey3updater.mboot.PrefixTransfer
 import acab.naiveha.subrosa.ui.nitrokey3updater.mboot.ReadDeadline
+import acab.naiveha.subrosa.ui.nitrokey3updater.mboot.drainStaleReports
 import acab.naiveha.subrosa.ui.nitrokey3updater.mboot.readWithin
 import java.io.IOException
 
@@ -74,7 +75,16 @@ internal class UsbLinkInfo(
     val endpointOut: EndpointInfo,
     val reportDescriptor: ByteArray?,
     val reportDescriptorProblem: String? = null,
-)
+) {
+    fun declaredDataReportBytes(): Int? {
+        val raw = reportDescriptor ?: return null
+        return try {
+            HidReportDescriptor.parse(raw).wireBytes(HidReportType.OUTPUT, MbootProtocol.REPORT_DATA_OUT)
+        } catch (_: HidDescriptorException) {
+            null
+        }
+    }
+}
 
 internal class BootloaderCheck(
     private val transport: MbootTransport,
@@ -121,7 +131,14 @@ internal class BootloaderCheck(
             section.fail("The bootloader did not answer get-property (${e.message}). Nothing was sent.")
             return LongTransferResult(section.build(), needsReplug = false)
         }
-        val packetSize = Lpc55Flasher.dataPacketSize(reported, transport.maxFrameSize)
+        val packetSize = when (val verdict = Lpc55Flasher.checkPacketSize(reported, transport.maxFrameSize, link.declaredDataReportBytes())) {
+            is PacketSizeVerdict.Usable -> verdict.size
+            is PacketSizeVerdict.Rejected -> {
+                log("bootloader check: long transfer test not started: ${verdict.reason}")
+                section.fail("${verdict.reason} Nothing was sent.")
+                return LongTransferResult(section.build(), needsReplug = false)
+            }
+        }
 
         val transfer = try {
             client.sendSbFilePrefix(image.data, prefix, packetSize, LISTEN_MS)
@@ -259,6 +276,14 @@ internal class BootloaderCheck(
     private class Exchanges(val answers: List<Answer>, val stoppedAt: Int, val stopMessage: String?)
 
     private fun askRepeatedly(): Exchanges {
+        val stale = try {
+            transport.drainStaleReports(buffer) { length ->
+                log("bootloader check: discarding a stale report of $length bytes before the first request")
+            }
+        } catch (e: IOException) {
+            return Exchanges(emptyList(), 1, e.message ?: e.javaClass.simpleName)
+        }
+        log("bootloader check: drained $stale stale report(s) before the first request")
         val answers = mutableListOf<Answer>()
         repeat(READ_CHECK_REPEATS) { index ->
             val answer = try {
@@ -292,9 +317,15 @@ internal class BootloaderCheck(
         try {
             when (val frame = MbootProtocol.parseFrame(buffer, length)) {
                 is MbootFrame.Response -> {
-                    response = frame
-                    val payload = (buffer[2].toInt() and 0xFF) or ((buffer[3].toInt() and 0xFF) shl 8)
-                    padding = length - (MbootProtocol.FRAME_HEADER_SIZE + payload)
+                    if (frame.tag == MbootProtocol.RESPONSE_GET_PROPERTY) {
+                        response = frame
+                        val payload = (buffer[2].toInt() and 0xFF) or ((buffer[3].toInt() and 0xFF) shl 8)
+                        padding = length - (MbootProtocol.FRAME_HEADER_SIZE + payload)
+                    } else {
+                        problem = "a response with tag 0x%02X instead of the get-property response (tag 0x%02X)".format(
+                            frame.tag, MbootProtocol.RESPONSE_GET_PROPERTY,
+                        )
+                    }
                 }
                 is MbootFrame.Abort -> problem = "an empty abort report instead of a response"
                 is MbootFrame.Data -> problem = "report ${frame.reportId} instead of a command response"
@@ -349,41 +380,29 @@ internal class BootloaderCheck(
 
         val values = response.propertyValues
         val reported = values?.firstOrNull()
-        val default = MbootProtocol.DEFAULT_MAX_PACKET_SIZE
-        when {
-            values == null -> section.warn(
-                "get-property max-packet-size was answered with ${MbootStatus.label(response.status)}; " +
-                    "an update would use the default of $default bytes.",
-            )
-            reported == null -> section.warn(
-                "The answer to get-property max-packet-size carries no value; an update would use the default of $default bytes.",
-            )
-            reported <= 0 -> section.warn(
-                "The bootloader reports a maximum packet size of $reported; an update would use the default of $default bytes.",
-            )
-            else -> section.ok("The bootloader reports a maximum packet size of $reported bytes.")
+        val declared = descriptor?.wireBytes(HidReportType.OUTPUT, MbootProtocol.REPORT_DATA_OUT)
+        val dataSize = when (val verdict = Lpc55Flasher.checkPacketSize(reported, transport.maxFrameSize, declared)) {
+            is PacketSizeVerdict.Usable -> verdict.size
+            is PacketSizeVerdict.Rejected -> {
+                val why = if (values == null) {
+                    "get-property max-packet-size was answered with ${MbootStatus.label(response.status)}."
+                } else {
+                    verdict.reason
+                }
+                section.fail("$why An update would stop before it sends any data.")
+                return null
+            }
         }
+        section.ok("The bootloader reports a maximum packet size of $dataSize bytes.")
 
-        val dataSize = Lpc55Flasher.dataPacketSize(reported, transport.maxFrameSize)
-        if (reported != null && reported > 0 && dataSize < reported) {
-            section.info("The app sends at most $dataSize bytes per report (${transport.maxFrameSize} byte transfer limit), less than the $reported allowed.")
-        }
         val frame = MbootProtocol.FRAME_HEADER_SIZE + dataSize
         section.info(
             "An update sends the firmware in data reports of $frame bytes " +
                 "($dataSize bytes of data and a ${MbootProtocol.FRAME_HEADER_SIZE} byte header).",
         )
 
-        val declared = descriptor?.wireBytes(HidReportType.OUTPUT, MbootProtocol.REPORT_DATA_OUT)
         if (declared != null) {
-            if (frame <= declared) {
-                section.ok("A data report of $frame bytes fits the OUT report 2 that the device declares ($declared bytes).")
-            } else {
-                section.warn(
-                    "A data report of $frame bytes is longer than the OUT report 2 that the device declares " +
-                        "($declared bytes). The device may ignore or cut such reports; the long-transfer test shows whether it does.",
-                )
-            }
+            section.ok("A data report of $frame bytes fits the OUT report 2 that the device declares ($declared bytes).")
         }
 
         val outPacket = link.endpointOut.maxPacketSize

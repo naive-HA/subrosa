@@ -16,6 +16,8 @@
 
 package acab.naiveha.subrosa.ui
 
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.StringRes
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -25,6 +27,7 @@ import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
 import org.slf4j.LoggerFactory
 import java.io.Closeable
+import java.util.concurrent.atomic.AtomicReference
 
 abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
     private val logger = LoggerFactory.getLogger(YubiKeyViewModel::class.java)
@@ -32,26 +35,48 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
     private val _result = MutableLiveData<Result<String?>>(Result.success(null))
     val result: LiveData<Result<String?>> = _result
 
-    val pendingAction = MutableLiveData<(Session.() -> String?)?>()
+    private val queued = AtomicReference<(Session.() -> String?)?>()
+    private val _pendingAction = MutableLiveData<(Session.() -> String?)?>()
+    val pendingAction: LiveData<(Session.() -> String?)?> = _pendingAction
+
+    private val pendingHandler = Handler(Looper.getMainLooper())
+
+    fun setPendingAction(action: Session.() -> String?) {
+        queued.set(action)
+        _pendingAction.value = action
+    }
+
+    val hasQueuedAction: Boolean
+        get() = queued.get() != null
+
+    protected fun claimPendingAction(expected: Session.() -> String?): Boolean =
+        queued.compareAndSet(expected, null)
+
+    protected fun finishPendingAction() {
+        pendingHandler.post {
+            if (queued.get() == null) _pendingAction.value = null
+        }
+    }
 
     abstract fun getSession(device: YubiKeyDevice, onError: (Throwable) -> Unit, callback: (Session) -> Unit)
     abstract fun Session.updateState()
 
     fun onYubiKeyDevice(device: YubiKeyDevice) {
-        logger.debug("onYubiKeyDevice — pendingAction=${if (pendingAction.value != null) "present" else "none"}")
+        logger.debug("onYubiKeyDevice — pendingAction=${if (hasQueuedAction) "present" else "none"}")
         getSession(device, onError = {
             logger.error("onYubiKeyDevice — getSession failed: ${it.message}", it)
             val isDisconnect = device is UsbYubiKeyDevice && !device.hasPermission()
-            if (pendingAction.value != null || !isDisconnect) {
+            val dropped = queued.getAndSet(null)
+            if (dropped != null || !isDisconnect) {
                 _result.postValue(Result.failure(it))
             }
-            pendingAction.postValue(null)
+            finishPendingAction()
             onPendingActionDropped()
             if (isDisconnect) {
                 onDeviceDisconnected()
             }
         }) { session ->
-            pendingAction.value?.let {
+            queued.getAndSet(null)?.let {
                 val actionResult = Result.runCatching { it(session) }
                 actionResult.exceptionOrNull()?.let { e ->
                     logger.error("onYubiKeyDevice — pendingAction failed: ${e.message}", e)
@@ -61,7 +86,7 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
                     }
                 }
                 _result.postValue(actionResult)
-                pendingAction.postValue(null)
+                finishPendingAction()
             }
 
             try {
@@ -88,7 +113,8 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
     }
 
     fun cancelPendingAction() {
-        pendingAction.value = null
+        queued.set(null)
+        _pendingAction.value = null
         onPendingActionDropped()
     }
 
@@ -105,5 +131,5 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
         if (device is NfcYubiKeyDevice) "NFC" else "USB"
 
     protected fun shouldIgnoreTap(device: YubiKeyDevice): Boolean =
-        device is NfcYubiKeyDevice && pendingAction.value == null
+        device is NfcYubiKeyDevice && !hasQueuedAction
 }

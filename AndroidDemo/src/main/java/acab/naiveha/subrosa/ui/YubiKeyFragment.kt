@@ -76,7 +76,7 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
 
     override fun onResume() {
         super.onResume()
-        if (viewModel.pendingAction.value != null &&
+        if (viewModel.hasQueuedAction &&
             activityViewModel.yubiKey.value == null &&
             !yubiKeyPrompt.isShowing
         ) {
