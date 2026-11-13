@@ -26,7 +26,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.view.WindowManager
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -53,6 +55,7 @@ import com.yubico.yubikit.android.transport.nfc.NfcNotAvailable
 import com.yubico.yubikit.android.transport.usb.UsbConfiguration
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import acab.naiveha.subrosa.ui.management.ManagementViewModel
+import acab.naiveha.subrosa.ui.nitrokey3updater.Nitrokey3UpdaterViewModel
 import acab.naiveha.subrosa.ui.openpgp.OpenPgpViewModel
 import acab.naiveha.subrosa.ui.yubiotp.YubiOtpViewModel
 import android.os.Build
@@ -68,6 +71,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var navView: NavigationView
 
     private val viewModel: MainViewModel by viewModels()
+    private val updaterViewModel: Nitrokey3UpdaterViewModel by viewModels()
+
+    private lateinit var drawerLayout: DrawerLayout
+    private lateinit var updaterBackCallback: OnBackPressedCallback
 
     private lateinit var yubikit: YubiKitManager
     private val nfcConfiguration = NfcConfiguration().timeout(6000).disableNfcDiscoverySound(true)
@@ -115,8 +122,8 @@ class MainActivity : AppCompatActivity() {
             hasNfc = true
             logger.info("NFC foreground dispatch claimed (source=$source)")
         } catch (e: NfcNotAvailable) {
-            hasNfc = e.isDisabled()
-            if (e.isDisabled()) {
+            hasNfc = e.isDisabled
+            if (e.isDisabled) {
                 logger.info("NFC is currently disabled — will claim it once the user turns it on (source=$source)")
             } else {
                 logger.info("Device has no NFC hardware (source=$source)")
@@ -134,7 +141,7 @@ class MainActivity : AppCompatActivity() {
         val toolbar: Toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
 
-        val drawerLayout: DrawerLayout = findViewById(R.id.drawer_layout)
+        drawerLayout = findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)
         navController = findNavController(R.id.nav_host_fragment)
         appBarConfiguration = AppBarConfiguration(
@@ -158,6 +165,7 @@ class MainActivity : AppCompatActivity() {
             if (destination.id == R.id.nav_management) {
                 viewModel.refreshCurrentDevice()
             }
+            if (updaterViewModel.isBusy) supportActionBar?.setDisplayHomeAsUpEnabled(false)
         }
 
         navView.setNavigationItemSelectedListener { item ->
@@ -199,6 +207,24 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
+        updaterBackCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                Toast.makeText(this@MainActivity, updaterBusyMessage(), Toast.LENGTH_SHORT).show()
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, updaterBackCallback)
+
+        updaterViewModel.busy.observe(this) { busy ->
+            lockWhileUpdating(busy)
+            if (busy && navController.currentDestination?.id != R.id.nitrokey3UpdaterFragment) {
+                try {
+                    navController.navigate(R.id.nitrokey3UpdaterFragment)
+                } catch (e: RuntimeException) {
+                    logger.warn("Could not open the firmware updater while an update is running", e)
+                }
+            }
+        }
+
         yubikit = YubiKitManager(this)
 
         viewModel.handleYubiKey.observe(this) {
@@ -236,6 +262,13 @@ class MainActivity : AppCompatActivity() {
 
         if ((intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) {
             logger.info("handleIncomingIntent: ignoring intent from history")
+            return
+        }
+
+        if (updaterViewModel.isBusy) {
+            logger.info("handleIncomingIntent: ignoring the intent while the firmware updater is busy")
+            Toast.makeText(this, updaterBusyMessage(), Toast.LENGTH_SHORT).show()
+            setIntent(Intent())
             return
         }
 
@@ -290,8 +323,30 @@ class MainActivity : AppCompatActivity() {
         setIntent(Intent())
     }
 
-    override fun onSupportNavigateUp(): Boolean =
-        navController.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
+    override fun onSupportNavigateUp(): Boolean {
+        if (updaterViewModel.isBusy) return true
+        return navController.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
+    }
+
+    private fun lockWhileUpdating(locked: Boolean) {
+        if (locked) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        updaterBackCallback.isEnabled = locked
+        drawerLayout.setDrawerLockMode(
+            if (locked) DrawerLayout.LOCK_MODE_LOCKED_CLOSED else DrawerLayout.LOCK_MODE_UNLOCKED
+        )
+        if (locked) drawerLayout.closeDrawer(GravityCompat.START)
+        supportActionBar?.setDisplayHomeAsUpEnabled(!locked)
+    }
+
+    private fun updaterBusyMessage(): Int = if (updaterViewModel.isChecking) {
+        R.string.nitrokey3updater_check_in_progress
+    } else {
+        R.string.nitrokey3updater_update_in_progress
+    }
 
     override fun onResume() {
         super.onResume()
