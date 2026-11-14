@@ -300,5 +300,10 @@ so that you can program the static password over NFC, not just over USB.</string
     <string name="nitrokey3updater_status_check_ok">Bootloader check finished successfully</string>
     <string name="nitrokey3updater_status_check_problems">Bootloader check failed</string>
     <string name="nitrokey3updater_status_check_import_hint">Import the firmware archive to test long transfers as well.</string>
+    <string name="nitrokey3updater_notification_channel">Firmware update</string>
+    <string name="nitrokey3updater_notification_channel_description">Nitrokey 3 firmware update</string>
+    <string name="nitrokey3updater_notification_title">Updating Nitrokey 3, do not unplug</string>
+    <string name="nitrokey3updater_service_failed">The service could not be started in the background</string>
+    <string name="nitrokey3updater_service_stopped">The update service stopped unexpectedly. The state of the update is not known</string>
 
 </resources>

@@ -41,7 +41,10 @@ internal object OpenPgpKeySupport {
         PublicKeyAlgorithmTags.ECDH, PublicKeyAlgorithmTags.ECDSA, PublicKeyAlgorithmTags.EDDSA_LEGACY,
     )
 
-    private class RawPacket(val tag: Int, val start: Int, val bodyStart: Int, val end: Int, val partial: Boolean)
+    private class RawPacket(val tag: Int, val start: Int, val bodyStart: Int, val end: Int, val partial: Boolean) {
+        fun bodyByte(data: ByteArray, at: Int): Int =
+            if (bodyStart + at < end) data[bodyStart + at].toInt() and 0xFF else -1
+    }
 
     internal class RawKey(
         val ordinal: Int,
@@ -231,11 +234,10 @@ internal object OpenPgpKeySupport {
     }
 
     private fun rawKey(data: ByteArray, packet: RawPacket, ordinal: Int): RawKey {
-        fun body(at: Int): Int = if (packet.bodyStart + at < packet.end) data[packet.bodyStart + at].toInt() and 0xFF else -1
-        val version = body(0)
+        val version = packet.bodyByte(data, 0)
         val algorithm = when {
-            version == 3 -> body(7)
-            version >= 4 -> body(5)
+            version == 3 -> packet.bodyByte(data, 7)
+            version >= 4 -> packet.bodyByte(data, 5)
             else -> -1
         }
         val curve = if (version == SUPPORTED_VERSION && algorithm in EC_ALGORITHMS) curveOf(data, packet) else null

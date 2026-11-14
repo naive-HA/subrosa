@@ -55,7 +55,7 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
             onDisconnected = { viewModel.onDeviceDisconnected() },
         )
 
-        viewModel.result.observe(viewLifecycleOwner) { result ->
+        collectEvents(viewModel.results) { result ->
             result.onSuccess { }.onFailure {
                 logger.error("Error:", it)
                 errorVibrate()
@@ -63,7 +63,6 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
                     ?: getString(R.string.error_dialog_title)
                 showErrorDialog(message)
             }
-            viewModel.clearResult()
         }
     }
 

@@ -20,8 +20,10 @@ import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import acab.naiveha.subrosa.ui.EventChannel
 import com.yubico.yubikit.core.YubiKeyDevice
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.flow.Flow
 import java.util.concurrent.Executors
 
 class MainViewModel : ViewModel() {
@@ -54,15 +56,11 @@ class MainViewModel : ViewModel() {
         _yubiKey.value?.let { _yubiKey.postValue(it) }
     }
 
-    private val _pendingOcrUri = MutableLiveData<Uri?>(null)
-    val pendingOcrUri: LiveData<Uri?> = _pendingOcrUri
+    private val ocrEvents = EventChannel.latestOnly<Uri>()
+    val ocrImportRequests: Flow<Uri> = ocrEvents.flow
 
     fun onOcrIntent(uri: Uri) {
-        _pendingOcrUri.value = uri
-    }
-
-    fun consumeOcrUri() {
-        _pendingOcrUri.value = null
+        ocrEvents.post(uri)
     }
 
     override fun onCleared() {

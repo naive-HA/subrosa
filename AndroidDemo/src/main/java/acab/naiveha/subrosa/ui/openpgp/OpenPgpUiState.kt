@@ -16,7 +16,6 @@
 
 package acab.naiveha.subrosa.ui.openpgp
 
-import android.net.Uri
 import acab.naiveha.subrosa.ui.PgpDeviceType
 
 data class ConnectedPgpDevice(
@@ -37,5 +36,4 @@ data class OpenPgpUiState(
     val pinRetries: PinRetries? = null,
     val currentOperation: OpenPgpOperation = OpenPgpOperation.NONE,
     val importedKeyInfo: OpenPgpKeyInfo? = null,
-    val pendingImportUri: Uri? = null,
 )

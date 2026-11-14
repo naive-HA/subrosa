@@ -20,6 +20,8 @@ import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
+import acab.naiveha.subrosa.ui.EventChannel
 import acab.naiveha.subrosa.ui.PgpDeviceType
 import acab.naiveha.subrosa.ui.StatusChannel
 import acab.naiveha.subrosa.ui.YubiKeyViewModel
@@ -34,6 +36,7 @@ import com.yubico.yubikit.core.otp.OtpConnection
 import com.yubico.yubikit.core.smartcard.SmartCardConnection
 import com.yubico.yubikit.yubiotp.Slot
 import com.yubico.yubikit.yubiotp.YubiOtpSession
+import kotlinx.coroutines.flow.Flow
 import org.slf4j.LoggerFactory
 import java.io.IOException
 
@@ -60,36 +63,40 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         }
     }
 
-    private val _clearUiEvent = MutableLiveData<Int>()
-    val clearUiEvent: LiveData<Int> = _clearUiEvent
-    private var clearUiCounter = 0
+    private val clearUiEvents = EventChannel.latestOnly<Unit>()
+    val clearUi: Flow<Unit> = clearUiEvents.flow
 
-    private val writeStatusChannel = StatusChannel()
+    private val passwordSavedEvents = EventChannel.latestOnly<Unit>()
+    val passwordSaved: Flow<Unit> = passwordSavedEvents.flow
+
+    private val writeStatusChannel = StatusChannel(viewModelScope)
     val writeStatus: LiveData<String> = writeStatusChannel.value
-    fun postWriteStatus(message: String) = writeStatusChannel.post(message)
 
-    private val readStatusChannel = StatusChannel()
+    private val readStatusChannel = StatusChannel(viewModelScope)
     val readStatus: LiveData<String> = readStatusChannel.value
-    fun postReadStatus(message: String) = readStatusChannel.post(message)
 
-    private val resetStatusChannel = StatusChannel()
+    private val resetStatusChannel = StatusChannel(viewModelScope)
     val resetStatus: LiveData<String> = resetStatusChannel.value
-    fun postResetStatus(message: String) = resetStatusChannel.post(message)
+
+    fun onSlotProgrammed(slot: Slot) {
+        writeStatusChannel.post(OtpNfcConfig.slotProgrammedStatus(slot), transient = true)
+        passwordSavedEvents.post(Unit)
+    }
+
+    fun onSlotReset(slot: Slot) {
+        resetStatusChannel.post(OtpNfcConfig.slotResetStatus(slot), transient = true)
+    }
+
+    fun postReadComplete(text: String) {
+        readStatusChannel.post(text, transient = true)
+    }
 
     fun requestClearUi() {
-        clearUiCounter++
-        val count = clearUiCounter
-        if (Looper.getMainLooper().thread == Thread.currentThread()) {
-            _clearUiEvent.value = count
-        } else {
-            mainHandler.post {
-                _clearUiEvent.value = count
-            }
-        }
+        clearUiEvents.post(Unit)
         updateUi { YubiOtpUiState() }
-        postWriteStatus("")
-        postReadStatus("")
-        postResetStatus("")
+        writeStatusChannel.post("")
+        readStatusChannel.post("")
+        resetStatusChannel.post("")
     }
 
     fun setCurrentOperation(op: OtpOperation) {

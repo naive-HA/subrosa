@@ -24,5 +24,7 @@ data class OpenPgpCardInfo(
 
     data class SupportedAlgorithms(val bySlot: Map<KeyRef, List<String>>) {
         fun linesFor(slot: KeyRef): List<String> = bySlot[slot].orEmpty()
+        fun textFor(slot: KeyRef, dash: String): String =
+            linesFor(slot).joinToString("\n").ifEmpty { dash }
     }
 }

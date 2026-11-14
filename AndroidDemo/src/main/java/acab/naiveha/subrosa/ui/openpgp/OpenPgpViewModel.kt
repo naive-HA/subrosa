@@ -5,7 +5,9 @@ import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
 import acab.naiveha.subrosa.R
+import acab.naiveha.subrosa.ui.EventChannel
 import acab.naiveha.subrosa.ui.PgpDeviceType
 import acab.naiveha.subrosa.ui.StatusChannel
 import acab.naiveha.subrosa.ui.YubiKeyViewModel
@@ -18,6 +20,7 @@ import com.yubico.yubikit.core.application.InvalidPinException
 import com.yubico.yubikit.core.smartcard.SmartCardConnection
 import com.yubico.yubikit.openpgp.OpenPgpSession
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.Flow
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
@@ -28,6 +31,20 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         const val PIN_CHANGE_COMPLETE_STATUS = "PIN changed"
 
         const val PIN_RESET_COMPLETE_STATUS = "User PIN reset"
+
+        const val READY_TO_WRITE_STATUS = "Ready to write"
+
+        const val PIN_RETRIES_REFRESHED_STATUS = "PIN retries refreshed"
+
+        private val WRITE_TRANSIENT = setOf(OpenPgpWriter.WRITE_COMPLETE_STATUS, READY_TO_WRITE_STATUS)
+        private val READ_TRANSIENT = setOf(OpenPgpReader.READ_COMPLETE_STATUS)
+        private val WIPE_TRANSIENT = setOf(OpenPgpWriter.WIPE_COMPLETE_STATUS)
+        private val PIN_CHANGE_TRANSIENT = setOf(
+            PIN_CHANGE_COMPLETE_STATUS,
+            PIN_RESET_COMPLETE_STATUS,
+            OpenPgpWriter.WIPE_COMPLETE_STATUS,
+            PIN_RETRIES_REFRESHED_STATUS,
+        )
 
         private const val TAG = "OpenPgpViewModel"
 
@@ -58,11 +75,11 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
     val currentState: OpenPgpUiState
         get() = state
 
+    private val importEvents = EventChannel.latestOnly<Uri>()
+    val importRequests: Flow<Uri> = importEvents.flow
+
     fun onImportIntent(uri: Uri) {
-        updateUi { it.copy(pendingImportUri = uri) }
-    }
-    fun consumeImportUri() {
-        updateUi { it.copy(pendingImportUri = null) }
+        importEvents.post(uri)
     }
 
     fun onCardRead(info: OpenPgpCardInfo) {
@@ -82,6 +99,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
                 importedKeyInfo = null
             )
         }
+        clearStatuses()
         clearResult()
     }
     fun onImportedKey(armor: String, info: OpenPgpKeyInfo) {
@@ -267,7 +285,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
             try {
                 postPinChangeStatus("Reading PIN status…")
                 refreshPinRetries(this)
-                postPinChangeStatus("PIN retries refreshed")
+                postPinChangeStatus(PIN_RETRIES_REFRESHED_STATUS)
             } catch (e: Exception) {
                 logger.warn("refreshPinCounters failed: ${e.message}")
                 postPinChangeStatus("Failed to refresh PIN retries: ${e.message ?: "Unknown error"}")
@@ -310,24 +328,13 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         preflightOutcome.getAndSet(null)?.complete(false)
         queuedPins.get()?.cancel()
         setCurrentOperation(OpenPgpOperation.NONE)
-        postReadStatus("")
-        postWriteStatus("")
-        postWipeStatus("")
-        postPinChangeStatus("")
+        clearStatuses()
     }
 
     override fun onDeviceDisconnected() {
-        updateUi {
-            OpenPgpUiState(
-                pendingImportUri = it.pendingImportUri,
-                importedKeyInfo = it.importedKeyInfo,
-            )
-        }
+        updateUi { OpenPgpUiState(importedKeyInfo = it.importedKeyInfo) }
         setCurrentOperation(OpenPgpOperation.NONE)
-        postReadStatus("")
-        postWriteStatus("")
-        postWipeStatus("")
-        postPinChangeStatus("")
+        clearStatuses()
     }
 
     override fun onPendingActionFailed(error: Throwable) {
@@ -355,29 +362,43 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         pinChangeStatusChannel.unpin()
     }
 
-    private val writeStatusChannel = StatusChannel()
+    private fun clearStatuses() {
+        postReadStatus("")
+        postWriteStatus("")
+        postWipeStatus("")
+        postPinChangeStatus("")
+    }
+
+    private val writeStatusChannel = StatusChannel(viewModelScope)
     val writeStatus: LiveData<String> = writeStatusChannel.value
     fun postWriteStatus(message: String) {
         if (message == OpenPgpWriter.WRITE_COMPLETE_STATUS) dismissInterruptedNotices()
-        writeStatusChannel.post(message)
+        writeStatusChannel.post(message, transient = message in WRITE_TRANSIENT)
     }
 
-    private val readStatusChannel = StatusChannel()
+    private val readStatusChannel = StatusChannel(viewModelScope)
     val readStatus: LiveData<String> = readStatusChannel.value
-    fun postReadStatus(message: String) = readStatusChannel.post(message)
+    fun postReadStatus(message: String) =
+        readStatusChannel.post(message, transient = message in READ_TRANSIENT)
 
-    private val wipeStatusChannel = StatusChannel()
+    private val wipeStatusChannel = StatusChannel(
+        viewModelScope,
+        onExpired = {
+            clearCardInfo()
+            clearPinRetries()
+        },
+    )
     val wipeStatus: LiveData<String> = wipeStatusChannel.value
     fun postWipeStatus(message: String) {
         if (message == OpenPgpWriter.WIPE_COMPLETE_STATUS) dismissInterruptedNotices()
-        wipeStatusChannel.post(message)
+        wipeStatusChannel.post(message, transient = message in WIPE_TRANSIENT)
     }
 
-    private val pinChangeStatusChannel = StatusChannel()
+    private val pinChangeStatusChannel = StatusChannel(viewModelScope)
     val pinChangeStatus: LiveData<String> = pinChangeStatusChannel.value
     fun postPinChangeStatus(message: String) {
         if (message == OpenPgpWriter.WIPE_COMPLETE_STATUS) dismissInterruptedNotices()
-        pinChangeStatusChannel.post(message)
+        pinChangeStatusChannel.post(message, transient = message in PIN_CHANGE_TRANSIENT)
     }
 
     override fun getSession(device: YubiKeyDevice, onError: (Throwable) -> Unit, callback: (OpenPgpSession) -> Unit) {

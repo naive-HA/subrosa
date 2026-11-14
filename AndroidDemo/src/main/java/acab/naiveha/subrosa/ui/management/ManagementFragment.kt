@@ -136,10 +136,9 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
         if (algorithms == null) return
 
         val dash = getString(R.string.dash)
-        fun textFor(slot: KeyRef) = algorithms.linesFor(slot).joinToString("\n").ifEmpty { dash }
-        binding.algorithmsSig.text = textFor(KeyRef.SIG)
-        binding.algorithmsDec.text = textFor(KeyRef.DEC)
-        binding.algorithmsAut.text = textFor(KeyRef.AUT)
+        binding.algorithmsSig.text = algorithms.textFor(KeyRef.SIG, dash)
+        binding.algorithmsDec.text = algorithms.textFor(KeyRef.DEC, dash)
+        binding.algorithmsAut.text = algorithms.textFor(KeyRef.AUT, dash)
     }
 
     private var dotAnimationJob: Job? = null

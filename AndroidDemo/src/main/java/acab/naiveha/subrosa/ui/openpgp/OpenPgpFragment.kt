@@ -32,8 +32,9 @@ import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.databinding.FragmentOpenpgpBinding
 import acab.naiveha.subrosa.databinding.ItemOpenpgpSubkeyBinding
 import acab.naiveha.subrosa.ui.YubiKeyFragment
-import acab.naiveha.subrosa.ui.bindAutoClearStatus
+import acab.naiveha.subrosa.ui.bindStatus
 import acab.naiveha.subrosa.ui.collectAdminPin
+import acab.naiveha.subrosa.ui.collectEvents
 import acab.naiveha.subrosa.ui.collectNewAdminPin
 import acab.naiveha.subrosa.ui.collectNewUserPin
 import acab.naiveha.subrosa.ui.collectUserPin
@@ -184,12 +185,12 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         super.onViewCreated(view, savedInstanceState)
         binding.btnSave.isEnabled = false
 
-        viewModel.uiState.observe(viewLifecycleOwner) { state ->
-            if (state.pendingImportUri != null) {
-                navigateToTab(1)
-                handleImportedFileUri(state.pendingImportUri)
-            }
+        collectEvents(viewModel.importRequests) { uri ->
+            navigateToTab(1)
+            handleImportedFileUri(uri)
+        }
 
+        viewModel.uiState.observe(viewLifecycleOwner) { state ->
             if (state.importedKeyInfo != null) {
                 showKeyInfo(state.importedKeyInfo)
             } else {
@@ -342,40 +343,15 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             }
         }
 
-        bindAutoClearStatus(viewModel.writeStatus, binding.writeStatus, OpenPgpWriter.WRITE_COMPLETE_STATUS, "Ready to write") {
-            viewModel.postWriteStatus(it)
-            if (it == OpenPgpWriter.WRITE_COMPLETE_STATUS) {
-                clearCardInfoDisplay()
-                viewModel.clearCardInfo()
-                clearPinRetriesDisplay()
-            }
-        }
-        bindAutoClearStatus(viewModel.readStatus, binding.readStatus, OpenPgpReader.READ_COMPLETE_STATUS) {
-            viewModel.postReadStatus(it)
-        }
-        bindAutoClearStatus(viewModel.wipeStatus, binding.wipeStatus, OpenPgpWriter.WIPE_COMPLETE_STATUS) {
-            viewModel.postWipeStatus(it)
-            clearCardInfoDisplay()
-            viewModel.clearCardInfo()
-            clearPinRetriesDisplay()
-        }
-        bindAutoClearStatus(
+        bindStatus(viewModel.writeStatus, binding.writeStatus)
+        bindStatus(viewModel.readStatus, binding.readStatus)
+        bindStatus(viewModel.wipeStatus, binding.wipeStatus)
+        bindStatus(
             viewModel.pinChangeStatus,
             binding.pinChangeStatus,
-            OpenPgpViewModel.PIN_CHANGE_COMPLETE_STATUS,
-            OpenPgpViewModel.PIN_RESET_COMPLETE_STATUS,
-            OpenPgpWriter.WIPE_COMPLETE_STATUS,
-            "PIN retries refreshed",
             hideWhenBlank = true,
             shouldHide = { it.contains("Remaining attempts", ignoreCase = true) },
-        ) {
-            viewModel.postPinChangeStatus(it)
-            if (it == OpenPgpWriter.WIPE_COMPLETE_STATUS || it == OpenPgpViewModel.PIN_RESET_COMPLETE_STATUS) {
-                clearCardInfoDisplay()
-                viewModel.clearCardInfo()
-                clearPinRetriesDisplay()
-            }
-        }
+        )
 
         binding.btnSave.setOnClickListener {
             val bundle = validatedBundle ?: run {
@@ -677,7 +653,6 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
 
         lifecycleScope.launch(Dispatchers.Main) {
             try {
-                viewModel.consumeImportUri()
                 val fileBytes = withContext(Dispatchers.IO) {
                     runCatching {
                         requireContext().contentResolver.openInputStream(uri)?.use { it.readBytes() }
@@ -872,7 +847,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             }
 
             validatedBundle = bundle
-            viewModel.postWriteStatus("Ready to write")
+            viewModel.postWriteStatus(OpenPgpViewModel.READY_TO_WRITE_STATUS)
             updateButtonStates(viewModel.uiState.value ?: OpenPgpUiState())
         }
     }

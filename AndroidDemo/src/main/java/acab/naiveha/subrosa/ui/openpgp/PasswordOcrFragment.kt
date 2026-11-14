@@ -30,6 +30,7 @@ import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
 import acab.naiveha.subrosa.MainViewModel
 import acab.naiveha.subrosa.R
+import acab.naiveha.subrosa.ui.collectEvents
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -71,12 +72,9 @@ class PasswordOcrFragment : Fragment() {
 
         ocrEngine = PasswordOcrEngine(requireContext())
 
-        activityViewModel.pendingOcrUri.observe(viewLifecycleOwner) { uri ->
-            Log.d(TAG, "pendingOcrUri observer: $uri")
-            if (uri != null) {
-                activityViewModel.consumeOcrUri()
-                decodeAndImport(uri)
-            }
+        collectEvents(activityViewModel.ocrImportRequests) { uri ->
+            Log.d(TAG, "OCR import request received")
+            decodeAndImport(uri)
         }
 
         lifecycleScope.launch {

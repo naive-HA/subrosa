@@ -22,8 +22,13 @@ import android.content.Context
 import android.view.View
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.yubico.yubikit.core.smartcard.ApduException
 import acab.naiveha.subrosa.R
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 
 fun Throwable.describeChain(maxDepth: Int = 8): String {
     val chain = StringBuilder()
@@ -38,6 +43,14 @@ fun Throwable.describeChain(maxDepth: Int = 8): String {
         depth++
     }
     return chain.toString()
+}
+
+fun <T> Fragment.collectEvents(events: Flow<T>, handle: (T) -> Unit) {
+    viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            events.collect { handle(it) }
+        }
+    }
 }
 
 fun Fragment.setupCoffeeTipsClipboard(container: View) {

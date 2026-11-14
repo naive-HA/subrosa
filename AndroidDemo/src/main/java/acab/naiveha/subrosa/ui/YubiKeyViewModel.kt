@@ -25,6 +25,7 @@ import androidx.lifecycle.ViewModel
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.core.YubiKeyDevice
+import kotlinx.coroutines.flow.Flow
 import org.slf4j.LoggerFactory
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicReference
@@ -32,8 +33,8 @@ import java.util.concurrent.atomic.AtomicReference
 abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
     private val logger = LoggerFactory.getLogger(YubiKeyViewModel::class.java)
 
-    private val _result = MutableLiveData<Result<String?>>(Result.success(null))
-    val result: LiveData<Result<String?>> = _result
+    private val resultEvents = EventChannel<Result<String?>>()
+    val results: Flow<Result<String?>> = resultEvents.flow
 
     private val queued = AtomicReference<(Session.() -> String?)?>()
     private val _pendingAction = MutableLiveData<(Session.() -> String?)?>()
@@ -68,7 +69,7 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
             val isDisconnect = device is UsbYubiKeyDevice && !device.hasPermission()
             val dropped = queued.getAndSet(null)
             if (dropped != null || !isDisconnect) {
-                _result.postValue(Result.failure(it))
+                postResult(Result.failure(it))
             }
             finishPendingAction()
             onPendingActionDropped()
@@ -85,7 +86,7 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
                         onDeviceDisconnected()
                     }
                 }
-                _result.postValue(actionResult)
+                postResult(actionResult)
                 finishPendingAction()
             }
 
@@ -101,15 +102,11 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
     }
 
     fun postResult(result: Result<String?>) {
-        _result.postValue(result)
+        resultEvents.post(result)
     }
 
     fun clearResult() {
-        _result.value.let {
-            if (it != null && (it.isFailure || it.getOrNull() != null)) {
-                _result.postValue(Result.success(null))
-            }
-        }
+        resultEvents.discardPending()
     }
 
     fun cancelPendingAction() {

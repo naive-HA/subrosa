@@ -9,9 +9,10 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.IOException
+import kotlin.time.Duration.Companion.milliseconds
 
 internal data class ImportedArchive(val bytes: ByteArray, val name: String, val sha256: String) {
     override fun equals(other: Any?): Boolean {
@@ -115,35 +116,59 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
     private val _input = MutableLiveData(UpdaterInput())
     val input: LiveData<UpdaterInput> = _input
 
-    private val _flash = MutableLiveData<FlashState>(FlashState.Idle)
+    private val _flash = MutableLiveData<FlashState>(FlashSession.state.value)
     val flash: LiveData<FlashState> = _flash
 
     private val _check = MutableLiveData<CheckState>(CheckState.Idle)
     val check: LiveData<CheckState> = _check
 
-    override fun onCleared() {
-        prepareJob?.cancel()
-        readyKey = null
-        _input.value = UpdaterInput()
-        _flash.value = FlashState.Idle
-        _check.value = CheckState.Idle
-        Log.d(TAG, "Nitrokey3UpdaterViewModel onCleared() — firmware archive flushed from memory")
-    }
+    private val _busy = MutableLiveData(FlashSession.isRunning)
 
-    val isFlashing: Boolean get() = _flash.value is FlashState.Running
-
-    val isChecking: Boolean get() = _check.value is CheckState.Running
-
-    val isBusy: Boolean get() = isFlashing || isChecking
+    val busy: LiveData<Boolean> = _busy
 
     private var prepareJob: Job? = null
 
     private var readyKey: String? = null
 
-    @Volatile
-    private var lastPublished: FlashProgress? = null
+    init {
+        viewModelScope.launch(Dispatchers.Main) {
+            FlashSession.state.collect { onFlashSessionState(it) }
+        }
+    }
+
+    override fun onCleared() {
+        prepareJob?.cancel()
+        readyKey = null
+        _input.value = UpdaterInput()
+        _check.value = CheckState.Idle
+        Log.d(TAG, "Nitrokey3UpdaterViewModel onCleared() — firmware archive flushed from memory")
+    }
+
+    val isFlashing: Boolean get() = FlashSession.isRunning
+
+    val isChecking: Boolean get() = _check.value is CheckState.Running
+
+    val isBusy: Boolean get() = isFlashing || isChecking
 
     private fun currentInput(): UpdaterInput = _input.value ?: UpdaterInput()
+
+    private fun onFlashSessionState(state: FlashState) {
+        if (state is FlashState.Failed && state.replugRequired) {
+            _input.value = currentInput().afterFlashFailure(state)
+        }
+        _flash.value = state
+        refreshBusy()
+    }
+
+    private fun setCheck(state: CheckState) {
+        _check.value = state
+        refreshBusy()
+    }
+
+    private fun refreshBusy() {
+        val busy = isBusy
+        if (_busy.value != busy) _busy.value = busy
+    }
 
     fun reset() {
         if (isBusy) return
@@ -151,20 +176,26 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
         readyKey = null
         val current = currentInput()
         _input.value = current.copy(image = ImageState.None)
-        _flash.value = FlashState.Idle
-        _check.value = CheckState.Idle
+        discardFlashResult()
+        setCheck(CheckState.Idle)
         prepareImage()
     }
 
+    private fun discardFlashResult() {
+        val result = FlashSession.state.value
+        if (result is FlashState.Failed && !result.announced) return
+        FlashSession.clearResult()
+    }
+
     fun clearResult() {
-        if (!isFlashing && _flash.value !is FlashState.Idle) _flash.value = FlashState.Idle
+        FlashSession.clearResult()
     }
 
     fun onArchiveImported(archive: ImportedArchive) {
         if (isBusy) return
         readyKey = null
         _input.value = currentInput().copy(archive = archive, image = ImageState.None)
-        _flash.value = FlashState.Idle
+        FlashSession.clearResult()
         prepareImage()
     }
 
@@ -173,14 +204,14 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
         prepareJob?.cancel()
         readyKey = null
         _input.value = currentInput().copy(archive = null, image = ImageState.None)
-        _flash.value = FlashState.Idle
+        FlashSession.clearResult()
     }
 
     fun onBootloaderChanged(device: BootloaderDevice?) {
         val current = currentInput()
         if (current.bootloader == device) return
         _input.value = current.withBootloader(device)
-        if (device != null && !isChecking) _check.value = CheckState.Idle
+        if (device != null && !isChecking) setCheck(CheckState.Idle)
         if (!isFlashing) prepareImage()
     }
 
@@ -272,7 +303,7 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
         if (device.variant != Nk3Variant.LPC55 || current.replugRequired) return
 
         clearResult()
-        _check.value = CheckState.Running(longTransfer = false, previous = null)
+        setCheck(CheckState.Running(longTransfer = false, previous = null))
         viewModelScope.launch {
             val report: BootloaderReport = try {
                 withBootloader(context.applicationContext, device) { transport ->
@@ -290,7 +321,7 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
 
             val image = currentInput().flashableImage
             if (report.canTestLongTransfers && image != null) {
-                _check.value = CheckState.Running(longTransfer = true, previous = report)
+                setCheck(CheckState.Running(longTransfer = true, previous = report))
                 val result: LongTransferResult = try {
                     withBootloader(context.applicationContext, device) { transport ->
                         BootloaderCheck(transport, transport.linkInfo(), log = { line -> Log.d(TAG, "check: $line") }).testLongTransfers(image)
@@ -346,7 +377,7 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
 
         Log.d(TAG, "startLongTransferTest() starting for device ${device.usbName}")
         clearResult()
-        _check.value = CheckState.Running(longTransfer = true, previous = previous)
+        setCheck(CheckState.Running(longTransfer = true, previous = previous))
         viewModelScope.launch {
             val result: LongTransferResult = try {
                 withBootloader(context.applicationContext, device) { transport ->
@@ -371,11 +402,11 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
     private fun publishCheck(device: BootloaderDevice, report: BootloaderReport) {
         val current = currentInput()
         if (current.bootloader != null && current.bootloader.usbName != device.usbName) {
-            _check.value = CheckState.Idle
+            setCheck(CheckState.Idle)
             return
         }
         if (report.needsReplug && !current.replugRequired) _input.value = current.copy(replugRequired = true)
-        _check.value = CheckState.Finished(report)
+        setCheck(CheckState.Finished(report))
     }
 
     fun startFlash(context: Context) {
@@ -383,75 +414,47 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
         val current = currentInput()
         val device = current.bootloader ?: return
         val image = current.flashableImage ?: return
+        val request = FlashRequest(device, image)
+        if (!FlashSession.begin(request)) return
+        refreshBusy()
 
-        lastPublished = null
-        _flash.value = FlashState.Running(FlashProgress(FlashPhase.CONNECTING))
+        val appContext = context.applicationContext
         viewModelScope.launch {
-            val outcome: FlashState = try {
-                install(context.applicationContext, device, image)
-                FlashState.Succeeded(image.displayVersion ?: image.fileName)
+            val refusal: FlashState.Failed? = try {
+                requireBootloaderAccess(UsbBootloaderConnector(appContext), device)
+                FirmwareFlashService.start(appContext)
+                null
             } catch (e: CancellationException) {
+                FlashSession.abandon(request)
                 throw e
             } catch (e: FlashException) {
-                Log.w(TAG, "Firmware update failed: ${e.message}", e)
+                Log.w(TAG, "The firmware update could not be started: ${e.message}", e)
                 FlashState.Failed.from(e)
             } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error during the firmware update", e)
+                Log.e(TAG, "Unexpected error while starting the firmware update", e)
                 FlashState.Failed("Unexpected error: ${e.message ?: e.javaClass.simpleName}")
             }
-            if (outcome is FlashState.Failed && outcome.replugRequired) {
-                _input.value = currentInput().afterFlashFailure(outcome)
+            if (refusal != null) {
+                FlashSession.failIfUnclaimed(request, refusal)
+                return@launch
             }
-            _flash.value = outcome
-        }
-    }
 
-    private suspend fun install(context: Context, device: BootloaderDevice, image: FirmwareImage) {
-        when (image.variant) {
-            Nk3Variant.LPC55 -> installLpc55(context, device, image)
-            Nk3Variant.NRF52 -> withContext(Dispatchers.IO) {
-                Nrf52Flasher().flash(image, ::publishProgress)
+            delay(SERVICE_START_TIMEOUT_MS.milliseconds)
+            val timedOut = FlashState.Failed(
+                message = "The update service did not start.",
+                total = image.data.size.toLong(),
+            )
+            if (FlashSession.failIfUnclaimed(request, timedOut)) {
+                Log.e(TAG, "The update service did not take the request within $SERVICE_START_TIMEOUT_MS ms")
             }
         }
     }
 
-    private suspend fun installLpc55(context: Context, device: BootloaderDevice, image: FirmwareImage) {
-        withBootloader(context, device) { transport ->
-            Lpc55Flasher(
-                transport,
-                log = { line -> Log.d(TAG, "mboot: $line") },
-                declaredDataReportBytes = transport.linkInfo().declaredDataReportBytes(),
-            ).flash(image, ::publishProgress)
-        }
-    }
-
-    private suspend fun <T> withBootloader(context: Context, device: BootloaderDevice, block: (UsbHidMbootTransport) -> T): T {
-        val connector = UsbBootloaderConnector(context)
-        val usbDevice = connector.findDevice(device.usbName)
-            ?: throw FlashException("The Nitrokey 3 bootloader is no longer connected.")
-        if (!connector.ensurePermission(usbDevice)) {
-            throw FlashException("USB access was not granted. Allow sub rosa to use the Nitrokey 3 and try again.")
-        }
-        return withContext(Dispatchers.IO) {
-            val transport = try {
-                connector.open(usbDevice)
-            } catch (e: IOException) {
-                throw FlashException(e.message ?: "The bootloader could not be opened.", e)
-            }
-            transport.use(block)
-        }
-    }
-
-    private fun publishProgress(progress: FlashProgress) {
-        val last = lastPublished
-        if (last != null && last.phase == progress.phase && last.percent == progress.percent) return
-        lastPublished = progress
-        viewModelScope.launch {
-            if (_flash.value is FlashState.Running) _flash.value = FlashState.Running(progress)
-        }
-    }
+    private suspend fun <T> withBootloader(context: Context, device: BootloaderDevice, block: (UsbHidMbootTransport) -> T): T =
+        withBootloaderTransport(context, device, block)
 
     private companion object {
         const val TAG = "Nitrokey3UpdaterVM"
+        const val SERVICE_START_TIMEOUT_MS = 10_000L
     }
 }

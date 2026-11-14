@@ -32,7 +32,8 @@ import acab.naiveha.subrosa.databinding.FragmentYubiotpBinding
 import acab.naiveha.subrosa.ui.PgpDeviceType
 import acab.naiveha.subrosa.ui.YubiKeyFragment
 import acab.naiveha.subrosa.ui.YubiKeyPromptDialog
-import acab.naiveha.subrosa.ui.bindAutoClearStatus
+import acab.naiveha.subrosa.ui.bindStatus
+import acab.naiveha.subrosa.ui.collectEvents
 import acab.naiveha.subrosa.ui.showConfirmationDialog
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
@@ -96,6 +97,13 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             clearReadOperation()
         }
     }
+
+    private var currentTabIndex = 1
+    private var currentAnimator: ValueAnimator? = null
+    private var renderingMgmt = false
+
+    private val sections: List<View>
+        get() = listOf(binding.sectionErase, binding.sectionWrite, binding.sectionRead, binding.sectionMgmt)
 
     private fun onOtpResult(result: Result<ByteArray>?, slotTwo: Boolean?) {
         if (!isAdded) return
@@ -250,7 +258,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         }
         Log.d(TAG, "decodeAndShow — decoded ${password.size} character password")
         showStaticPasswordDialog(password)
-        viewModel.postReadStatus(OtpNfcConfig.readCompleteStatus(requireContext()))
+        viewModel.postReadComplete(OtpNfcConfig.readCompleteStatus(requireContext()))
     }
 
     private fun requireWithinMaxLength(length: Int) {
@@ -362,221 +370,13 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             binding.editTextStaticpwdId.requestFocus()
         }
 
-        var currentTabIndex = 1
-        var currentAnimator: ValueAnimator? = null
         viewModel.setMgmtTabActive(false)
-
-        fun updateDots(selectedIndex: Int) {
-            binding.tabEraseIcon.setImageResource(if (selectedIndex == 0) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
-            binding.tabWriteIcon.setImageResource(if (selectedIndex == 1) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
-            binding.tabReadIcon.setImageResource(if (selectedIndex == 2) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
-//            binding.tabMgmtIcon.setImageResource(if (selectedIndex == 3) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
-            binding.tabMgmt.visibility = View.GONE
-        }
-
-        val sections = listOf(binding.sectionErase, binding.sectionWrite, binding.sectionRead, binding.sectionMgmt)
-
-        fun applySectionLayout(effectiveIndex: Float, isAnimating: Boolean = false) {
-            val isWideTablet = resources.configuration.smallestScreenWidthDp >= 600
-            val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-            val isCarouselMode = isWideTablet || isLandscape
-
-            val screenWidth = resources.displayMetrics.widthPixels.toFloat()
-            val density = resources.displayMetrics.density
-            val cardSpacingPx = density * 460f
-            val sectionWidthPx = if (isCarouselMode) (density * 448f).roundToInt() else ViewGroup.LayoutParams.MATCH_PARENT
-
-//            val activeDot = effectiveIndex.roundToInt().coerceIn(0, 3)
-            val activeDot = effectiveIndex.roundToInt().coerceIn(0, 2)
-            updateDots(activeDot)
-
-            val activeSection = sections[activeDot]
-            activeSection.measure(
-                View.MeasureSpec.makeMeasureSpec(binding.tabContentContainer.width, View.MeasureSpec.AT_MOST),
-                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-            )
-            binding.yubiotpScrollView.activeTabHeight = activeSection.measuredHeight
-            activeSection.requestLayout()
-
-            sections.forEachIndexed { i, view ->
-                //TODO remove this
-                if (i == 3) {
-                    view.visibility = View.GONE
-                    return@forEachIndexed
-                }
-                val lp = view.layoutParams
-                if (lp != null && lp.width != sectionWidthPx) {
-                    lp.width = sectionWidthPx
-                    view.layoutParams = lp
-                    view.requestLayout()
-                }
-
-                val dist = i - effectiveIndex
-                val absDist = abs(dist)
-
-                if (isCarouselMode) {
-                    val maxVisibleDist = 1.8f
-                    if (absDist < maxVisibleDist) {
-                        view.visibility = View.VISIBLE
-                        view.translationX = dist * cardSpacingPx
-                        val scale = (0.85f + (1.0f - absDist.toDouble().coerceIn(0.0, 1.0)) * 0.15f).toFloat()
-                        view.scaleX = scale
-                        view.scaleY = scale
-                        view.alpha = (1.0f - (absDist * 0.5f)).coerceIn(0f, 1f)
-                    } else {
-                        view.visibility = View.GONE
-                        view.translationX = 0f
-                        view.scaleX = 1f
-                        view.scaleY = 1f
-                        view.alpha = 1f
-                    }
-                } else {
-                    if (isAnimating) {
-                        if (absDist < 1.0f) {
-                            view.visibility = View.VISIBLE
-                            view.translationX = dist * screenWidth
-                            view.scaleX = 1f
-                            view.scaleY = 1f
-                            view.alpha = (1.0f - absDist).coerceIn(0f, 1f)
-                        } else {
-                            view.visibility = View.GONE
-                            view.translationX = 0f
-                            view.scaleX = 1f
-                            view.scaleY = 1f
-                            view.alpha = 1f
-                        }
-                    } else {
-                        val targetIndex = effectiveIndex.roundToInt().coerceIn(0, 3)
-                        if (i == targetIndex) {
-                            view.visibility = View.VISIBLE
-                            view.translationX = 0f
-                            view.scaleX = 1f
-                            view.scaleY = 1f
-                            view.alpha = 1f
-                        } else {
-                            view.visibility = View.GONE
-                            view.translationX = 0f
-                            view.scaleX = 1f
-                            view.scaleY = 1f
-                            view.alpha = 1f
-                        }
-                    }
-                }
-            }
-        }
-
-//        fun navigateToTab(targetIndex: Int) {
-        fun navigateToTab(targetIndexRaw: Int) {
-            val targetIndex = targetIndexRaw.coerceIn(0, 2)
-            if (targetIndex == currentTabIndex) return
-
-            currentAnimator?.cancel()
-//            viewModel.setMgmtTabActive(targetIndex == 3)
-            viewModel.setMgmtTabActive(false)
-
-            val fromIndex = currentTabIndex
-            val steps = targetIndex - fromIndex
-
-            val totalDuration = if (abs(steps) > 1) 360L else 220L
-
-            val animator = ValueAnimator.ofFloat(0f, steps.toFloat())
-            animator.duration = totalDuration
-            animator.interpolator = AccelerateDecelerateInterpolator()
-
-            animator.addUpdateListener { anim ->
-                val progress = anim.animatedValue as Float
-                val effectiveIndex = fromIndex + progress
-                applySectionLayout(effectiveIndex, isAnimating = true)
-            }
-
-            animator.addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    currentTabIndex = targetIndex
-                    applySectionLayout(targetIndex.toFloat(), isAnimating = false)
-                    if (binding.yubiotpScrollView.scrollY > 0) {
-                        val scrollAnim = ObjectAnimator.ofInt(binding.yubiotpScrollView, "scrollY", binding.yubiotpScrollView.scrollY, 0)
-                        scrollAnim.duration = totalDuration
-                        scrollAnim.interpolator = AccelerateDecelerateInterpolator()
-                        scrollAnim.start()
-                    }
-                    currentAnimator = null
-                }
-            })
-
-            currentAnimator = animator
-            animator.start()
-        }
 
         binding.tabErase.setOnClickListener { navigateToTab(0) }
         binding.tabWrite.setOnClickListener { navigateToTab(1) }
         binding.tabRead.setOnClickListener { navigateToTab(2) }
 //        binding.tabMgmt.setOnClickListener { navigateToTab(3) }
         binding.tabMgmt.setOnClickListener { }
-        var renderingMgmt = false
-
-        fun renderMgmt(state: YubiOtpUiState, isBusy: Boolean? = null) {
-            val busy = isBusy ?: (viewModel.pendingAction.value != null)
-            val nfc = state.nfc
-            val rowVisible = nfc == null || (nfc.applicable && nfc.hasNfc && nfc.otpSupported)
-            val note: Int? = when {
-                nfc == null -> R.string.nfc_static_password_desc
-                !nfc.applicable -> R.string.otp_nfc_reason_unsupported
-                !nfc.hasNfc -> R.string.otp_nfc_reason_no_nfc
-                !nfc.otpSupported -> R.string.otp_nfc_reason_no_otp
-                !nfc.canConfigure -> R.string.otp_nfc_reason_old_firmware
-                nfc.locked -> R.string.otp_nfc_reason_locked
-                nfc.otpOverNfc == OtpNfcState.UNKNOWN -> R.string.otp_nfc_reason_unreadable
-                nfc.otpOverNfc == OtpNfcState.ENABLED -> R.string.otp_nfc_on_note
-                nfc.otpOverNfc == OtpNfcState.DISABLED -> R.string.otp_nfc_off_note
-                else -> R.string.nfc_static_password_desc
-            }
-            val known = if (nfc != null && rowVisible) nfc.otpOverNfc else OtpNfcState.UNKNOWN
-
-            val switchLabel = getString(R.string.otp_nfc_switch_label)
-            val hintConnect = getString(R.string.otp_nfc_hint_connect)
-            if (known == OtpNfcState.UNKNOWN) {
-                startNfcDotAnimation("$switchLabel\n$hintConnect")
-            } else {
-                stopNfcDotAnimation()
-                binding.mgmtDesc.text = switchLabel
-            }
-
-            val switchOn = state.nfcRequested ?: (known == OtpNfcState.ENABLED)
-
-            val elementsEnabled = (known != OtpNfcState.UNKNOWN) && !busy
-
-            renderingMgmt = true
-            binding.mgmtNfcSwitch.isChecked = switchOn
-            renderingMgmt = false
-
-            binding.mgmtNfcSwitch.isEnabled = elementsEnabled
-            binding.mgmtNfcOffLabel.isEnabled = elementsEnabled
-            binding.mgmtNfcOnLabel.isEnabled = elementsEnabled
-
-            val status = when (known) {
-                OtpNfcState.ENABLED -> getString(R.string.otp_nfc_on)
-                OtpNfcState.DISABLED -> getString(R.string.otp_nfc_off)
-                OtpNfcState.UNKNOWN -> getString(R.string.dash)
-            }
-            binding.mgmtStatus.text =
-                if (nfc != null && nfc.viaNfc && known != OtpNfcState.UNKNOWN) {
-                    getString(R.string.otp_nfc_state_last_tap, status)
-                } else {
-                    status
-                }
-
-            if (note != null) {
-                binding.mgmtReason.setText(note)
-            }
-
-            if (currentTabIndex == 3 && currentAnimator?.isRunning != true) {
-                binding.root.post {
-                    if (isAdded) {
-                        applySectionLayout(3f, isAnimating = false)
-                    }
-                }
-            }
-        }
 
         binding.mgmtNfcSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (renderingMgmt) return@setOnCheckedChangeListener
@@ -647,9 +447,8 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
             binding.readRadioSlot2.isEnabled = !usbConnected
         }
 
-        viewModel.clearUiEvent.observe(viewLifecycleOwner) {
-            clearInputFields()
-        }
+        collectEvents(viewModel.clearUi) { clearInputFields() }
+        collectEvents(viewModel.passwordSaved) { binding.editTextStaticpwdId.setText("") }
 
         var isPasswordVisible = false
         val toggleVisibility: (Boolean) -> Unit = { visible ->
@@ -724,26 +523,9 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         binding.extrasCr.hideImeOnClick()
         binding.slotRadio.setOnCheckedStateChangeListener { _, _ -> hideIme() }
 
-        bindAutoClearStatus(
-            viewModel.writeStatus, binding.saveStatus,
-            OtpNfcConfig.slotProgrammedStatus(Slot.ONE), OtpNfcConfig.slotProgrammedStatus(Slot.TWO),
-        ) { viewModel.postWriteStatus(it) }
-        val slot1Programmed = OtpNfcConfig.slotProgrammedStatus(Slot.ONE)
-        val slot2Programmed = OtpNfcConfig.slotProgrammedStatus(Slot.TWO)
-        viewModel.writeStatus.observe(viewLifecycleOwner) { message ->
-            if (message == slot1Programmed || message == slot2Programmed) {
-                binding.editTextStaticpwdId.setText("")
-            }
-        }
-
-        bindAutoClearStatus(
-            viewModel.readStatus, binding.readStatus, OtpNfcConfig.readCompleteStatus(requireContext()),
-        ) { viewModel.postReadStatus(it) }
-
-        bindAutoClearStatus(
-            viewModel.resetStatus, binding.deleteStatus,
-            OtpNfcConfig.slotResetStatus(Slot.ONE), OtpNfcConfig.slotResetStatus(Slot.TWO),
-        ) { viewModel.postResetStatus(it) }
+        bindStatus(viewModel.writeStatus, binding.saveStatus)
+        bindStatus(viewModel.readStatus, binding.readStatus)
+        bindStatus(viewModel.resetStatus, binding.deleteStatus)
 
         binding.btnSaveStaticpwd.setOnClickListener {
             hideIme()
@@ -784,7 +566,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                             Log.i(TAG, "pendingAction — programming slot $slot")
                             putConfiguration(slot, configuration, null, null)
                             Log.i(TAG, "pendingAction — slot $slot programmed")
-                            viewModel.postWriteStatus(OtpNfcConfig.slotProgrammedStatus(slot))
+                            viewModel.onSlotProgrammed(slot)
                             null
                         }
                     }
@@ -840,6 +622,206 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         binding.progressSave.visibility = if (busy && op == OtpOperation.SAVE) View.VISIBLE else View.GONE
         binding.progressRead.visibility = if (busy && op == OtpOperation.READ) View.VISIBLE else View.GONE
         binding.progressWipe.visibility = if (busy && op == OtpOperation.RESET) View.VISIBLE else View.GONE
+    }
+
+    private fun applySectionLayout(effectiveIndex: Float, isAnimating: Boolean = false) {
+        val isWideTablet = resources.configuration.smallestScreenWidthDp >= 600
+        val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val isCarouselMode = isWideTablet || isLandscape
+
+        val screenWidth = resources.displayMetrics.widthPixels.toFloat()
+        val density = resources.displayMetrics.density
+        val cardSpacingPx = density * 460f
+        val sectionWidthPx = if (isCarouselMode) (density * 448f).roundToInt() else ViewGroup.LayoutParams.MATCH_PARENT
+//            val activeDot = effectiveIndex.roundToInt().coerceIn(0, 3)
+        val activeDot = effectiveIndex.roundToInt().coerceIn(0, 2)
+        updateDots(activeDot)
+
+        val activeSection = sections[activeDot]
+        activeSection.measure(
+            View.MeasureSpec.makeMeasureSpec(binding.tabContentContainer.width, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        binding.yubiotpScrollView.activeTabHeight = activeSection.measuredHeight
+        activeSection.requestLayout()
+
+        sections.forEachIndexed { i, view ->
+            //TODO remove this
+            if (i == 3) {
+                view.visibility = View.GONE
+                return@forEachIndexed
+            }
+            val lp = view.layoutParams
+            if (lp != null && lp.width != sectionWidthPx) {
+                lp.width = sectionWidthPx
+                view.layoutParams = lp
+                view.requestLayout()
+            }
+
+            val dist = i - effectiveIndex
+            val absDist = abs(dist)
+
+            if (isCarouselMode) {
+                val maxVisibleDist = 1.8f
+                if (absDist < maxVisibleDist) {
+                    view.visibility = View.VISIBLE
+                    view.translationX = dist * cardSpacingPx
+                    val scale = (0.85f + (1.0f - absDist.toDouble().coerceIn(0.0, 1.0)) * 0.15f).toFloat()
+                    view.scaleX = scale
+                    view.scaleY = scale
+                    view.alpha = (1.0f - (absDist * 0.5f)).coerceIn(0f, 1f)
+                } else {
+                    view.visibility = View.GONE
+                    view.translationX = 0f
+                    view.scaleX = 1f
+                    view.scaleY = 1f
+                    view.alpha = 1f
+                }
+            } else {
+                if (isAnimating) {
+                    if (absDist < 1.0f) {
+                        view.visibility = View.VISIBLE
+                        view.translationX = dist * screenWidth
+                        view.scaleX = 1f
+                        view.scaleY = 1f
+                        view.alpha = (1.0f - absDist).coerceIn(0f, 1f)
+                    } else {
+                        view.visibility = View.GONE
+                        view.translationX = 0f
+                        view.scaleX = 1f
+                        view.scaleY = 1f
+                        view.alpha = 1f
+                    }
+                } else {
+                    val targetIndex = effectiveIndex.roundToInt().coerceIn(0, 3)
+                    if (i == targetIndex) {
+                        view.visibility = View.VISIBLE
+                        view.translationX = 0f
+                        view.scaleX = 1f
+                        view.scaleY = 1f
+                        view.alpha = 1f
+                    } else {
+                        view.visibility = View.GONE
+                        view.translationX = 0f
+                        view.scaleX = 1f
+                        view.scaleY = 1f
+                        view.alpha = 1f
+                    }
+                }
+            }
+        }
+    }
+
+    private fun navigateToTab(targetIndexRaw: Int) {
+        val targetIndex = targetIndexRaw.coerceIn(0, 2)
+        if (targetIndex == currentTabIndex) return
+
+        currentAnimator?.cancel()
+        viewModel.setMgmtTabActive(false)
+
+        val fromIndex = currentTabIndex
+        val steps = targetIndex - fromIndex
+
+        val totalDuration = if (abs(steps) > 1) 360L else 220L
+
+        val animator = ValueAnimator.ofFloat(0f, steps.toFloat())
+        animator.duration = totalDuration
+        animator.interpolator = AccelerateDecelerateInterpolator()
+
+        animator.addUpdateListener { anim ->
+            val progress = anim.animatedValue as Float
+            val effectiveIndex = fromIndex + progress
+            applySectionLayout(effectiveIndex, isAnimating = true)
+        }
+
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                currentTabIndex = targetIndex
+                applySectionLayout(targetIndex.toFloat(), isAnimating = false)
+                if (binding.yubiotpScrollView.scrollY > 0) {
+                    val scrollAnim = ObjectAnimator.ofInt(binding.yubiotpScrollView, "scrollY", binding.yubiotpScrollView.scrollY, 0)
+                    scrollAnim.duration = totalDuration
+                    scrollAnim.interpolator = AccelerateDecelerateInterpolator()
+                    scrollAnim.start()
+                }
+                currentAnimator = null
+            }
+        })
+
+        currentAnimator = animator
+        animator.start()
+    }
+
+    private fun renderMgmt(state: YubiOtpUiState, isBusy: Boolean? = null) {
+        val busy = isBusy ?: (viewModel.pendingAction.value != null)
+        val nfc = state.nfc
+        val rowVisible = nfc == null || (nfc.applicable && nfc.hasNfc && nfc.otpSupported)
+        val note: Int? = when {
+            nfc == null -> R.string.nfc_static_password_desc
+            !nfc.applicable -> R.string.otp_nfc_reason_unsupported
+            !nfc.hasNfc -> R.string.otp_nfc_reason_no_nfc
+            !nfc.otpSupported -> R.string.otp_nfc_reason_no_otp
+            !nfc.canConfigure -> R.string.otp_nfc_reason_old_firmware
+            nfc.locked -> R.string.otp_nfc_reason_locked
+            nfc.otpOverNfc == OtpNfcState.UNKNOWN -> R.string.otp_nfc_reason_unreadable
+            nfc.otpOverNfc == OtpNfcState.ENABLED -> R.string.otp_nfc_on_note
+            nfc.otpOverNfc == OtpNfcState.DISABLED -> R.string.otp_nfc_off_note
+            else -> R.string.nfc_static_password_desc
+        }
+        val known = if (nfc != null && rowVisible) nfc.otpOverNfc else OtpNfcState.UNKNOWN
+
+        val switchLabel = getString(R.string.otp_nfc_switch_label)
+        val hintConnect = getString(R.string.otp_nfc_hint_connect)
+        if (known == OtpNfcState.UNKNOWN) {
+            startNfcDotAnimation("$switchLabel\n$hintConnect")
+        } else {
+            stopNfcDotAnimation()
+            binding.mgmtDesc.text = switchLabel
+        }
+
+        val switchOn = state.nfcRequested ?: (known == OtpNfcState.ENABLED)
+
+        val elementsEnabled = (known != OtpNfcState.UNKNOWN) && !busy
+
+        renderingMgmt = true
+        binding.mgmtNfcSwitch.isChecked = switchOn
+        renderingMgmt = false
+
+        binding.mgmtNfcSwitch.isEnabled = elementsEnabled
+        binding.mgmtNfcOffLabel.isEnabled = elementsEnabled
+        binding.mgmtNfcOnLabel.isEnabled = elementsEnabled
+
+        val status = when (known) {
+            OtpNfcState.ENABLED -> getString(R.string.otp_nfc_on)
+            OtpNfcState.DISABLED -> getString(R.string.otp_nfc_off)
+            OtpNfcState.UNKNOWN -> getString(R.string.dash)
+        }
+        binding.mgmtStatus.text =
+            if (nfc != null && nfc.viaNfc && known != OtpNfcState.UNKNOWN) {
+                getString(R.string.otp_nfc_state_last_tap, status)
+            } else {
+                status
+            }
+
+        if (note != null) {
+            binding.mgmtReason.setText(note)
+        }
+
+        if (currentTabIndex == 3 && currentAnimator?.isRunning != true) {
+            binding.root.post {
+                if (isAdded) {
+                    applySectionLayout(3f, isAnimating = false)
+                }
+            }
+        }
+    }
+
+    private fun updateDots(selectedIndex: Int) {
+        binding.tabEraseIcon.setImageResource(if (selectedIndex == 0) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+        binding.tabWriteIcon.setImageResource(if (selectedIndex == 1) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+        binding.tabReadIcon.setImageResource(if (selectedIndex == 2) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+//        binding.tabMgmtIcon.setImageResource(if (selectedIndex == 3) R.drawable.ic_tab_dot_filled else R.drawable.ic_tab_dot_outline)
+        binding.tabMgmt.visibility = View.GONE
     }
 
     private fun updateButtonStates(isBusy: Boolean? = null) {
@@ -907,7 +889,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                         } else {
                             Log.i(TAG, "pendingAction — slot $slot already not programmed, nothing to delete")
                         }
-                        viewModel.postResetStatus(OtpNfcConfig.slotResetStatus(slot))
+                        viewModel.onSlotReset(slot)
                         null
                     }
                 }

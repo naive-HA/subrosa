@@ -33,15 +33,10 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputLayout
 import acab.naiveha.subrosa.R
 import kotlin.coroutines.resume
-import kotlin.time.Duration.Companion.milliseconds
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 @UiThread
@@ -181,18 +176,13 @@ suspend fun collectPin(
     }
 }
 
-fun Fragment.bindAutoClearStatus(
+fun Fragment.bindStatus(
     status: LiveData<String>,
     target: TextView,
-    vararg completeStatuses: String,
     hideWhenBlank: Boolean = false,
     shouldHide: (String) -> Boolean = { false },
-    post: (String) -> Unit,
 ) {
-    var clearJob: Job? = null
     status.observe(viewLifecycleOwner) { message ->
-        clearJob?.cancel()
-
         if (shouldHide(message)) {
             target.visibility = View.GONE
             return@observe
@@ -200,13 +190,6 @@ fun Fragment.bindAutoClearStatus(
 
         target.text = message
         target.visibility = if (hideWhenBlank && message.isBlank()) View.GONE else View.VISIBLE
-
-        if (message in completeStatuses) {
-            clearJob = lifecycleScope.launch {
-                delay(2000.milliseconds)
-                post("")
-            }
-        }
     }
 }
 
