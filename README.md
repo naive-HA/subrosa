@@ -1,73 +1,61 @@
-[<img src="https://github.com/naive-HA/subrosa/blob/master/fastlane/metadata/android/en-US/images/google%20play.png" height="80" alt="Get it on Google Play">](https://play.google.com/store/apps/details?id=acab.naiveha.subrosa.by.naiveha)
+[<img src="https://github.com/naive-HA/subrosa/blob/5b52a30379018de157c11cfa727fc1cd70ef82ef/fastlane/metadata/android/en-US/images/google%20play.png" height="80" alt="Get it on Google Play">](https://play.google.com/store/apps/details?id=acab.naiveha.subrosa.by.naiveha)
 [<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png" height="80" alt="Get it at IzzyOnDroid">](https://apt.izzysoft.de/packages/acab.naiveha.subrosa)
 
 # sub rosa by naiveHA
 
-"What does this app do?" Well, actually, the first question to ask is "why?" Why is there a need for this app? The answer is "passwords."
+Turn your Android phone into an on-the-go security command center for your hardware keys. Type ultra-secure 
+passwords on any computer without touching the keyboard. Program OpenPGP identities on the fly. 
+Wipe secrets instantly.
 
-We all have a "password problem." The IT industry has been trying to solve the "password problem" for a long time.
-Passwords are the weakest link in a digital security model.
+Picture this: you are sitting at a bustling coffee shop, library, or airport gate with surveillance 
+cameras overhead and people nearby. You need to log into a 32-character master password, 
+your BitLocker/LUKS encrypted drive, a work laptop, or a remote server. Typing it out invites shoulder surfers, 
+camera recording, and hardware keyloggers. Leaving that password permanently stored on your 
+physical security key means losing your keychain compromises your account.
 
-Life is complicated enough without overloading your mind trying to remember long, complex passwords.
-On top of that, good security hygiene requires changing passwords frequently. Add to that your personal email, social media, banking accounts, etc. 
-You should use unique passwords for each account so that when (not if) one account is compromised, the attacker does not gain access to all your accounts. You get the point.
+**With *sub rosa*, you get the best of both worlds:** tap your NFC security key (or plug via USB) to 
+your Android phone to load the password or OpenPGP key you need *right now*. Plug the key into *any* PC, 
+Mac, server, or kiosk. Touch the gold contact. The hardware key acts as a standard USB keyboard (HID) 
+and types your long, complex password in milliseconds. Done with your session? Tap the key to your phone 
+again to erase it. If you lose your physical key on the train, it holds **zero data**.
 
-How many complex passwords (between 8 and 16 characters, including special characters like `~!@#$%^&*(){}:"<>?/.,';][=-`) can you memorize?
-One solution is to use a password manager app (like KeePassDroid) on your phone.
-But what if you use a work laptop, personal computer, tablet, or a second phone?
-And the passwords still need to be changed periodically for security...
-How do you stay safe online and still log into your accounts on other devices when your passwords are stored on your mobile phone?
-How do you type your passwords while enjoying coffee at your local cafe without worrying about surveillance cameras or shoulder surfers?
+**International Keyboard Layouts Supported**  
+  * **US**: space, `\n`, `\t` and `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'`()*+-=,./:;<>?@\\][^_{}|~`  
+  * **UK**: space, `\n`, `\t` and `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@£$%&'`()*+-=,./:;<>?"#][^_{}~¬`  
+  * **DE**: space, `\n`, `\t` and `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+-=,./:;<>?^_`§´ÄÖÜßäöü`  
+  * **FR**: space, `\n`, `\t` and `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"$%&'()*+-=,./:;<_£§°²µàçèéù`  
+  * **IT**: space, `\n`, `\t` and `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-./:;<=>?@\^_`|£§°çèéàìòù`  
+  * **MODHEX**: `bcdefghijklnrtuvBCDEFGHIJKLNRTUV`
 
-Introducing **sub rosa**. Effortlessly simple.
+Picture this: you need to handle high-stakes digital tasks on the move. In the morning, you must sign a 
+legally binding contract or authenticate an emergency SSH session into a remote production server. In the 
+afternoon, you need to decrypt a confidential, business-critical document received from a business partner. 
+Later, as an investigative journalist, activist, or privacy advocate, you need to encrypt a sensitive 
+whistleblower document before transmitting it to a news organization.
 
-*sub rosa* allows you to program a static password onto a hardware security key, which can act as a keyboard when touched. 
-Plug it into your phone, tablet, or laptop, touch it, and it automatically types out a sequence of characters.
+Keeping these distinct digital identities and private keys permanently stored on a single 
+physical key on your keychain is a disaster waiting to happen. If you lose that key on a train or it gets 
+searched at a border crossing, all your compartmentalized personas are exposed. Carrying half a dozen separate, 
+expensive hardware tokens everywhere is clunky and impractical.
 
-Simple: no need to memorize multiple complex passwords. No need to carry multiple devices either — you can program a hardware security key with a password, 
-use it, and then program it with a different password whenever needed. Nowadays, hardware security keys come in various form factors: 
-from models small enough to remain in your phone's USB-C port to larger, NFC-enabled keys.
+**With *sub rosa*, your hardware key becomes a disposable, on-demand cryptographic badge:** manage your 
+OpenPGP identities safely in apps like OpenKeychain or PGPony on your phone. When a specific task arises, tap your YubiKey, Nitrokey, or Librem Key via NFC 
+or USB to flash the exact Signing, Decryption, or Authentication subkeys (RSA, Ed25519, X25519) you need for 
+that single moment. Sign the document, decrypt the partner’s message, or encrypt the whistleblower report. 
+Once you're done, wipe the hardware key clean with another tap. If anyone picks up your security key later, 
+it holds **zero data**. One physical key, infinite ephemeral identities.
 
-*sub rosa* supports various keyboard layouts capable of typing the following character sets:
+**On-the-Go OpenPGP Management** Program OpenPGP keys (RSA, NIST P-curves, Brainpool, Ed25519, X25519) 
+onto YubiKey, Nitrokey 3, Nitrokey Pro 2, Nitrokey Storage 2, and Librem Key directly from Android. 
+Sign electronic documents, decrypt messages, or authenticate via SSH anywhere.
 
-* **US**: space, `\n`, `\t` and `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'`()*+-=,./:;<>?@\\][^_{}|~`
+**Field PIN Management & Firmware Updates** Change or unblock User and Admin PINs on the fly, and 
+update LPC55-based Nitrokey 3 firmware directly from your phone.
 
-* **UK**: space, `\n`, `\t` and `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@£$%&'`()*+-=,./:;<>?"#][^_{}~¬`
+**Air-Gapped & Ephemeral by Design** Compartmentalize your digital personas. Program a key, sign a 
+document or authenticate via SSH, and wipe the key clean when finished.
 
-* **DE**: space, `\n`, `\t` and `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+-=,./:;<>?^_`§´ÄÖÜßäöü`
-
-* **FR**: space, `\n`, `\t` and `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"$%&'()*+-=,./:;<_£§°²µàçèéù`
-
-* **IT**: space, `\n`, `\t` and `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!"#$%&'()*+,-./:;<=>?@\^_`|£§°çèéàìòù`
-
-* **MODHEX**: `bcdefghijklnrtuvBCDEFGHIJKLNRTUV`
-
-Hardware security keys solve one part of the "password problem": you no longer need to memorize passwords, 
-and you can log into your accounts across multiple devices while the password stays safe on your phone (protected by a PIN, passphrase, or fingerprint).
-
-However, if you lose your hardware security key, anyone who finds it could touch it and output your password. 
-Not much security if anyone can plug in your device and read your last programmed password.
-
-No worries, *sub rosa* helps with this too: once you finish typing your complex password with your hardware security key, 
-you can de-program (wipe) the device. If you lose the key later, your security remains uncompromised. Simple.
-
-Hardware security keys (like, YubiKey, Nitrokey or Librem Key) can do much more than act as USB keyboards.
-*sub rosa* can program an OpenPGP key onto your hardware key, allowing you to encrypt, decrypt, cryptographically sign documents, 
-or authenticate to remote servers via SSH.
-An OpenPGP key acts as your digital identity.
-
-Digital signatures are officially recognized in many countries and are legally binding.
-However, any digital system can potentially be compromised. It is not a question of *if*, but *when*.
-Just like with passwords, you should keep your digital personas compartmentalized.
-
-*sub rosa* comes to the rescue again: you can program an OpenPGP key onto your hardware security key, sign an electronic document, 
-and then program a different OpenPGP key to decrypt a confidential message from a business partner or encrypt a whistleblower report sent to a news organization. 
-Once finished, you can simply erase everything from the hardware security key so that losing the physical device never compromises your digital identity.
-
-Just like KeePassDroid managing passwords, OpenKeychain or PGPony manage OpenPGP keys.
-You can easily import OpenPGP keys generated or stored by these apps in *sub rosa* and then program them onto your hardware security key. 
-
-*sub rosa* has its roots in the YubiKit library provided by Yubico
+*sub rosa* has its roots in the YubiKit library provided by Yubico.
 
 # How does *sub rosa* support various hardware security keys?
 
