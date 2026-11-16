@@ -98,7 +98,7 @@ class FirmwareFlashService : Service() {
         val image = request.image
         return try {
             install(applicationContext, request.device, image)
-            FlashState.Succeeded(image.displayVersion ?: image.fileName)
+            FlashState.Succeeded(image.displayVersion ?: image.fileName, verify(image))
         } catch (e: CancellationException) {
             throw e
         } catch (e: FlashException) {
@@ -125,6 +125,26 @@ class FirmwareFlashService : Service() {
         }
     }
 
+    private suspend fun verify(image: FirmwareImage): FirmwareVerification {
+        val expected = image.version
+        onProgress(FlashProgress(FlashPhase.VERIFYING))
+        val verification = try {
+            withContext(Dispatchers.IO) {
+                FirmwareVerifier(
+                    UsbApplicationModeProbe(applicationContext),
+                    log = { line -> Log.d(UPDATER_TAG, "verify: $line") },
+                ).verify(expected)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(UPDATER_TAG, "Unexpected error while checking the new firmware", e)
+            FirmwareVerification.unreachable(expected, "unexpected error: ${e.javaClass.simpleName}: ${e.message}")
+        }
+        Log.i(UPDATER_TAG, verification.summary())
+        return verification
+    }
+
     private fun onProgress(progress: FlashProgress) {
         FlashSession.publishProgress(progress)
         updateNotification(progress)
@@ -133,7 +153,7 @@ class FirmwareFlashService : Service() {
     private fun stoppedUnexpectedly(request: FlashRequest): FlashState.Failed {
         val last = FlashSession.lastProgress()
         val stage = when (last?.phase) {
-            FlashPhase.RESTARTING -> FlashStage.RESET
+            FlashPhase.RESTARTING, FlashPhase.VERIFYING -> FlashStage.RESET
             FlashPhase.SENDING -> FlashStage.TRANSFER
             else -> FlashStage.CONNECT
         }
@@ -225,6 +245,7 @@ class FirmwareFlashService : Service() {
             FlashPhase.CONNECTING -> getString(R.string.nitrokey3updater_status_connecting)
             FlashPhase.SENDING -> getString(R.string.nitrokey3updater_status_installing, progress.percent.coerceAtLeast(0))
             FlashPhase.RESTARTING -> getString(R.string.nitrokey3updater_status_restarting)
+            FlashPhase.VERIFYING -> getString(R.string.nitrokey3updater_status_verifying)
         }
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_firmware_update)

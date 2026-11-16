@@ -31,6 +31,9 @@ internal class FirmwareImage(
 ) {
     val displayVersion: String?
         get() = releaseVersion ?: sb2Header?.productVersion?.let { "v$it" }
+
+    val version: FirmwareVersion?
+        get() = FirmwareVersion.parse(displayVersion) ?: FirmwareVersion.parse(sb2Header?.productVersion)
 }
 
 internal object FirmwareArchive {

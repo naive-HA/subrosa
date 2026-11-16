@@ -18,7 +18,6 @@ package acab.naiveha.subrosa.ui
 
 import android.os.Handler
 import android.os.Looper
-import androidx.annotation.StringRes
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -37,14 +36,38 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
     val results: Flow<Result<String?>> = resultEvents.flow
 
     private val queued = AtomicReference<(Session.() -> String?)?>()
+    private val queuedSecrets = AtomicReference<QueuedSecrets?>()
     private val _pendingAction = MutableLiveData<(Session.() -> String?)?>()
     val pendingAction: LiveData<(Session.() -> String?)?> = _pendingAction
 
     private val pendingHandler = Handler(Looper.getMainLooper())
 
     fun setPendingAction(action: Session.() -> String?) {
+        dropQueuedSecrets()
+        publishPendingAction(action)
+    }
+
+    fun queueWithSecrets(secrets: QueuedSecrets, action: Session.() -> String?) {
+        val previous = queuedSecrets.getAndSet(secrets)
+        if (previous !== secrets) previous?.cancel()
+        val task: Session.() -> String? = {
+            val session = this
+            try {
+                secrets.runOnce { action(session) }
+            } finally {
+                queuedSecrets.compareAndSet(secrets, null)
+            }
+        }
+        publishPendingAction(task)
+    }
+
+    private fun publishPendingAction(action: Session.() -> String?) {
         queued.set(action)
         _pendingAction.value = action
+    }
+
+    private fun dropQueuedSecrets() {
+        queuedSecrets.getAndSet(null)?.cancel()
     }
 
     val hasQueuedAction: Boolean
@@ -68,6 +91,7 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
             logger.error("onYubiKeyDevice — getSession failed: ${it.message}", it)
             val isDisconnect = device is UsbYubiKeyDevice && !device.hasPermission()
             val dropped = queued.getAndSet(null)
+            if (dropped != null) dropQueuedSecrets()
             if (dropped != null || !isDisconnect) {
                 postResult(Result.failure(it))
             }
@@ -112,15 +136,17 @@ abstract class YubiKeyViewModel<Session : Closeable> : ViewModel() {
     fun cancelPendingAction() {
         queued.set(null)
         _pendingAction.value = null
+        dropQueuedSecrets()
         onPendingActionDropped()
+    }
+
+    override fun onCleared() {
+        dropQueuedSecrets()
     }
 
     protected open fun onPendingActionDropped() {}
 
     protected open fun onPendingActionFailed(error: Throwable) {}
-
-    @StringRes
-    open fun pendingPromptHint(): Int? = null
 
     open fun onDeviceDisconnected() {}
 

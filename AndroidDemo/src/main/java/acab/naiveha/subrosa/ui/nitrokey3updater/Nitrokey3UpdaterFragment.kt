@@ -66,6 +66,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
             0xa0.toByte(), 0x00, 0x00, 0x08, 0x47, 0x00, 0x00, 0x00, 0x01
         )
         private const val INS_ADMIN_REBOOT_TO_BOOTLOADER: Byte = 0x51.toByte()
+        private const val REBOOT_WAIT_MS = 30_000L
 
         // Known VIDs
         private const val VID_NITROKEY = Nk3UsbIds.VID_NITROKEY
@@ -91,6 +92,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
     private var lastAnnouncedInvalidImage: String? = null
     private var lastAnnouncedFailedCheckReport: String? = null
     private var defaultButtonTint: ColorStateList? = null
+    private var shownFlash: FlashState = FlashState.Idle
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -236,9 +238,11 @@ class Nitrokey3UpdaterFragment : Fragment() {
     override fun onDestroyView() {
         if (!updaterViewModel.isBusy && isRemoving) {
             updaterViewModel.onArchiveCleared()
+            updaterViewModel.onScreenLeft()
             Log.d(TAG, "Nitrokey3UpdaterFragment popped — flushing firmware archive from memory")
         }
         mainHandler.removeCallbacksAndMessages(null)
+        shownFlash = FlashState.Idle
         try {
             requireContext().unregisterReceiver(usbReceiver)
         } catch (e: Exception) {
@@ -452,14 +456,36 @@ class Nitrokey3UpdaterFragment : Fragment() {
 
     private fun confirmFlash() {
         if (updaterViewModel.isBusy) return
-        if (updaterViewModel.input.value?.flashableImage == null) return
+        val input = updaterViewModel.input.value ?: return
+        if (!input.canFlash) return
+        val bootloader = input.bootloader ?: return
+        if (input.needsIdentityConfirmation) {
+            showConfirmationDialog(
+                tag = TAG,
+                logLabel = "Bootloader identity",
+                title = R.string.nitrokey3updater_identity_title,
+                message = getString(
+                    R.string.nitrokey3updater_identity_message,
+                    Nk3UsbIds.describe(bootloader.vendorId, bootloader.productId),
+                ),
+                confirmText = R.string.nitrokey3updater_identity_confirm,
+                onConfirmed = { confirmFlashStart(identityConfirmed = true) },
+            )
+        } else {
+            confirmFlashStart(identityConfirmed = false)
+        }
+    }
+
+    private fun confirmFlashStart(identityConfirmed: Boolean) {
+        if (updaterViewModel.isBusy) return
+        if (updaterViewModel.input.value?.canFlash != true) return
         showConfirmationDialog(
             tag = TAG,
             logLabel = "Firmware update",
             title = R.string.nitrokey3updater_flash_title,
             message = getString(R.string.nitrokey3updater_flash_message),
             confirmText = R.string.nitrokey3updater_flash_confirm,
-            onConfirmed = { updaterViewModel.startFlash(requireContext()) },
+            onConfirmed = { updaterViewModel.startFlash(requireContext(), identityConfirmed) },
         )
     }
 
@@ -520,14 +546,14 @@ class Nitrokey3UpdaterFragment : Fragment() {
             if (isInBootloaderMode) {
                 b.btnWrite.isEnabled = !busy && !isToggling
             } else {
-                val hasSupportedDevice = input.bootloader != null || isNitrokeyAppConnected()
+                val hasSupportedDevice = !input.hasBootloaderConflict && (input.bootloader != null || isNitrokeyAppConnected())
                 val integrityChecked = b.integrityCheckbox.isChecked
                 b.btnWrite.isEnabled = !busy && !isToggling && hasSupportedDevice && integrityChecked
             }
         } else {
             b.btnBootloaderCancel.isEnabled = !busy && !isToggling
             if (testSucceeded) {
-                b.btnWrite.isEnabled = !busy && input.flashableImage != null
+                b.btnWrite.isEnabled = !busy && input.canFlash
             } else {
                 b.btnWrite.isEnabled = !busy && !input.replugRequired
             }
@@ -537,12 +563,17 @@ class Nitrokey3UpdaterFragment : Fragment() {
 
         b.progressWrite.visibility = if (busy || isToggling) View.VISIBLE else View.GONE
 
-        statusText(input, flash, checkState)?.let { msg ->
+        val message = statusText(input, flash, checkState)
+        if (message != null) {
             val testSucceeded = isInBootloaderMode && checkState is CheckState.Finished && checkState.report.worst != CheckLevel.FAIL
             val isSuccess = flash is FlashState.Succeeded || testSucceeded || isInBootloaderMode
-            val mustStay = flash is FlashState.Failed || input.replugRequired
-            updateWriteStatus(msg, autoClear = isSuccess && !mustStay)
+            val mustStay = flash !is FlashState.Idle || input.replugRequired ||
+                input.hasBootloaderConflict || input.flashBlock != null
+            updateWriteStatus(message, autoClear = isSuccess && !mustStay)
+        } else if (flash is FlashState.Idle && shownFlash !is FlashState.Idle) {
+            updateWriteStatus("")
         }
+        shownFlash = flash
     }
 
     private var writeStatusClearJob: Job? = null
@@ -572,11 +603,42 @@ class Nitrokey3UpdaterFragment : Fragment() {
         failed.message,
     )
 
+    private fun successText(done: FlashState.Succeeded): String {
+        val verification = done.verification
+        return when (verification.outcome) {
+            VerifyOutcome.VERIFIED -> getString(R.string.nitrokey3updater_status_verified, done.label)
+            VerifyOutcome.MISMATCH -> getString(
+                R.string.nitrokey3updater_status_mismatch,
+                done.label,
+                verification.reported?.let { "v$it" } ?: getString(R.string.dash),
+            )
+            VerifyOutcome.UNREACHABLE -> getString(R.string.nitrokey3updater_status_unverified, done.label)
+        }
+    }
+
+    private fun blockText(block: FlashBlock): String = when (block) {
+        is FlashBlock.ImageUnverified -> getString(R.string.nitrokey3updater_block_unverified, block.fileName)
+        is FlashBlock.NotEnoughSpace -> getString(
+            R.string.nitrokey3updater_block_space,
+            block.freeBlocks,
+            "v${block.installed}",
+            "v${block.target}",
+            block.neededBlocks,
+        )
+    }
+
+    private fun withBlock(text: String, block: FlashBlock?): String =
+        if (block == null) text else text + "\n" + blockText(block)
+
     private fun statusText(input: UpdaterInput, flash: FlashState, checkState: CheckState): String? {
         if (isToggling) return null
+        if (input.hasBootloaderConflict && flash is FlashState.Idle && checkState !is CheckState.Running) {
+            return getString(R.string.nitrokey3updater_status_multiple_bootloaders, input.bootloaderConflict.size)
+        }
         if (input.bootloader == null && flash is FlashState.Idle && checkState is CheckState.Idle) return null
+        val block = input.flashBlock
         if (isInBootloaderMode && checkState is CheckState.Idle && flash is FlashState.Idle) {
-            return "Device ready for testing"
+            return withBlock("Device ready for testing", block)
         }
         when (flash) {
             is FlashState.Running -> return when (flash.progress.phase) {
@@ -586,15 +648,9 @@ class Nitrokey3UpdaterFragment : Fragment() {
                     flash.progress.percent.coerceAtLeast(0)
                 )
                 FlashPhase.RESTARTING -> getString(R.string.nitrokey3updater_status_restarting)
+                FlashPhase.VERIFYING -> getString(R.string.nitrokey3updater_status_verifying)
             }
-            is FlashState.Succeeded -> return getString(
-                if (isInBootloaderMode) {
-                    R.string.nitrokey3updater_status_done
-                } else {
-                    R.string.nitrokey3updater_status_done_app_mode
-                },
-                flash.label
-            )
+            is FlashState.Succeeded -> return successText(flash)
             is FlashState.Failed -> return failureText(flash)
             is FlashState.Idle -> Unit
         }
@@ -616,7 +672,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
 
         if (checkState is CheckState.Finished) {
             if (checkState.report.worst != CheckLevel.FAIL && flashable != null) {
-                return getString(R.string.nitrokey3updater_tests_completed)
+                return withBlock(getString(R.string.nitrokey3updater_tests_completed), block)
             }
             val summary = getString(
                 if (checkState.report.hasProblems) {
@@ -637,6 +693,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
             bootloader == null -> null
             bootloader.variant == null -> getString(R.string.nitrokey3updater_status_not_nitrokey_bootloader)
             input.archive == null -> getString(R.string.nitrokey3updater_status_import_first)
+            flashable != null && block != null -> blockText(block)
             flashable != null -> getString(
                 R.string.nitrokey3updater_status_ready,
                 flashable.displayVersion ?: flashable.fileName
@@ -655,6 +712,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
         }
 
         updaterViewModel.clearResult()
+        updaterViewModel.onRebootRequested()
         setLoading(true)
         updateWriteStatus("Please touch your Nitrokey 3 to confirm reboot…")
 
@@ -723,7 +781,9 @@ class Nitrokey3UpdaterFragment : Fragment() {
                 if (success) {
                     updateWriteStatus("Device rebooting… Waiting for bootloader mode")
                     mainHandler.postDelayed({ checkConnectedUsbDevice() }, 1500)
+                    mainHandler.postDelayed({ updaterViewModel.onRebootFailed() }, REBOOT_WAIT_MS)
                 } else {
+                    updaterViewModel.onRebootFailed()
                     setLoading(false)
                     val err = errorMsg ?: "Failed to reboot device"
                     Log.e(TAG, "rebootToBootloader failed: $err")
@@ -732,6 +792,12 @@ class Nitrokey3UpdaterFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun describe(status: StatusRead): String = when (status) {
+        is StatusRead.Value -> "readable"
+        StatusRead.NotSupported -> "the firmware does not know the status command"
+        is StatusRead.Failed -> status.reason
     }
 
     private fun getSw(resp: ByteArray): Int {
@@ -766,19 +832,19 @@ class Nitrokey3UpdaterFragment : Fragment() {
         val devices = usbManager.deviceList.values
         val hadToReplug = updaterViewModel.input.value?.replugRequired == true
 
-        var foundBootloader: UsbDevice? = null
-        var foundAppDevice: UsbDevice? = null
+        val scan = BootloaderIdentity.scan(devices.map { UsbDeviceInfo(it.deviceName, it.vendorId, it.productId) })
+        if (scan is BootloaderScan.Multiple) {
+            showBootloaderConflict(scan.devices)
+            render()
+            return
+        }
 
-        for (device in devices) {
-            val vid = device.vendorId
-            val pid = device.productId
-
-            if (isBootloaderDevice(vid, pid)) {
-                foundBootloader = device
-                break
-            } else if (vid == VID_NITROKEY && pid == PID_NK3_APP) {
-                foundAppDevice = device
-            }
+        val foundBootloader: UsbDevice? = (scan as? BootloaderScan.Single)
+            ?.let { single -> devices.firstOrNull { it.deviceName == single.device.name } }
+        val foundAppDevice: UsbDevice? = if (foundBootloader == null) {
+            devices.lastOrNull { it.vendorId == VID_NITROKEY && it.productId == PID_NK3_APP }
+        } else {
+            null
         }
 
         if (foundBootloader != null) {
@@ -805,7 +871,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
             val wasInBootloader = isInBootloaderMode
             isInBootloaderMode = false
             setLoading(false)
-            updaterViewModel.reset()
+            updaterViewModel.onDeviceChanged()
 
             val vid = foundAppDevice.vendorId
             val pid = foundAppDevice.productId
@@ -813,7 +879,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
             val pidHex = "0x%04X".format(pid)
 
             Log.d(TAG, "checkConnectedUsbDevice(): Application mode active (VID: $vidHex, PID: $pidHex, wasInBootloader=$wasInBootloader)")
-            updateDeviceInfo(foundAppDevice, isBootloader = false, hwType = null)
+            updateDeviceInfo(foundAppDevice, isBootloader = false, hwType = null, capturePreflight = true)
             binding.btnWrite.text = getString(R.string.nitrokey3updater_reboot_bootloader)
             binding.btnWrite.isEnabled = !isToggling && !updaterViewModel.isBusy && binding.integrityCheckbox.isChecked
             if (wasInBootloader) {
@@ -825,7 +891,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
         } else if (devices.isNotEmpty()) {
             setLoading(false)
             isInBootloaderMode = false
-            updaterViewModel.reset()
+            updaterViewModel.onDeviceChanged()
             val connectedDevice = devices.first()
             updateDeviceInfo(connectedDevice, isBootloader = false, hwType = null)
             updateWriteStatus("Connected device is not a Nitrokey 3")
@@ -841,7 +907,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
         } else {
             setLoading(false)
             isInBootloaderMode = false
-            updaterViewModel.reset()
+            updaterViewModel.onDeviceChanged()
             updateDeviceInfo(null, isBootloader = false, hwType = null)
             binding.btnWrite.isEnabled = false
             binding.btnWrite.text = getString(R.string.nitrokey3updater_reboot_bootloader)
@@ -864,10 +930,21 @@ class Nitrokey3UpdaterFragment : Fragment() {
         render()
     }
 
-    private fun isBootloaderDevice(vid: Int, pid: Int): Boolean {
-        return (vid == VID_NITROKEY && (pid == PID_NK3_BOOTLOADER_LPC55 || pid == PID_NK3_BOOTLOADER_NRF52)) ||
-                (vid == VID_NXP && pid == PID_NXP_DFU) ||
-                (vid == VID_NORDIC)
+    private fun showBootloaderConflict(candidates: List<UsbDeviceInfo>) {
+        Log.w(TAG, "checkConnectedUsbDevice(): ${candidates.size} candidate bootloaders attached: " +
+            candidates.joinToString { it.description })
+        isInBootloaderMode = false
+        setLoading(false)
+        updateDeviceInfo(null, isBootloader = false, hwType = null)
+        binding.btnWrite.text = getString(R.string.nitrokey3updater_reboot_bootloader)
+        binding.btnWrite.isEnabled = false
+        binding.btnBootloaderCancel.visibility = View.GONE
+        val frameParams = binding.btnWriteFrame.layoutParams as LinearLayout.LayoutParams
+        frameParams.width = LinearLayout.LayoutParams.MATCH_PARENT
+        frameParams.weight = 0f
+        frameParams.marginStart = 0
+        binding.btnWriteFrame.layoutParams = frameParams
+        updaterViewModel.onBootloaderConflict(candidates)
     }
 
     private fun determineHardwareType(device: UsbDevice): String {
@@ -893,7 +970,8 @@ class Nitrokey3UpdaterFragment : Fragment() {
     private fun setLoading(loading: Boolean) {
         isToggling = loading
         binding.progressWrite.visibility = if (loading || updaterViewModel.isBusy) View.VISIBLE else View.GONE
-        val hasSupportedDevice = updaterViewModel.input.value?.bootloader != null || isNitrokeyAppConnected()
+        val input = updaterViewModel.input.value
+        val hasSupportedDevice = input?.hasBootloaderConflict != true && (input?.bootloader != null || isNitrokeyAppConnected())
         val integrityChecked = binding.integrityCheckbox.isChecked
         binding.btnWrite.isEnabled = !loading && !updaterViewModel.isBusy && hasSupportedDevice && integrityChecked
         binding.btnBootloaderCancel.isEnabled = !loading && !updaterViewModel.isBusy
@@ -909,7 +987,12 @@ class Nitrokey3UpdaterFragment : Fragment() {
         }
     }
 
-    private fun updateDeviceInfo(device: UsbDevice?, isBootloader: Boolean, hwType: String?) {
+    private fun updateDeviceInfo(
+        device: UsbDevice?,
+        isBootloader: Boolean,
+        hwType: String?,
+        capturePreflight: Boolean = false,
+    ) {
         if (device == null) {
             val dash = getString(R.string.dash)
             binding.deviceModel.text = dash
@@ -933,18 +1016,26 @@ class Nitrokey3UpdaterFragment : Fragment() {
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 var resolvedName = productName
                 var resolvedFirmware: String? = null
+                var preflight: DevicePreflight? = null
 
                 try {
                     if (yubiKeyDevice.supportsConnection(SmartCardConnection::class.java)) {
-                        yubiKeyDevice.openConnection(SmartCardConnection::class.java).use { sc ->
-                            val nkVersion = Nitrokey3AdminVersion.query(sc)
-                            if (nkVersion != null) {
-                                resolvedFirmware = nkVersion
-                                resolvedName = "Nitrokey 3"
-                            } else {
-                                val devInfo = DeviceUtil.readInfo(sc, yubiKeyDevice.pid)
-                                resolvedFirmware = devInfo.version.toString()
-                                resolvedName = DeviceUtil.getName(devInfo, null) ?: productName
+                        AdminAppletAccess.serialized {
+                            yubiKeyDevice.openConnection(SmartCardConnection::class.java).use { sc ->
+                                val nkVersion = Nitrokey3AdminVersion.query(sc)
+                                if (nkVersion != null) {
+                                    if (capturePreflight) {
+                                        val status = Nitrokey3AdminStatus.query { apdu -> sc.sendAndReceive(apdu) }
+                                        if (status !is StatusRead.Value) Log.d(TAG, "Admin status not available: ${describe(status)}")
+                                        preflight = DevicePreflight.from(nkVersion, status)
+                                    }
+                                    resolvedFirmware = nkVersion
+                                    resolvedName = "Nitrokey 3"
+                                } else {
+                                    val devInfo = DeviceUtil.readInfo(sc, yubiKeyDevice.pid)
+                                    resolvedFirmware = devInfo.version.toString()
+                                    resolvedName = DeviceUtil.getName(devInfo, null) ?: productName
+                                }
                             }
                         }
                     } else if (yubiKeyDevice.supportsConnection(FidoConnection::class.java)) {
@@ -976,6 +1067,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
                         binding.deviceModel.text = resolvedName
                         binding.deviceFirmware.text = finalFirmware
                     }
+                    if (capturePreflight) updaterViewModel.onPreflightRead(preflight)
                 }
             }
         } else {

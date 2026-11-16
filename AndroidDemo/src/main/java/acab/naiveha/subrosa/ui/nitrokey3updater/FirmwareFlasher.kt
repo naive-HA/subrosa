@@ -7,6 +7,7 @@ internal enum class FlashPhase {
     CONNECTING,
     SENDING,
     RESTARTING,
+    VERIFYING,
 }
 
 internal data class FlashProgress(

@@ -16,8 +16,12 @@
 
 package acab.naiveha.subrosa.ui
 
+import android.app.Dialog
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.text.InputFilter
 import android.text.TextUtils
 import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
@@ -32,6 +36,8 @@ import androidx.annotation.UiThread
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LiveData
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputLayout
@@ -39,9 +45,50 @@ import acab.naiveha.subrosa.R
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 
+private const val TAG = "UiUtils"
+
 @UiThread
-suspend fun getSecret(
-    context: Context,
+internal fun Fragment.showBoundToView(
+    dialog: Dialog,
+    onViewDestroyed: () -> Unit = {},
+    onDismissed: () -> Unit = {},
+): Boolean {
+    val lifecycle = viewLifecycleOwnerLiveData.value?.lifecycle ?: return false
+    if (lifecycle.currentState == Lifecycle.State.DESTROYED) return false
+
+    val observer = LifecycleEventObserver { _, event ->
+        if (event == Lifecycle.Event.ON_DESTROY) {
+            onViewDestroyed()
+            dialog.dismiss()
+        }
+    }
+    lifecycle.addObserver(observer)
+    dialog.setOnDismissListener {
+        lifecycle.removeObserver(observer)
+        onDismissed()
+    }
+    dialog.show()
+    return true
+}
+
+private fun EditText.wipeText() {
+    val editable = text ?: return
+    editable.filters = emptyArray<InputFilter>()
+    val length = editable.length
+    if (length > 0) editable.replace(0, length, "\u0000".repeat(length))
+    editable.clear()
+}
+
+private fun runOnMain(block: () -> Unit) {
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+        block()
+    } else {
+        Handler(Looper.getMainLooper()).post { block() }
+    }
+}
+
+@UiThread
+suspend fun Fragment.getSecret(
     title: Any,
     @StringRes hint: Int = R.string.pin,
     showPaste: Boolean = false,
@@ -49,6 +96,8 @@ suspend fun getSecret(
     inputType: Int? = null,
     clearTextByDefault: Boolean = false
 ): CharArray? = suspendCancellableCoroutine { cont ->
+    if (!cont.isActive) return@suspendCancellableCoroutine
+    val context = requireContext()
     val view = LayoutInflater.from(context).inflate(R.layout.dialog_pin, null).apply {
         val textInputLayout = findViewById<TextInputLayout>(R.id.dialog_pin_textinputlayout)
         val editText = findViewById<EditText>(R.id.dialog_pin_edittext)
@@ -98,6 +147,7 @@ suspend fun getSecret(
             editText.setPaddingRelative(editText.paddingStart, editText.paddingTop, (48 * density).toInt(), editText.paddingBottom)
         }
     }
+    val editText = view.findViewById<EditText>(R.id.dialog_pin_edittext)
     val dialog = MaterialAlertDialogBuilder(context)
             .setTitle(when (title) {
                 is Int -> context.getString(title)
@@ -106,11 +156,13 @@ suspend fun getSecret(
             })
             .setView(view)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                val editable = view.findViewById<EditText>(R.id.dialog_pin_edittext).text
+                val editable = editText.text
                 val chars = CharArray(editable.length)
                 TextUtils.getChars(editable, 0, editable.length, chars, 0)
                 if (cont.isActive) {
                     cont.resume(chars)
+                } else {
+                    chars.fill('\u0000')
                 }
             }
             .setNeutralButton(android.R.string.cancel) { d, _ ->
@@ -127,25 +179,43 @@ suspend fun getSecret(
             .create()
 
     dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
-    dialog.show()
 
-    cont.invokeOnCancellation {
-        dialog.dismiss()
+    val shown = showBoundToView(
+        dialog,
+        onViewDestroyed = {
+            Log.d(TAG, "Secret dialog dismissed with its screen")
+            if (cont.isActive) {
+                cont.resume(null)
+            }
+        },
+        onDismissed = { editText.wipeText() },
+    )
+    if (!shown) {
+        Log.d(TAG, "Secret dialog not shown, the screen is gone")
+        editText.wipeText()
+        cont.resume(null)
+        return@suspendCancellableCoroutine
     }
 
-    view.findViewById<EditText>(R.id.dialog_pin_edittext).run {
+    cont.invokeOnCancellation {
+        Log.d(TAG, "Secret dialog dismissed, the coroutine was cancelled")
+        runOnMain { dialog.dismiss() }
+    }
+
+    editText.run {
         requestFocus()
         postDelayed({
-            dialog.window?.let { window ->
-                WindowCompat.getInsetsController(window, this).show(WindowInsetsCompat.Type.ime())
+            if (dialog.isShowing) {
+                dialog.window?.let { window ->
+                    WindowCompat.getInsetsController(window, this).show(WindowInsetsCompat.Type.ime())
+                }
             }
         }, 100)
     }
 }
 
 @UiThread
-suspend fun collectPin(
-    context: Context,
+suspend fun Fragment.collectPin(
     title: Any,
     minLength: Int,
     @StringRes tooShortRes: Int,
@@ -157,7 +227,6 @@ suspend fun collectPin(
 ): CharArray? {
     while (true) {
         val entered = getSecret(
-            context,
             title,
             inputType = inputType,
             defaultValue = defaultValue,
@@ -166,7 +235,7 @@ suspend fun collectPin(
 
         if (entered.size < minLength) {
             Log.d(tag, "$logLabel too short — re-showing dialog")
-            context.showErrorDialog(context.getString(tooShortRes))
+            showErrorDialog(getString(tooShortRes))
             entered.fill('\u0000')
             continue
         }
@@ -233,7 +302,7 @@ fun Fragment.showConfirmationDialog(
     onConfirmed: () -> Unit,
     onCancelled: () -> Unit = {},
 ) {
-    MaterialAlertDialogBuilder(requireContext())
+    val dialog = MaterialAlertDialogBuilder(requireContext())
         .setTitle(title)
         .setMessage(message)
         .setPositiveButton(confirmText) { _, _ ->
@@ -248,7 +317,13 @@ fun Fragment.showConfirmationDialog(
             Log.d(tag, "$logLabel dialog dismissed")
             onCancelled()
         }
-        .show()
+        .create()
+
+    val shown = showBoundToView(dialog, onViewDestroyed = { Log.d(tag, "$logLabel dialog dismissed with its screen") })
+    if (!shown) {
+        Log.d(tag, "$logLabel not shown, the screen is gone")
+        onCancelled()
+    }
 }
 
 fun Fragment.showOpenPgpAppletResetDialog(
@@ -277,7 +352,6 @@ suspend fun Fragment.collectAdminPin(
     defaultValue: CharArray? = null,
     clearTextByDefault: Boolean = false,
 ): CharArray? = collectPin(
-    requireContext(),
     title,
     minLength = ADMIN_PIN_MIN_LENGTH,
     tooShortRes = R.string.openpgp_admin_pin_too_short,
@@ -296,7 +370,6 @@ suspend fun Fragment.collectUserPin(
     defaultValue: CharArray? = null,
     clearTextByDefault: Boolean = false,
 ): CharArray? = collectPin(
-    requireContext(),
     title,
     minLength = USER_PIN_MIN_LENGTH,
     tooShortRes = R.string.openpgp_user_pin_too_short,
@@ -315,37 +388,44 @@ private suspend fun Fragment.collectNewPin(
     tag: String,
 ): CharArray? {
     while (true) {
-        val entered = collectPin(
-            requireContext(),
-            "Enter new Device $label PIN",
-            minLength = minLength,
-            tooShortRes = tooShortRes,
-            inputType = PIN_NUMERIC_INPUT_TYPE,
-            tag = tag,
-            logLabel = "New $label PIN",
-        ) ?: return null
+        val accepted = withSecrets {
+            val entered = hold(collectPin(
+                "Enter new Device $label PIN",
+                minLength = minLength,
+                tooShortRes = tooShortRes,
+                inputType = PIN_NUMERIC_INPUT_TYPE,
+                tag = tag,
+                logLabel = "New $label PIN",
+            )) ?: return null
 
-        val confirm = getSecret(
-            requireContext(),
-            "Confirm new Device $label PIN",
-            inputType = PIN_NUMERIC_INPUT_TYPE,
-        ) ?: run {
-            entered.fill('\u0000')
-            Log.d(tag, "New $label PIN confirmation cancelled")
-            return null
+            val confirm = hold(getSecret(
+                "Confirm new Device $label PIN",
+                inputType = PIN_NUMERIC_INPUT_TYPE,
+            )) ?: run {
+                entered.fill('\u0000')
+                Log.d(tag, "New $label PIN confirmation cancelled")
+                return null
+            }
+
+            if (!confirm.contentEquals(entered)) {
+                entered.fill('\u0000')
+                confirm.fill('\u0000')
+                Log.w(tag, "New $label PIN confirmation did not match — re-showing dialog")
+                null
+            } else {
+                confirm.fill('\u0000')
+                handOver(entered)
+                entered
+            }
         }
 
-        if (!confirm.contentEquals(entered)) {
-            entered.fill('\u0000')
-            confirm.fill('\u0000')
-            Log.w(tag, "New $label PIN confirmation did not match — re-showing dialog")
+        if (accepted == null) {
             showErrorDialog(getString(R.string.openpgp_new_pin_mismatch))
             continue
         }
 
-        confirm.fill('\u0000')
-        Log.d(tag, "New $label PIN collected and confirmed (length=${entered.size})")
-        return entered
+        Log.d(tag, "New $label PIN collected and confirmed (length=${accepted.size})")
+        return accepted
     }
 }
 

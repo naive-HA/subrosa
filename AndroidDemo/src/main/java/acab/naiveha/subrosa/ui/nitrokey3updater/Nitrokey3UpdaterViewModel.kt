@@ -46,6 +46,9 @@ internal data class UpdaterInput(
     val bootloader: BootloaderDevice? = null,
     val image: ImageState = ImageState.None,
     val replugRequired: Boolean = false,
+    val bootloaderConflict: List<UsbDeviceInfo> = emptyList(),
+    val preflight: DevicePreflight? = null,
+    val rebootPending: Boolean = false,
 ) {
     val flashableImage: FirmwareImage?
         get() {
@@ -55,8 +58,56 @@ internal data class UpdaterInput(
             return image.takeIf { it.variant == variant && isFlashSupported(variant) }
         }
 
-    fun withBootloader(device: BootloaderDevice?): UpdaterInput =
-        if (bootloader == device) this else copy(bootloader = device, replugRequired = false)
+    val hasBootloaderConflict: Boolean get() = bootloaderConflict.isNotEmpty()
+
+    val flashBlock: FlashBlock? get() = FirmwarePolicy.flashBlock(flashableImage, preflight)
+
+    val canFlash: Boolean get() = flashableImage != null && flashBlock == null
+
+    val needsIdentityConfirmation: Boolean
+        get() = bootloader?.let { Nk3UsbIds.isGenericLpc55(it.vendorId, it.productId) } == true
+
+    fun withBootloader(device: BootloaderDevice?): UpdaterInput {
+        if (bootloader == device && bootloaderConflict.isEmpty()) return this
+        val keptPreflight = when {
+            device == null -> if (bootloader == null) preflight else null
+            bootloader == null -> preflight.takeIf { rebootPending }
+            else -> null
+        }
+        return copy(
+            bootloader = device,
+            replugRequired = false,
+            bootloaderConflict = emptyList(),
+            preflight = keptPreflight,
+            rebootPending = if (device != null) false else rebootPending,
+        )
+    }
+
+    fun withBootloaderConflict(candidates: List<UsbDeviceInfo>): UpdaterInput =
+        if (bootloader == null && bootloaderConflict == candidates) {
+            this
+        } else {
+            copy(
+                bootloader = null,
+                replugRequired = false,
+                bootloaderConflict = candidates,
+                preflight = null,
+                rebootPending = false,
+            )
+        }
+
+    fun withPreflight(read: DevicePreflight?): UpdaterInput = when {
+        bootloader != null || bootloaderConflict.isNotEmpty() -> this
+        read == null && rebootPending -> this
+        else -> copy(preflight = read)
+    }
+
+    fun withRebootRequested(): UpdaterInput = if (rebootPending) this else copy(rebootPending = true)
+
+    fun withRebootFailed(): UpdaterInput = if (rebootPending) copy(rebootPending = false) else this
+
+    fun withoutPreflight(): UpdaterInput =
+        if (preflight == null && !rebootPending) this else copy(preflight = null, rebootPending = false)
 
     fun afterFlashFailure(failed: FlashState.Failed): UpdaterInput =
         if (failed.replugRequired) copy(replugRequired = true) else this
@@ -72,7 +123,7 @@ internal sealed interface FlashState {
 
     class Running(val progress: FlashProgress) : FlashState
 
-    class Succeeded(val label: String) : FlashState
+    class Succeeded(val label: String, val verification: FirmwareVerification) : FlashState
 
     class Failed(
         val message: String,
@@ -172,11 +223,19 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
 
     fun reset() {
         if (isBusy) return
+        discardFlashResult()
+        resetCheckAndImage()
+    }
+
+    fun onDeviceChanged() {
+        if (isBusy) return
+        resetCheckAndImage()
+    }
+
+    private fun resetCheckAndImage() {
         prepareJob?.cancel()
         readyKey = null
-        val current = currentInput()
-        _input.value = current.copy(image = ImageState.None)
-        discardFlashResult()
+        _input.value = currentInput().copy(image = ImageState.None)
         setCheck(CheckState.Idle)
         prepareImage()
     }
@@ -209,10 +268,44 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
 
     fun onBootloaderChanged(device: BootloaderDevice?) {
         val current = currentInput()
-        if (current.bootloader == device) return
+        if (current.bootloader == device && !current.hasBootloaderConflict) return
         _input.value = current.withBootloader(device)
         if (device != null && !isChecking) setCheck(CheckState.Idle)
         if (!isFlashing) prepareImage()
+    }
+
+    fun onBootloaderConflict(candidates: List<UsbDeviceInfo>) {
+        val current = currentInput()
+        if (current.bootloader == null && current.bootloaderConflict == candidates) return
+        Log.w(TAG, "More than one bootloader device is attached: ${candidates.joinToString { it.ids }}")
+        _input.value = current.withBootloaderConflict(candidates)
+        if (!isChecking) setCheck(CheckState.Idle)
+        if (!isFlashing) prepareImage()
+    }
+
+    fun onPreflightRead(read: DevicePreflight?) {
+        val current = currentInput()
+        val keptEarlier = read == null && current.rebootPending
+        Log.i(TAG, "Pre-flight capture in application mode: ${read?.summary() ?: "nothing readable"}" +
+            (if (keptEarlier) " (the key is rebooting, keeping the earlier capture)" else ""))
+        val updated = current.withPreflight(read)
+        if (updated != current) _input.value = updated
+    }
+
+    fun onRebootRequested() {
+        val current = currentInput()
+        if (!current.rebootPending) _input.value = current.withRebootRequested()
+    }
+
+    fun onRebootFailed() {
+        val current = currentInput()
+        if (current.rebootPending) _input.value = current.withRebootFailed()
+    }
+
+    fun onScreenLeft() {
+        val current = currentInput()
+        val updated = current.withoutPreflight()
+        if (updated != current) _input.value = updated
     }
 
     private fun prepareImage() {
@@ -409,11 +502,21 @@ internal class Nitrokey3UpdaterViewModel : ViewModel() {
         setCheck(CheckState.Finished(report))
     }
 
-    fun startFlash(context: Context) {
+    fun startFlash(context: Context, identityConfirmed: Boolean = false) {
         if (isBusy) return
         val current = currentInput()
         val device = current.bootloader ?: return
         val image = current.flashableImage ?: return
+        val block = current.flashBlock
+        if (block != null) {
+            Log.w(TAG, "startFlash() refused: ${block.javaClass.simpleName}")
+            return
+        }
+        if (current.needsIdentityConfirmation && !identityConfirmed) {
+            Log.w(TAG, "startFlash() refused: USB ${Nk3UsbIds.format(device.vendorId, device.productId)} " +
+                "is not a Nitrokey 3 bootloader identity and the user did not confirm it")
+            return
+        }
         val request = FlashRequest(device, image)
         if (!FlashSession.begin(request)) return
         refreshBusy()

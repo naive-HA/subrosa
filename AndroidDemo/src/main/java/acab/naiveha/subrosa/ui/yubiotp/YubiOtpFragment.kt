@@ -30,10 +30,12 @@ import acab.naiveha.subrosa.MainViewModel
 import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.databinding.FragmentYubiotpBinding
 import acab.naiveha.subrosa.ui.PgpDeviceType
+import acab.naiveha.subrosa.ui.QueuedSecrets
 import acab.naiveha.subrosa.ui.YubiKeyFragment
 import acab.naiveha.subrosa.ui.YubiKeyPromptDialog
 import acab.naiveha.subrosa.ui.bindStatus
 import acab.naiveha.subrosa.ui.collectEvents
+import acab.naiveha.subrosa.ui.showBoundToView
 import acab.naiveha.subrosa.ui.showConfirmationDialog
 import com.yubico.yubikit.android.transport.nfc.NfcYubiKeyDevice
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
@@ -101,6 +103,13 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
     private var currentTabIndex = 1
     private var currentAnimator: ValueAnimator? = null
     private var renderingMgmt = false
+
+    private var heldScanCodes: QueuedSecrets? = null
+
+    private fun releaseHeldScanCodes() {
+        heldScanCodes?.cancel()
+        heldScanCodes = null
+    }
 
     private val sections: List<View>
         get() = listOf(binding.sectionErase, binding.sectionWrite, binding.sectionRead, binding.sectionMgmt)
@@ -333,6 +342,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
     }
 
     override fun onDestroyView() {
+        releaseHeldScanCodes()
         stopNfcDotAnimation()
         clearInputFields()
         viewModel.setMgmtTabActive(false)
@@ -534,11 +544,12 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                 val keyboard = selectedKeyboard(binding.keyboardRadio.checkedChipId)
                 val text = binding.editTextStaticpwdId.text
                 val rawLength = text?.length ?: 0
-                requireWithinMaxLength(rawLength)
 
                 val tabFront = binding.extrasTabFront.isChecked
                 val tabEnd = binding.extrasTabEnd.isChecked
-                val staticpwd = CharArray(rawLength + (if (tabFront) 1 else 0) + (if (tabEnd) 1 else 0))
+                val totalLength = rawLength + (if (tabFront) 1 else 0) + (if (tabEnd) 1 else 0)
+                requireWithinMaxLength(totalLength)
+                val staticpwd = CharArray(totalLength)
                 var offset = 0
                 if (tabFront) staticpwd[offset++] = '\t'
                 if (text != null) {
@@ -548,42 +559,61 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
                 if (tabEnd) staticpwd[offset] = '\t'
 
                 try {
-                    val scancodes = Keyboard.encode(staticpwd, keyboard)
-                    val configuration = StaticPasswordSlotConfiguration(scancodes)
-                    configuration.appendCr(binding.extrasCr.isChecked)
-                    val slot = resolveSlot(binding.slotRadio.checkedChipId, R.id.radio_slot_1, R.id.radio_slot_2)
+                    val appendCr = binding.extrasCr.isChecked
+                    val scanCodes = Keyboard.encode(staticpwd, keyboard)
+                    val secrets = QueuedSecrets(bytes = listOf(scanCodes))
+                    try {
+                        val slot = resolveSlot(binding.slotRadio.checkedChipId, R.id.radio_slot_1, R.id.radio_slot_2)
 
-                    fun queueSave(overwriteConfirmed: Boolean) {
-                        Log.d(TAG, "btnSaveStaticpwd — queuing program of slot $slot (${staticpwd.size} chars, " +
-                            "keyboard=$keyboard, overwriteConfirmed=$overwriteConfirmed)")
-                        viewModel.setCurrentOperation(OtpOperation.SAVE)
-                        viewModel.setPendingAction {
-                            if (!overwriteConfirmed && configurationState.isConfigured(slot)) {
-                                throw IllegalStateException(
-                                    "Slot ${if (slot == Slot.ONE) 1 else 2} is not empty. Confirm the overwrite and tap again."
-                                )
+                        fun queueSave(overwriteConfirmed: Boolean) {
+                            Log.d(TAG, "btnSaveStaticpwd — queuing program of slot $slot (${scanCodes.size} chars, " +
+                                "keyboard=$keyboard, overwriteConfirmed=$overwriteConfirmed)")
+                            viewModel.setCurrentOperation(OtpOperation.SAVE)
+                            viewModel.queueWithSecrets(secrets) {
+                                if (!overwriteConfirmed && configurationState.isConfigured(slot)) {
+                                    throw IllegalStateException(
+                                        "Slot ${if (slot == Slot.ONE) 1 else 2} is not empty. Confirm the overwrite and tap again."
+                                    )
+                                }
+                                Log.i(TAG, "pendingAction — programming slot $slot")
+                                val configuration = StaticPasswordSlotConfiguration(scanCodes)
+                                try {
+                                    configuration.appendCr(appendCr)
+                                    putConfiguration(slot, configuration, null, null)
+                                } finally {
+                                    configuration.destroy()
+                                }
+                                Log.i(TAG, "pendingAction — slot $slot programmed")
+                                viewModel.onSlotProgrammed(slot)
+                                null
                             }
-                            Log.i(TAG, "pendingAction — programming slot $slot")
-                            putConfiguration(slot, configuration, null, null)
-                            Log.i(TAG, "pendingAction — slot $slot programmed")
-                            viewModel.onSlotProgrammed(slot)
-                            null
                         }
-                    }
 
-                    val cachedState = if (slot == Slot.ONE) viewModel.uiState.value?.slotOne else viewModel.uiState.value?.slotTwo
-                    if (cachedState != SlotState.EMPTY) {
-                        val slotLabel = getString(if (slot == Slot.ONE) R.string.staticpwd_slot_1 else R.string.staticpwd_slot_2)
-                        showConfirmationDialog(
-                            tag = TAG,
-                            logLabel = "Static password slot overwrite",
-                            title = R.string.staticpwd_overwrite_title,
-                            message = getString(R.string.staticpwd_overwrite_message, slotLabel),
-                            confirmText = R.string.staticpwd_overwrite_confirm,
-                            onConfirmed = { queueSave(overwriteConfirmed = true) },
-                        )
-                    } else {
-                        queueSave(overwriteConfirmed = false)
+                        val cachedState = if (slot == Slot.ONE) viewModel.uiState.value?.slotOne else viewModel.uiState.value?.slotTwo
+                        if (cachedState != SlotState.EMPTY) {
+                            val slotLabel = getString(if (slot == Slot.ONE) R.string.staticpwd_slot_1 else R.string.staticpwd_slot_2)
+                            heldScanCodes = secrets
+                            showConfirmationDialog(
+                                tag = TAG,
+                                logLabel = "Static password slot overwrite",
+                                title = R.string.staticpwd_overwrite_title,
+                                message = getString(R.string.staticpwd_overwrite_message, slotLabel),
+                                confirmText = R.string.staticpwd_overwrite_confirm,
+                                onConfirmed = {
+                                    heldScanCodes = null
+                                    queueSave(overwriteConfirmed = true)
+                                },
+                                onCancelled = {
+                                    heldScanCodes = null
+                                    secrets.cancel()
+                                },
+                            )
+                        } else {
+                            queueSave(overwriteConfirmed = false)
+                        }
+                    } catch (e: Throwable) {
+                        secrets.cancel()
+                        throw e
                     }
                 } finally {
                     staticpwd.fill('\u0000')
@@ -838,7 +868,7 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
     private fun View.hideImeOnClick() = setOnClickListener { hideIme() }
 
     private fun showStaticPasswordDialog(password: CharArray) {
-        val context = context ?: return
+        val context = context ?: run { password.fill('\u0000'); return }
 
         val text = buildString {
             for (c in password) if (c != '\u0000') append(c)
@@ -854,18 +884,24 @@ class YubiOtpFragment : YubiKeyFragment<YubiOtpSession, YubiOtpViewModel>() {
         
         tv.text = text
 
-        builder.setTitle(R.string.otp_yubistatic)
+        val dialog = builder.setTitle(R.string.otp_yubistatic)
             .setView(view)
             .setPositiveButton(android.R.string.ok, null)
-            .setOnDismissListener { password.fill('\u0000') }
-            .show()
-            .apply {
-                window?.setFlags(
-                    WindowManager.LayoutParams.FLAG_SECURE,
-                    WindowManager.LayoutParams.FLAG_SECURE,
-                )
-                focusCatcher.requestFocus()
-            }
+            .create()
+        dialog.window?.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE,
+        )
+
+        val shown = showBoundToView(dialog, onDismissed = {
+            password.fill('\u0000')
+            tv.text = ""
+        })
+        if (!shown) {
+            password.fill('\u0000')
+            return
+        }
+        focusCatcher.requestFocus()
     }
 
     private fun showStaticPasswordResetConfirmationDialog(slot: Slot) {

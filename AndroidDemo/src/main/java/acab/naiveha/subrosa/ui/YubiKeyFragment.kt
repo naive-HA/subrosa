@@ -79,7 +79,7 @@ abstract class YubiKeyFragment<App : Closeable, VM : YubiKeyViewModel<App>> : Fr
             activityViewModel.yubiKey.value == null &&
             !yubiKeyPrompt.isShowing
         ) {
-            yubiKeyPrompt.setHelpText(waitingForDeviceText(viewModel.pendingPromptHint()))
+            yubiKeyPrompt.setHelpText(getString(R.string.yubikit_prompt_plug_in_or_tap))
             yubiKeyPrompt.show()
         }
     }

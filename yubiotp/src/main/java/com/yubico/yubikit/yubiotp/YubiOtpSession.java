@@ -367,7 +367,12 @@ public class YubiOtpSession extends ApplicationSession<YubiOtpSession> {
         "Writing configuration of type {} to slot {}",
         configuration.getClass().getSimpleName(),
         slot);
-    writeConfig(slot.map(CMD_CONFIG_1, CMD_CONFIG_2), configuration.getConfig(accCode), curAccCode);
+    byte[] config = configuration.getConfig(accCode);
+    try {
+      writeConfig(slot.map(CMD_CONFIG_1, CMD_CONFIG_2), config, curAccCode);
+    } finally {
+      Arrays.fill(config, (byte) 0);
+    }
   }
 
   /**
@@ -402,7 +407,12 @@ public class YubiOtpSession extends ApplicationSession<YubiOtpSession> {
               + " configure it anew.");
     }
     Logger.debug(logger, "Writing configuration update to slot {}", slot);
-    writeConfig(slot.map(CMD_UPDATE_1, CMD_UPDATE_2), configuration.getConfig(accCode), curAccCode);
+    byte[] config = configuration.getConfig(accCode);
+    try {
+      writeConfig(slot.map(CMD_UPDATE_1, CMD_UPDATE_2), config, curAccCode);
+    } finally {
+      Arrays.fill(config, (byte) 0);
+    }
   }
 
   /**
@@ -463,12 +473,16 @@ public class YubiOtpSession extends ApplicationSession<YubiOtpSession> {
         "Writing configuration to slot {}, access code: {}",
         commandSlot,
         curAccCode != null);
-    backend.writeToSlot(
-        commandSlot,
+    byte[] data =
         ByteBuffer.allocate(config.length + ACC_CODE_SIZE)
             .put(config)
             .put(curAccCode == null ? new byte[ACC_CODE_SIZE] : curAccCode)
-            .array());
+            .array();
+    try {
+      backend.writeToSlot(commandSlot, data);
+    } finally {
+      Arrays.fill(data, (byte) 0);
+    }
     Logger.info(logger, "Configuration written");
   }
 

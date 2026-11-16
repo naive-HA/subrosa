@@ -1,6 +1,5 @@
 package acab.naiveha.subrosa.ui
 
-import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import acab.naiveha.subrosa.MainViewModel
@@ -11,11 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.Closeable
-
-internal fun Fragment.waitingForDeviceText(@StringRes hint: Int?): String {
-    val instruction = getString(R.string.yubikit_prompt_plug_in_or_tap)
-    return if (hint == null) instruction else instruction + "\n\n" + getString(hint)
-}
 
 fun <S : Closeable> Fragment.bindDeviceActions(
     viewModel: YubiKeyViewModel<S>,
@@ -75,7 +69,7 @@ fun <S : Closeable> Fragment.bindDeviceActions(
                 if (device != null) {
                     dispatch(device)
                 } else {
-                    prompt.setHelpText(waitingForDeviceText(viewModel.pendingPromptHint()))
+                    prompt.setHelpText(getString(R.string.yubikit_prompt_plug_in_or_tap))
                     prompt.show()
                 }
             }

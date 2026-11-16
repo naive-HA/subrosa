@@ -6,9 +6,9 @@ import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import acab.naiveha.subrosa.R
 import acab.naiveha.subrosa.ui.EventChannel
 import acab.naiveha.subrosa.ui.PgpDeviceType
+import acab.naiveha.subrosa.ui.QueuedSecrets
 import acab.naiveha.subrosa.ui.StatusChannel
 import acab.naiveha.subrosa.ui.YubiKeyViewModel
 import acab.naiveha.subrosa.ui.describeChain
@@ -23,7 +23,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import org.slf4j.LoggerFactory
 import java.io.IOException
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
@@ -130,28 +129,6 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         }
     }
 
-    private class QueuedPins(private val pins: List<CharArray>) {
-        private val state = AtomicInteger(PENDING)
-
-        fun start(): Boolean = state.compareAndSet(PENDING, RUNNING)
-
-        fun cancel() {
-            if (state.compareAndSet(PENDING, CANCELLED)) wipe()
-        }
-
-        fun wipe() {
-            pins.forEach { it.fill('\u0000') }
-        }
-
-        private companion object {
-            const val PENDING = 0
-            const val RUNNING = 1
-            const val CANCELLED = 2
-        }
-    }
-
-    private val queuedPins = AtomicReference<QueuedPins?>()
-
     @Volatile
     var lastQueuedActionSucceeded: Boolean? = null
         private set
@@ -161,24 +138,16 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         pins: List<CharArray>,
         action: OpenPgpSession.() -> String?,
     ) {
-        val queued = QueuedPins(pins)
-        queuedPins.getAndSet(queued)?.cancel()
         setCurrentOperation(operation)
         lastQueuedActionSucceeded = null
-
-        val task: OpenPgpSession.() -> String? = task@{
-            if (!queued.start()) return@task null
+        queueWithSecrets(QueuedSecrets(chars = pins)) {
             try {
                 action().also { lastQueuedActionSucceeded = true }
             } catch (e: Throwable) {
                 lastQueuedActionSucceeded = false
                 throw e
-            } finally {
-                queued.wipe()
-                queuedPins.compareAndSet(queued, null)
             }
         }
-        setPendingAction(task)
     }
 
     private val preflightOutcome = AtomicReference<CompletableDeferred<Boolean>?>()
@@ -326,7 +295,6 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
 
     override fun onPendingActionDropped() {
         preflightOutcome.getAndSet(null)?.complete(false)
-        queuedPins.get()?.cancel()
         setCurrentOperation(OpenPgpOperation.NONE)
         clearStatuses()
     }
@@ -347,13 +315,6 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
             logger.warn("Erase was interrupted after the device was modified — pinning the notice to the wipe status")
             wipeStatusChannel.pin(it.message)
         }
-    }
-
-    override fun pendingPromptHint(): Int? = when (currentState.currentOperation) {
-        OpenPgpOperation.SAVE -> R.string.openpgp_prompt_keep_in_place_write
-        OpenPgpOperation.WIPE,
-        OpenPgpOperation.RESET_ADMIN_PIN -> R.string.openpgp_prompt_keep_in_place_erase
-        else -> null
     }
 
     private fun dismissInterruptedNotices() {

@@ -14,11 +14,19 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.IOException
 import kotlin.coroutines.resume
 
-internal class UsbBootloaderConnector(context: Context) {
+internal class UsbBootloaderConnector(context: Context) : UsbDeviceSource {
     private val appContext: Context = context.applicationContext
     private val usbManager: UsbManager = appContext.getSystemService(Context.USB_SERVICE) as UsbManager
 
-    fun findDevice(deviceName: String): UsbDevice? = usbManager.deviceList[deviceName]
+    override fun attached(): List<UsbDeviceInfo> = usbManager.deviceList.values.map(::infoOf)
+
+    @Throws(FlashException::class)
+    fun requireSame(expected: BootloaderDevice): UsbDevice {
+        val devices = usbManager.deviceList
+        val check = BootloaderIdentity.verify(expected, devices.values.map(::infoOf))
+        BootloaderIdentity.refusal(check)?.let { throw FlashException(it) }
+        return devices.getValue(expected.usbName)
+    }
 
     suspend fun ensurePermission(device: UsbDevice): Boolean {
         if (usbManager.hasPermission(device)) return true
@@ -54,6 +62,8 @@ internal class UsbBootloaderConnector(context: Context) {
 
     @Throws(IOException::class)
     fun open(device: UsbDevice): UsbHidMbootTransport = UsbHidMbootTransport.open(usbManager, device)
+
+    private fun infoOf(device: UsbDevice) = UsbDeviceInfo(device.deviceName, device.vendorId, device.productId)
 
     private fun unregister(receiver: BroadcastReceiver) {
         try {

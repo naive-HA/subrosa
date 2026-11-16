@@ -12,6 +12,7 @@ internal data class KeyTraits(
     val keyFlags: Int,
     val canEncrypt: Boolean,
     val validity: KeyValidity = KeyValidity.VALID,
+    val created: Long = 0L
 )
 
 internal fun PGPPublicKey.validity(asOf: Date): KeyValidity = when {
@@ -25,6 +26,7 @@ internal fun PGPPublicKey.toKeyTraits(asOf: Date) = KeyTraits(
     keyFlags = keyFlags(),
     canEncrypt = isEncryptionKey,
     validity = validity(asOf),
+    created = creationTime.time,
 )
 
 enum class SkipReason { SLOT_FILLED, CERTIFY_ONLY, NO_CARD_ROLE, NO_PRIVATE_KEY }
@@ -39,13 +41,16 @@ internal object SlotPlanner {
 
     private val ENCRYPT_ANY = KeyFlags.ENCRYPT_COMMS or KeyFlags.ENCRYPT_STORAGE
 
+    private fun KeyTraits.canSign() =
+        (keyFlags and KeyFlags.SIGN_DATA) != 0 || (isPrimary && keyFlags == 0)
+
     fun plan(keys: List<KeyTraits>): List<List<KeyRef>> {
-        val subkeys = keys.indices.filter { !keys[it].isPrimary }
-        val positional = assign(keys, subkeys)
-        if (keys.all { it.validity == KeyValidity.VALID }) return positional
+        val subkeys = keys.indices.filter { !keys[it].isPrimary }.sortedByDescending { keys[it].created }
+        val newestFirst = assign(keys, subkeys)
+        if (keys.all { it.validity == KeyValidity.VALID }) return newestFirst
 
         val validFirst = assign(keys, subkeys.sortedBy { keys[it].validity != KeyValidity.VALID })
-        return if (score(keys, positional) > score(keys, validFirst)) positional else validFirst
+        return if (score(keys, newestFirst) > score(keys, validFirst)) newestFirst else validFirst
     }
 
     private fun score(keys: List<KeyTraits>, slots: List<List<KeyRef>>): Int {
@@ -58,10 +63,11 @@ internal object SlotPlanner {
         val primaryIndex = keys.indexOfFirst { it.isPrimary }
         val primary = keys.getOrNull(primaryIndex)
 
-        val primaryCanSign = primary != null &&
-            (primary.keyFlags == 0 || (primary.keyFlags and KeyFlags.SIGN_DATA) != 0)
+        val primaryCanSign = primary?.canSign() == true
+        val signingSubkeys = subkeyOrder.filter { keys[it].canSign() }
+        val sigIndex = signingSubkeys.firstOrNull { keys[it].validity == KeyValidity.VALID }
+            ?: if (primaryCanSign) null else signingSubkeys.firstOrNull()
 
-        var sigTaken = false
         var decTaken = false
         var autTaken = false
 
@@ -86,15 +92,12 @@ internal object SlotPlanner {
                     autTaken = true
                 }
             }
-            if (!primaryCanSign && (flags and KeyFlags.SIGN_DATA) != 0 && !sigTaken) {
-                slots[index].add(KeyRef.SIG)
-                sigTaken = true
-            }
+            if (index == sigIndex) slots[index].add(KeyRef.SIG)
         }
 
         if (primary != null) {
             val own = slots[primaryIndex]
-            if (!sigTaken) own.add(KeyRef.SIG)
+            if (sigIndex == null) own.add(KeyRef.SIG)
             if (!decTaken && (primary.keyFlags and ENCRYPT_ANY) != 0 && primary.canEncrypt) {
                 own.add(KeyRef.DEC)
             }
@@ -124,7 +127,7 @@ internal object SlotPlanner {
 
     private fun wantedSlots(key: KeyTraits): List<KeyRef> = buildList {
         val flags = key.keyFlags
-        if ((flags and KeyFlags.SIGN_DATA) != 0) add(KeyRef.SIG)
+        if (key.canSign()) add(KeyRef.SIG)
         if ((flags and ENCRYPT_ANY) != 0 && (!key.isPrimary || key.canEncrypt)) add(KeyRef.DEC)
         if ((flags and KeyFlags.AUTHENTICATION) != 0) add(KeyRef.AUT)
         if (flags == 0 && !key.isPrimary) add(if (key.canEncrypt) KeyRef.DEC else KeyRef.AUT)

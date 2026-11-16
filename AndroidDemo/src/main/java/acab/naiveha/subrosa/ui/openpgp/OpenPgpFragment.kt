@@ -42,9 +42,11 @@ import acab.naiveha.subrosa.ui.getSecret
 import acab.naiveha.subrosa.ui.showErrorDialog
 import acab.naiveha.subrosa.ui.showConfirmationDialog
 import acab.naiveha.subrosa.ui.showOpenPgpAppletResetDialog
+import acab.naiveha.subrosa.ui.withSecrets
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.yubico.yubikit.openpgp.KeyRef
 import com.yubico.yubikit.openpgp.OpenPgpSession
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -421,27 +423,30 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             confirmText = R.string.openpgp_write_confirm_action,
             onConfirmed = {
                 lifecycleScope.launch(Dispatchers.Main) {
-                    val adminPin = collectAdminPin(
-                        "Enter Device Admin PIN",
-                        tag = TAG,
-                        defaultValue = OpenPgpWriterUtils.DEFAULT_ADMIN_PIN,
-                        clearTextByDefault = true,
-                    ) ?: return@launch
-                    val userPin = collectUserPin(
-                        "Enter Device User PIN",
-                        tag = TAG,
-                        defaultValue = OpenPgpWriterUtils.DEFAULT_USER_PIN,
-                        clearTextByDefault = true,
-                    ) ?: run { adminPin.fill('\u0000'); return@launch }
+                    withSecrets {
+                        val adminPin = hold(collectAdminPin(
+                            "Enter Device Admin PIN",
+                            tag = TAG,
+                            defaultValue = OpenPgpWriterUtils.DEFAULT_ADMIN_PIN,
+                            clearTextByDefault = true,
+                        )) ?: return@launch
+                        val userPin = hold(collectUserPin(
+                            "Enter Device User PIN",
+                            tag = TAG,
+                            defaultValue = OpenPgpWriterUtils.DEFAULT_USER_PIN,
+                            clearTextByDefault = true,
+                        )) ?: run { adminPin.fill('\u0000'); return@launch }
 
-                    viewModel.queueWithPins(OpenPgpOperation.SAVE, listOf(adminPin, userPin)) {
-                        val deviceType = viewModel.currentState.connectedDevice.type
-                        val writer = deviceType.writer()
-                        Log.i(TAG, "pendingAction — device=$deviceType " +
-                            "writer=${writer::class.simpleName}")
-                        writer.program(this, bundle, adminPin, userPin, status = viewModel::postWriteStatus).also {
-                            viewModel.clearCardInfo()
+                        viewModel.queueWithPins(OpenPgpOperation.SAVE, listOf(adminPin, userPin)) {
+                            val deviceType = viewModel.currentState.connectedDevice.type
+                            val writer = deviceType.writer()
+                            Log.i(TAG, "pendingAction — device=$deviceType " +
+                                "writer=${writer::class.simpleName}")
+                            writer.program(this, bundle, adminPin, userPin, status = viewModel::postWriteStatus).also {
+                                viewModel.clearCardInfo()
+                            }
                         }
+                        handOver(adminPin, userPin)
                     }
                 }
             },
@@ -526,22 +531,25 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         Log.d(TAG, "Change $label PIN tapped")
 
         lifecycleScope.launch(Dispatchers.Main) {
-            val currentPin = (
-                if (isAdmin) {
-                    collectAdminPin("Enter current Device Admin PIN", tag = TAG, logLabel = "Current Admin PIN")
-                } else {
-                    collectUserPin("Enter current Device User PIN", tag = TAG, logLabel = "Current User PIN")
-                }
-            ) ?: return@launch
+            withSecrets {
+                val currentPin = hold(
+                    if (isAdmin) {
+                        collectAdminPin("Enter current Device Admin PIN", tag = TAG, logLabel = "Current Admin PIN")
+                    } else {
+                        collectUserPin("Enter current Device User PIN", tag = TAG, logLabel = "Current User PIN")
+                    }
+                ) ?: return@launch
 
-            val newPin = (if (isAdmin) collectNewAdminPin(TAG) else collectNewUserPin(TAG))
-                ?: run {
-                    Log.d(TAG, "Change $label PIN cancelled (new PIN)")
-                    currentPin.fill('\u0000')
-                    return@launch
-                }
+                val newPin = hold(if (isAdmin) collectNewAdminPin(TAG) else collectNewUserPin(TAG))
+                    ?: run {
+                        Log.d(TAG, "Change $label PIN cancelled (new PIN)")
+                        currentPin.fill('\u0000')
+                        return@launch
+                    }
 
-            viewModel.changePin(isAdmin, currentPin, newPin)
+                viewModel.changePin(isAdmin, currentPin, newPin)
+                handOver(currentPin, newPin)
+            }
         }
     }
 
@@ -549,20 +557,23 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         Log.d(TAG, "Reset blocked User PIN tapped")
 
         lifecycleScope.launch(Dispatchers.Main) {
-            val adminPin = collectAdminPin(
-                "Enter Device Admin PIN",
-                tag = TAG,
-                logLabel = "Admin PIN (for User PIN reset)",
-            ) ?: return@launch
+            withSecrets {
+                val adminPin = hold(collectAdminPin(
+                    "Enter Device Admin PIN",
+                    tag = TAG,
+                    logLabel = "Admin PIN (for User PIN reset)",
+                )) ?: return@launch
 
-            val newUserPin = collectNewUserPin(TAG)
-                ?: run {
-                    Log.d(TAG, "Reset User PIN cancelled (new PIN)")
-                    adminPin.fill('\u0000')
-                    return@launch
-                }
+                val newUserPin = hold(collectNewUserPin(TAG))
+                    ?: run {
+                        Log.d(TAG, "Reset User PIN cancelled (new PIN)")
+                        adminPin.fill('\u0000')
+                        return@launch
+                    }
 
-            viewModel.resetBlockedUserPin(adminPin, newUserPin)
+                viewModel.resetBlockedUserPin(adminPin, newUserPin)
+                handOver(adminPin, newUserPin)
+            }
         }
     }
 
@@ -689,6 +700,8 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
                         resetKeyState()
                         viewModel.postResult(Result.failure(e))
                     }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Unexpected error handling imported URI: ${e.message}", e)
                 resetKeyState()
@@ -713,7 +726,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
         }
         var ring = firstAttempt.getOrNull()
         while (ring == null) {
-            val passphrase = getSecret(requireActivity(), R.string.enter_file_passphrase, showPaste = true)
+            val passphrase = getSecret(R.string.enter_file_passphrase, showPaste = true)
                 ?: run {
                     Log.d(TAG, "File passphrase cancelled")
                     resetKeyState()
@@ -723,10 +736,13 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             viewModel.postWriteStatus("Extracting private key...")
             binding.progressSave.visibility = View.VISIBLE
             binding.btnSave.isEnabled = false
-            val attempt = withContext(Dispatchers.IO) {
-                runCatching { OpenPgpFileImporter.decrypt(fileBytes, passphrase) }
+            val attempt = try {
+                withContext(Dispatchers.IO) {
+                    runCatching { OpenPgpFileImporter.decrypt(fileBytes, passphrase) }
+                }
+            } finally {
+                passphrase.fill('\u0000')
             }
-            passphrase.fill('\u0000')
             binding.progressSave.visibility = View.GONE
 
             val error = attempt.exceptionOrNull()
@@ -786,7 +802,7 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
     private suspend fun prepareBundleWithPassphraseRetry(armor: String, asOf: Date): ImportBundle? {
         Log.d(TAG, "Key is passphrase-protected — collecting passphrase…")
         while (true) {
-            val passphrase = getSecret(requireActivity(), R.string.enter_key_passphrase, showPaste = true)
+            val passphrase = getSecret(R.string.enter_key_passphrase, showPaste = true)
                 ?: run {
                     Log.d(TAG, "Passphrase cancelled")
                     resetKeyState()
@@ -796,19 +812,23 @@ class OpenPgpFragment : YubiKeyFragment<OpenPgpSession, OpenPgpViewModel>() {
             binding.progressSave.visibility = View.VISIBLE
             binding.btnSave.isEnabled = false
             var rejection: PgpImportRejectedException? = null
-            val bundle = withContext(Dispatchers.IO) {
-                try {
-                    OpenPgpKeyImporter.prepare(armor, passphrase, asOf)
-                } catch (e: PgpImportRejectedException) {
-                    Log.w(TAG, "prepare() rejected the key: ${e.message}")
-                    rejection = e
-                    null
-                } catch (e: Exception) {
-                    Log.e(TAG, "prepare() failed: ${e.message}", e)
-                    null
-                } finally {
-                    passphrase.fill('\u0000')
+            val bundle = try {
+                withContext(Dispatchers.IO) {
+                    try {
+                        OpenPgpKeyImporter.prepare(armor, passphrase, asOf)
+                    } catch (e: PgpImportRejectedException) {
+                        Log.w(TAG, "prepare() rejected the key: ${e.message}")
+                        rejection = e
+                        null
+                    } catch (e: Exception) {
+                        Log.e(TAG, "prepare() failed: ${e.message}", e)
+                        null
+                    } finally {
+                        passphrase.fill('\u0000')
+                    }
                 }
+            } finally {
+                passphrase.fill('\u0000')
             }
             binding.progressSave.visibility = View.GONE
             if (bundle != null) return bundle

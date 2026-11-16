@@ -182,13 +182,8 @@ internal object ManualApduKeyWriter {
 
     private fun buildX25519Template(ref: KeyRef, rawSecret: ByteArray): ByteArray {
         val secret = require32ByteSecret(rawSecret)
-        val reversedSecret = secret.reversedArray()
-        val publicKeyBytes = try {
-            byteArrayOf(EC_PUBLIC_KEY_HEADER) +
-                X25519PrivateKeyParameters(reversedSecret).generatePublicKey().encoded
-        } finally {
-            reversedSecret.fill(0)
-        }
+        val publicKeyBytes = byteArrayOf(EC_PUBLIC_KEY_HEADER) +
+            X25519PrivateKeyParameters(secret).generatePublicKey().encoded
         try {
             return buildPrivateAndPublicTemplate(ref, secret, publicKeyBytes)
         } finally {

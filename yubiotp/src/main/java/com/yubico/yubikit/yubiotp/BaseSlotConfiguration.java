@@ -26,9 +26,10 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import javax.security.auth.Destroyable;
 
 abstract class BaseSlotConfiguration<T extends BaseSlotConfiguration<T>>
-    implements SlotConfiguration {
+    implements SlotConfiguration, Destroyable {
   // Config structure
   protected static final int FIXED_SIZE = 16; // Max size of fixed field
   protected static final int UID_SIZE = 6; // Size of secret ID field
@@ -41,6 +42,8 @@ abstract class BaseSlotConfiguration<T extends BaseSlotConfiguration<T>>
   protected byte[] fixed = new byte[0];
   protected final byte[] uid = new byte[UID_SIZE];
   protected final byte[] key = new byte[KEY_SIZE];
+
+  private boolean destroyed = false;
 
   private final Map<FlagType, Set<Flag>> flags = new HashMap<>();
 
@@ -90,6 +93,9 @@ abstract class BaseSlotConfiguration<T extends BaseSlotConfiguration<T>>
 
   @Override
   public byte[] getConfig(@Nullable byte[] accCode) {
+    if (destroyed) {
+      throw new IllegalStateException("The configuration has been destroyed");
+    }
     return buildConfig(
         fixed,
         uid,
@@ -98,6 +104,19 @@ abstract class BaseSlotConfiguration<T extends BaseSlotConfiguration<T>>
         getFlags(FlagType.TKT),
         getFlags(FlagType.CFG),
         accCode);
+  }
+
+  @Override
+  public void destroy() {
+    Arrays.fill(fixed, (byte) 0);
+    Arrays.fill(uid, (byte) 0);
+    Arrays.fill(key, (byte) 0);
+    destroyed = true;
+  }
+
+  @Override
+  public boolean isDestroyed() {
+    return destroyed;
   }
 
   public T serialApiVisible(boolean serialApiVisible) {
@@ -165,8 +184,9 @@ abstract class BaseSlotConfiguration<T extends BaseSlotConfiguration<T>>
     }
 
     ByteBuffer config = ByteBuffer.allocate(CONFIG_SIZE).order(ByteOrder.LITTLE_ENDIAN);
+    config.put(fixed);
+    config.put(new byte[FIXED_SIZE - fixed.length]);
     return config
-        .put(Arrays.copyOf(fixed, FIXED_SIZE))
         .put(uid)
         .put(key)
         .put(accCode == null ? new byte[ACC_CODE_SIZE] : accCode)

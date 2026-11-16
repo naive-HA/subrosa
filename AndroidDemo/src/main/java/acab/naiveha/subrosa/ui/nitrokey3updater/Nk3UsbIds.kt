@@ -22,4 +22,25 @@ internal object Nk3UsbIds {
             else -> null
         }
     }
+
+    fun isBootloaderCandidate(vendorId: Int, productId: Int): Boolean =
+        bootloaderVariant(vendorId, productId) != null
+
+    fun isGenericLpc55(vendorId: Int, productId: Int): Boolean =
+        bootloaderVariant(vendorId, productId) == Nk3Variant.LPC55 &&
+            !(vendorId == VID_NITROKEY && productId == PID_BOOTLOADER_LPC55)
+
+    fun format(vendorId: Int, productId: Int): String = "%04X:%04X".format(vendorId, productId)
+
+    fun describe(vendorId: Int, productId: Int): String {
+        val name = when {
+            vendorId == VID_NITROKEY && productId == PID_BOOTLOADER_LPC55 -> "Nitrokey 3 bootloader (LPC55)"
+            vendorId == VID_NITROKEY && productId == PID_BOOTLOADER_NRF52 -> "Nitrokey 3 bootloader (nRF52)"
+            vendorId == VID_NXP && productId == PID_NXP_DFU -> "NXP LPC55 ISP bootloader"
+            vendorId == VID_NORDIC -> "Nordic nRF52 bootloader"
+            vendorId == VID_NITROKEY && productId == PID_APP -> "Nitrokey 3"
+            else -> "USB device"
+        }
+        return "$name (USB ${format(vendorId, productId)})"
+    }
 }

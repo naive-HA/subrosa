@@ -16,6 +16,7 @@
 package com.yubico.yubikit.yubiotp;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 /** Configures YubiKey to return static password on touch. */
 public class StaticPasswordSlotConfiguration
@@ -34,11 +35,12 @@ public class StaticPasswordSlotConfiguration
 
     // Scan codes are packed into fixed, uid, and key, and zero padded.
     fixed = new byte[FIXED_SIZE];
-    // NB: rewind() doesn't return a ByteBuffer before Java 9.
-    ByteBuffer.wrap(ByteBuffer.allocate(SCAN_CODES_SIZE).put(scanCodes).array())
-        .get(fixed)
-        .get(uid)
-        .get(key);
+    byte[] padded = ByteBuffer.allocate(SCAN_CODES_SIZE).put(scanCodes).array();
+    try {
+      ByteBuffer.wrap(padded).get(fixed).get(uid).get(key);
+    } finally {
+      Arrays.fill(padded, (byte) 0);
+    }
 
     updateFlags(CFGFLAG_SHORT_TICKET, true);
   }

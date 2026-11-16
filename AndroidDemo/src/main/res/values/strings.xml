@@ -162,8 +162,6 @@ importing OpenPGP keys in sub rosa is a breeze.\n\nThe source code is available 
     <string name="yubikit_otp_activity_title">Connect device</string>
     <string name="yubikit_prompt_plug_in">Connect your device.</string>
     <string name="yubikit_prompt_plug_in_or_tap">Hold your device flat against the back of your phone, or connect it via USB.</string>
-    <string name="openpgp_prompt_keep_in_place_write">Keep the key on the phone (or plugged in) until the operation completes. Removing it part-way can leave it partially written.</string>
-    <string name="openpgp_prompt_keep_in_place_erase">Keep the key on the phone (or plugged in) until the operation completes. Removing it part-way can leave its PINs blocked.</string>
     <string name="yubikit_prompt_remove">Remove your device.</string>
     <string name="yubikit_otp_touch">Touch the sensor on your device.</string>
 
@@ -279,8 +277,11 @@ so that you can program the static password over NFC, not just over USB.</string
     <string name="nitrokey3updater_status_connecting">Connecting to the bootloader…</string>
     <string name="nitrokey3updater_status_installing">Installing firmware… %1$d%%</string>
     <string name="nitrokey3updater_status_restarting">Update installed, restarting your Nitrokey 3…</string>
-    <string name="nitrokey3updater_status_done">Firmware %1$s installed</string>
-    <string name="nitrokey3updater_status_done_app_mode">Firmware %1$s installed. Application mode confirmed.</string>
+    <string name="nitrokey3updater_status_verifying">Update installed. Waiting for your Nitrokey 3 to start the new firmware…</string>
+    <string name="nitrokey3updater_status_verified">Firmware %1$s installed and confirmed on the key. Keep it plugged in until its LED stops blinking.</string>
+    <string name="nitrokey3updater_status_mismatch">Firmware %1$s was installed, but the key reports %2$s.\n\nUnplug it, wait five seconds and plug it in again, then check its firmware version before you rely on it. If it still reports %2$s, the new firmware did not start: use REBOOT TO BOOTLOADER and update again.</string>
+    <string name="nitrokey3updater_status_unverified">Firmware %1$s was transferred, but the new version could not be confirmed.\n\nGive the key a minute to start, then unplug it, wait five seconds, plug it in again and check its firmware version. Do not repeat the update unless the key shows up in bootloader mode.</string>
+    <string name="nitrokey3updater_dismiss">Dismiss</string>
     <string name="nitrokey3updater_failed_retry">Update failed: %1$s\n\nNo firmware data was sent and the firmware on your Nitrokey 3 has not been changed. You can try again.</string>
     <string name="nitrokey3updater_failed_replug_no_data">Update failed: %1$s\n\nNo firmware data was sent and the firmware on your Nitrokey 3 has not been changed. To start from a clean state, unplug your Nitrokey 3, wait five seconds and plug it in again, then use TEST again. It should appear as a Nitrokey 3 bootloader. If it starts normally, use REBOOT TO BOOTLOADER again.</string>
     <string name="nitrokey3updater_failed_replug_partial">Update failed: %1$s\n\nThe update did not finish, so the firmware on your Nitrokey 3 may be incomplete. Do not rely on the key until an update has completed.\n\nThe key can only be updated again from bootloader mode. Unplug it, wait five seconds and plug it in again. It should appear as a Nitrokey 3 bootloader. If it starts normally, use REBOOT TO BOOTLOADER again.</string>
@@ -305,5 +306,11 @@ so that you can program the static password over NFC, not just over USB.</string
     <string name="nitrokey3updater_notification_title">Updating Nitrokey 3, do not unplug</string>
     <string name="nitrokey3updater_service_failed">The service could not be started in the background</string>
     <string name="nitrokey3updater_service_stopped">The update service stopped unexpectedly. The state of the update is not known</string>
+    <string name="nitrokey3updater_status_multiple_bootloaders">More than one bootloader device is connected (%1$d). Unplug all but your Nitrokey 3 to continue.</string>
+    <string name="nitrokey3updater_block_unverified">The firmware archive has no sha256sums entry for %1$s, so the file cannot be verified and updating is disabled. Download the official firmware archive again and import it.</string>
+    <string name="nitrokey3updater_block_space">Updating is disabled: your Nitrokey 3 has only %1$d free blocks on its internal filesystem, and the update from %2$s to %3$s needs at least %4$d to migrate it. Free some space first, for example delete FIDO resident keys you no longer need with the Nitrokey App 2 or nitropy. Then use RETURN TO APPLICATION MODE and REBOOT TO BOOTLOADER again. The release notes of v1.8.2 explain the migration.</string>
+    <string name="nitrokey3updater_identity_title">Confirm the device</string>
+    <string name="nitrokey3updater_identity_message">The connected bootloader identifies itself as %1$s.\n\nA Nitrokey 3 bootloader identifies itself as USB 20A0:42DD. Every board with an NXP LPC55 chip in ISP mode looks like this one, and this app cannot tell them apart.\n\nContinue only if this device is your Nitrokey 3 and no other board is connected. The bootloader should refuse a file signed for another device before it erases anything, but do not rely on that.</string>
+    <string name="nitrokey3updater_identity_confirm">This is my Nitrokey 3</string>
 
 </resources>

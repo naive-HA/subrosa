@@ -8,12 +8,11 @@ import java.io.IOException
 
 @Throws(FlashException::class)
 internal suspend fun requireBootloaderAccess(connector: UsbBootloaderConnector, device: BootloaderDevice): UsbDevice {
-    val usbDevice = connector.findDevice(device.usbName)
-        ?: throw FlashException("The Nitrokey 3 bootloader is no longer connected.")
+    val usbDevice = connector.requireSame(device)
     if (!connector.ensurePermission(usbDevice)) {
         throw FlashException("USB access was not granted. Allow sub rosa to use the Nitrokey 3 and try again.")
     }
-    return usbDevice
+    return connector.requireSame(device)
 }
 
 @Throws(FlashException::class)

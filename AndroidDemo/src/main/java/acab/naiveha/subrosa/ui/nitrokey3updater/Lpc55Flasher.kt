@@ -23,6 +23,12 @@ internal class Lpc55Flasher(
         if (image.variant != Nk3Variant.LPC55) {
             throw FlashException("This is not an LPC55 firmware image.")
         }
+        if (!image.checksumVerified) {
+            throw FlashException(
+                "The firmware archive has no sha256sums entry for ${image.fileName}, so the file cannot be verified. " +
+                    "Nothing was sent.",
+            )
+        }
         val header = image.sb2Header ?: throw FlashException("The firmware image has no SB2 header.")
 
         val client = MbootClient(transport, log, sleep)
