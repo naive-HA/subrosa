@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.VibratorManager
 import android.provider.OpenableColumns
@@ -94,14 +95,25 @@ class Nitrokey3UpdaterFragment : Fragment() {
     private var defaultButtonTint: ColorStateList? = null
     private var shownFlash: FlashState = FlashState.Idle
 
+    private var rebootExpectedUntil = 0L
+
+    private var leaveWhenResumed = false
+
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
-                UsbManager.ACTION_USB_DEVICE_ATTACHED,
-                UsbManager.ACTION_USB_DEVICE_DETACHED -> {
+                UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
+                    rebootExpectedUntil = 0L
                     mainHandler.postDelayed({ checkConnectedUsbDevice() }, 500)
+                }
+                UsbManager.ACTION_USB_DEVICE_DETACHED -> {
+                    val pulledByUser = !disconnectIsExpected()
+                    mainHandler.postDelayed({
+                        checkConnectedUsbDevice()
+                        if (pulledByUser) leaveIfNitrokeyGone()
+                    }, 500)
                 }
             }
         }
@@ -242,6 +254,8 @@ class Nitrokey3UpdaterFragment : Fragment() {
             Log.d(TAG, "Nitrokey3UpdaterFragment popped — flushing firmware archive from memory")
         }
         mainHandler.removeCallbacksAndMessages(null)
+        rebootExpectedUntil = 0L
+        leaveWhenResumed = false
         shownFlash = FlashState.Idle
         try {
             requireContext().unregisterReceiver(usbReceiver)
@@ -398,6 +412,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
                 Log.e(TAG, "Firmware archive error announced: $invalidMsg")
                 errorVibrate()
                 showErrorDialog(invalidMsg, title = getString(R.string.error_dialog_title))
+                updateWriteStatus("")
             } else if (input.image !is ImageState.Invalid) {
                 lastAnnouncedInvalidImage = null
             }
@@ -415,6 +430,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
                     Log.e(TAG, "Bootloader check failed: $failMsg")
                     errorVibrate()
                     showErrorDialog(failMsg, title = getString(R.string.error_dialog_title))
+                    updateWriteStatus("")
                 }
             } else if (checkState !is CheckState.Finished) {
                 lastAnnouncedFailedCheckReport = null
@@ -427,6 +443,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
                 Log.e(TAG, "Flash operation failed: ${flash.message}")
                 errorVibrate()
                 showErrorDialog(failureText(flash), title = getString(R.string.error_dialog_title))
+                updateWriteStatus("")
             }
             render()
         }
@@ -442,6 +459,11 @@ class Nitrokey3UpdaterFragment : Fragment() {
         }
 
         checkConnectedUsbDevice()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (leaveWhenResumed) leaveIfNitrokeyGone()
     }
 
     private fun handleToggleClick() {
@@ -651,7 +673,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
                 FlashPhase.VERIFYING -> getString(R.string.nitrokey3updater_status_verifying)
             }
             is FlashState.Succeeded -> return successText(flash)
-            is FlashState.Failed -> return failureText(flash)
+            is FlashState.Failed -> return ""
             is FlashState.Idle -> Unit
         }
 
@@ -671,7 +693,10 @@ class Nitrokey3UpdaterFragment : Fragment() {
         val flashable = input.flashableImage
 
         if (checkState is CheckState.Finished) {
-            if (checkState.report.worst != CheckLevel.FAIL && flashable != null) {
+            if (checkState.report.worst == CheckLevel.FAIL) {
+                return ""
+            }
+            if (flashable != null) {
                 return withBlock(getString(R.string.nitrokey3updater_tests_completed), block)
             }
             val summary = getString(
@@ -689,7 +714,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
         }
         return when {
             state is ImageState.Preparing -> getString(R.string.nitrokey3updater_status_preparing)
-            state is ImageState.Invalid -> state.message
+            state is ImageState.Invalid -> ""
             bootloader == null -> null
             bootloader.variant == null -> getString(R.string.nitrokey3updater_status_not_nitrokey_bootloader)
             input.archive == null -> getString(R.string.nitrokey3updater_status_import_first)
@@ -713,6 +738,7 @@ class Nitrokey3UpdaterFragment : Fragment() {
 
         updaterViewModel.clearResult()
         updaterViewModel.onRebootRequested()
+        expectReboot()
         setLoading(true)
         updateWriteStatus("Please touch your Nitrokey 3 to confirm reboot…")
 
@@ -779,16 +805,19 @@ class Nitrokey3UpdaterFragment : Fragment() {
 
             withContext(Dispatchers.Main) {
                 if (success) {
+                    rebootAccepted()
                     updateWriteStatus("Device rebooting… Waiting for bootloader mode")
                     mainHandler.postDelayed({ checkConnectedUsbDevice() }, 1500)
                     mainHandler.postDelayed({ updaterViewModel.onRebootFailed() }, REBOOT_WAIT_MS)
                 } else {
                     updaterViewModel.onRebootFailed()
+                    rebootExpectedUntil = 0L
                     setLoading(false)
                     val err = errorMsg ?: "Failed to reboot device"
                     Log.e(TAG, "rebootToBootloader failed: $err")
                     errorVibrate()
                     showErrorDialog(err, title = getString(R.string.error_dialog_title))
+                    updateWriteStatus("")
                 }
             }
         }
@@ -808,19 +837,23 @@ class Nitrokey3UpdaterFragment : Fragment() {
 
     private fun rebootToApplication() {
         Log.d(TAG, "rebootToApplication() triggered from UI")
+        expectReboot()
         setLoading(true)
         updateWriteStatus("Sending reset command to reboot into application mode…")
         updaterViewModel.rebootToApplication(requireContext()) { success, errorMsg ->
             Log.d(TAG, "rebootToApplication() result: success=$success, errorMsg=$errorMsg")
             if (success) {
+                rebootAccepted()
                 updateWriteStatus("Reset sent. Waiting for application mode…")
                 mainHandler.postDelayed({ checkConnectedUsbDevice() }, 1500)
             } else {
+                rebootExpectedUntil = 0L
                 setLoading(false)
                 val err = "Could not reset device: ${errorMsg ?: "Unknown error"}. Please unplug and re-plug your Nitrokey 3."
                 Log.e(TAG, "rebootToApplication failed: $err")
                 errorVibrate()
                 showErrorDialog(err, title = getString(R.string.error_dialog_title))
+                updateWriteStatus("")
             }
         }
     }
@@ -965,6 +998,47 @@ class Nitrokey3UpdaterFragment : Fragment() {
     private fun isNitrokeyAppConnected(): Boolean {
         val usbManager = requireContext().getSystemService(Context.USB_SERVICE) as? UsbManager ?: return false
         return usbManager.deviceList.values.any { it.vendorId == VID_NITROKEY && it.productId == PID_NK3_APP }
+    }
+
+    private fun isNitrokeyAttached(): Boolean {
+        val usbManager = requireContext().getSystemService(Context.USB_SERVICE) as? UsbManager ?: return true
+        return usbManager.deviceList.values.any {
+            Nk3UsbIds.isNitrokey3(it.vendorId, it.productId) ||
+                Nk3UsbIds.isBootloaderCandidate(it.vendorId, it.productId)
+        }
+    }
+
+    private fun expectReboot() {
+        rebootExpectedUntil = Long.MAX_VALUE
+    }
+
+    private fun rebootAccepted() {
+        rebootExpectedUntil = SystemClock.elapsedRealtime() + REBOOT_WAIT_MS
+    }
+
+    private fun disconnectIsExpected(): Boolean {
+        if (updaterViewModel.isBusy || SystemClock.elapsedRealtime() < rebootExpectedUntil) return true
+        val flash = updaterViewModel.flash.value
+        return updaterViewModel.input.value?.replugRequired == true ||
+            (flash is FlashState.Failed && flash.advice != FailureAdvice.RETRY) ||
+            (flash is FlashState.Succeeded && flash.verification.outcome != VerifyOutcome.VERIFIED)
+    }
+
+    private fun leaveIfNitrokeyGone() {
+        if (!isAdded || _binding == null) return
+        if (isNitrokeyAttached()) {
+            leaveWhenResumed = false
+            return
+        }
+        if (!isResumed) {
+            leaveWhenResumed = true
+            return
+        }
+        leaveWhenResumed = false
+        val navController = findNavController()
+        if (navController.currentDestination?.id != R.id.nitrokey3UpdaterFragment) return
+        Log.d(TAG, "Nitrokey 3 unplugged, returning to the management screen")
+        navController.popBackStack(R.id.nav_management, false)
     }
 
     private fun setLoading(loading: Boolean) {

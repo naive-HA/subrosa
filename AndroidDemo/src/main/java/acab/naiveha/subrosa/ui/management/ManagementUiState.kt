@@ -44,6 +44,9 @@ data class ManagementUiState(
     val isNitrokey3: Boolean
         get() = connectedDevice?.type == PgpDeviceType.NITROKEY3
 
+    val canUpdateFirmware: Boolean
+        get() = isNitrokey3 && connectedDevice?.isNfc == false
+
     val resolvedDeviceNameResult: DeviceNameResult
         get() {
             val dev = connectedDevice ?: return DeviceNameResult("Unknown", DeviceNameResult.Source.UNKNOWN)

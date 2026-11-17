@@ -111,7 +111,7 @@ object OpenPgpKeyParser {
                        "s2KUsage=${sk.s2KUsage} " +
                        "(0=plaintext, 254=SHA1-protected, 255=checksum-protected)")
         }
-        val isPassphraseProtected = allSecretKeys.any { it.s2KUsage != 0 }
+        val isPassphraseProtected = allSecretKeys.any { !it.isPrivateKeyEmpty && it.s2KUsage != 0 }
         Log.i(TAG, "isPassphraseProtected=$isPassphraseProtected")
 
         OpenPgpKeyInfo(

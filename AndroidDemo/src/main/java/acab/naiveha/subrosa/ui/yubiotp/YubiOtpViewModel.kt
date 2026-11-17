@@ -134,6 +134,11 @@ class YubiOtpViewModel : YubiKeyViewModel<YubiOtpSession>() {
         updateUi { YubiOtpUiState(nfc = null, nfcRequested = null) }
     }
 
+    override fun onPendingActionFailed(error: Throwable) {
+        writeStatusChannel.post("")
+        resetStatusChannel.post("")
+    }
+
     override fun getSession(
         device: YubiKeyDevice,
         onError: (Throwable) -> Unit,

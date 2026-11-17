@@ -26,6 +26,10 @@ internal object Nk3UsbIds {
     fun isBootloaderCandidate(vendorId: Int, productId: Int): Boolean =
         bootloaderVariant(vendorId, productId) != null
 
+    fun isNitrokey3(vendorId: Int, productId: Int): Boolean =
+        vendorId == VID_NITROKEY &&
+            (productId == PID_APP || bootloaderVariant(vendorId, productId) != null)
+
     fun isGenericLpc55(vendorId: Int, productId: Int): Boolean =
         bootloaderVariant(vendorId, productId) == Nk3Variant.LPC55 &&
             !(vendorId == VID_NITROKEY && productId == PID_BOOTLOADER_LPC55)

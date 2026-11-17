@@ -46,8 +46,6 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         )
 
         private const val TAG = "OpenPgpViewModel"
-
-        private const val MAX_CAUSE_DEPTH = 8
     }
 
     private val logger = LoggerFactory.getLogger(OpenPgpViewModel::class.java)
@@ -232,7 +230,7 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
             } catch (e: Exception) {
                 logger.warn("Reset OpenPGP applet failed: ${e.message}")
                 if (e is WipeInterruptedException) {
-                    pinChangeStatusChannel.pin(e.message)
+                    postPinChangeStatus("")
                     throw e
                 }
                 postPinChangeStatus(e.message ?: "Failed to reset OpenPGP applet")
@@ -306,21 +304,8 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
     }
 
     override fun onPendingActionFailed(error: Throwable) {
-        val causes = generateSequence(error) { it.cause }.take(MAX_CAUSE_DEPTH).toList()
-        causes.filterIsInstance<PartialWriteException>().firstOrNull()?.let {
-            logger.warn("Save was interrupted after the device was reset — pinning the notice to the write status")
-            writeStatusChannel.pin(it.message)
-        }
-        causes.filterIsInstance<WipeInterruptedException>().firstOrNull()?.let {
-            logger.warn("Erase was interrupted after the device was modified — pinning the notice to the wipe status")
-            wipeStatusChannel.pin(it.message)
-        }
-    }
-
-    private fun dismissInterruptedNotices() {
-        writeStatusChannel.unpin()
-        wipeStatusChannel.unpin()
-        pinChangeStatusChannel.unpin()
+        postWriteStatus("")
+        postWipeStatus("")
     }
 
     private fun clearStatuses() {
@@ -332,10 +317,8 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
 
     private val writeStatusChannel = StatusChannel(viewModelScope)
     val writeStatus: LiveData<String> = writeStatusChannel.value
-    fun postWriteStatus(message: String) {
-        if (message == OpenPgpWriter.WRITE_COMPLETE_STATUS) dismissInterruptedNotices()
+    fun postWriteStatus(message: String) =
         writeStatusChannel.post(message, transient = message in WRITE_TRANSIENT)
-    }
 
     private val readStatusChannel = StatusChannel(viewModelScope)
     val readStatus: LiveData<String> = readStatusChannel.value
@@ -350,17 +333,13 @@ class OpenPgpViewModel : YubiKeyViewModel<OpenPgpSession>() {
         },
     )
     val wipeStatus: LiveData<String> = wipeStatusChannel.value
-    fun postWipeStatus(message: String) {
-        if (message == OpenPgpWriter.WIPE_COMPLETE_STATUS) dismissInterruptedNotices()
+    fun postWipeStatus(message: String) =
         wipeStatusChannel.post(message, transient = message in WIPE_TRANSIENT)
-    }
 
     private val pinChangeStatusChannel = StatusChannel(viewModelScope)
     val pinChangeStatus: LiveData<String> = pinChangeStatusChannel.value
-    fun postPinChangeStatus(message: String) {
-        if (message == OpenPgpWriter.WIPE_COMPLETE_STATUS) dismissInterruptedNotices()
+    fun postPinChangeStatus(message: String) =
         pinChangeStatusChannel.post(message, transient = message in PIN_CHANGE_TRANSIENT)
-    }
 
     override fun getSession(device: YubiKeyDevice, onError: (Throwable) -> Unit, callback: (OpenPgpSession) -> Unit) {
         if (shouldIgnoreTap(device)) return

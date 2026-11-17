@@ -1,11 +1,10 @@
 package acab.naiveha.subrosa.ui
 
+import acab.naiveha.subrosa.ui.nitrokey3updater.Nk3UsbIds
 import com.yubico.yubikit.android.transport.usb.UsbDeviceManager
 import com.yubico.yubikit.android.transport.usb.UsbYubiKeyDevice
 import com.yubico.yubikit.core.Version
 import com.yubico.yubikit.core.YubiKeyDevice
-import com.yubico.yubikit.core.YubiKeyType
-import com.yubico.yubikit.core.UsbPid
 
 enum class PgpDeviceType {
     YUBIKEY,
@@ -25,17 +24,16 @@ enum class PgpDeviceType {
             else                     -> UNKNOWN
         }
 
-        fun fromUsbDescriptor(device: UsbYubiKeyDevice): PgpDeviceType {
-            val vendorId = device.usbDevice.vendorId
-            val pid: UsbPid? = device.pid
-            return when {
-                pid?.type == YubiKeyType.NK3 ||
-                    vendorId == UsbDeviceManager.NITROKEY3_VENDOR_ID -> NITROKEY3
-                vendorId == UsbDeviceManager.NITROKEY2_VENDOR_ID     -> NITROKEY2
-                vendorId == UsbDeviceManager.YUBICO_VENDOR_ID        -> YUBIKEY
-                else                                                 -> UNKNOWN
-            }
+        fun fromUsbIds(vendorId: Int, productId: Int): PgpDeviceType = when {
+            Nk3UsbIds.isNitrokey3(vendorId, productId)           -> NITROKEY3
+            vendorId == Nk3UsbIds.VID_NITROKEY ||
+                vendorId == UsbDeviceManager.NITROKEY2_VENDOR_ID -> NITROKEY2
+            vendorId == UsbDeviceManager.YUBICO_VENDOR_ID        -> YUBIKEY
+            else                                                 -> UNKNOWN
         }
+
+        fun fromUsbDescriptor(device: UsbYubiKeyDevice): PgpDeviceType =
+            fromUsbIds(device.usbDevice.vendorId, device.usbDevice.productId)
 
         fun isUsbNitrokey3(device: YubiKeyDevice?): Boolean =
             device is UsbYubiKeyDevice && fromUsbDescriptor(device) == NITROKEY3

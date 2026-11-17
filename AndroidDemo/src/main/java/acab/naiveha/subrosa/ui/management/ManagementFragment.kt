@@ -25,7 +25,6 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import acab.naiveha.subrosa.R
-import acab.naiveha.subrosa.ui.PgpDeviceType
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -64,10 +63,6 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             val dash = getString(R.string.dash)
             state.errorInfo?.let { binding.deviceModel.text = "Error: $it" }
 
-            val showUpdate = state.connectedDevice != null &&
-                             state.connectedDevice.type == PgpDeviceType.NITROKEY3 &&
-                             !state.connectedDevice.isNfc
-
             if (!state.isDeviceConnected && !state.loading) {
                 binding.progressLoading.visibility = View.GONE
                 startDotAnimation(state.errorInfo)
@@ -85,7 +80,7 @@ class ManagementFragment : YubiKeyFragment<ManagementSession, ManagementViewMode
             binding.emptyView.text = ""
             binding.deviceModel.text = state.resolvedDeviceName.ifBlank { dash }
             binding.deviceFirmware.text = state.resolvedFirmware.ifBlank { dash }
-            binding.btnUpdateFirmware.visibility = if (showUpdate) View.VISIBLE else View.GONE
+            binding.btnUpdateFirmware.visibility = if (state.canUpdateFirmware) View.VISIBLE else View.GONE
 
             renderPgpStatus(state.pgpStatus)
             renderSupportedAlgorithms(state.pgpCardInfo)

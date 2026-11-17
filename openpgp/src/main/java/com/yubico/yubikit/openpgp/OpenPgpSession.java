@@ -27,6 +27,7 @@ import com.yubico.yubikit.core.application.BadResponseException;
 import com.yubico.yubikit.core.application.Feature;
 import com.yubico.yubikit.core.application.InvalidPinException;
 import com.yubico.yubikit.core.internal.Logger;
+import com.yubico.yubikit.core.keys.EllipticCurveValues;
 import com.yubico.yubikit.core.keys.PrivateKeyValues;
 import com.yubico.yubikit.core.keys.PublicKeyValues;
 import com.yubico.yubikit.core.smartcard.Apdu;
@@ -1123,10 +1124,22 @@ public class OpenPgpSession extends ApplicationSession<OpenPgpSession> {
             intToLength(rsaValues.getPrimeQ(), byteLength));
       }
     } else if (values instanceof PrivateKeyValues.Ec) {
-      return new PrivateKeyTemplate.Ec(
-          keyRef.getCrt(), ((PrivateKeyValues.Ec) values).getSecret(), null);
+      PrivateKeyValues.Ec ecValues = (PrivateKeyValues.Ec) values;
+      byte[] secret = ecValues.getSecret();
+      if (ecValues.getCurveParams() == EllipticCurveValues.X25519) {
+        reverse(secret);
+      }
+      return new PrivateKeyTemplate.Ec(keyRef.getCrt(), secret, null);
     }
     throw new UnsupportedOperationException("Unsupported private key type");
+  }
+
+  private static void reverse(byte[] bytes) {
+    for (int i = 0, j = bytes.length - 1; i < j; i++, j--) {
+      byte tmp = bytes[i];
+      bytes[i] = bytes[j];
+      bytes[j] = tmp;
+    }
   }
 
   /**
