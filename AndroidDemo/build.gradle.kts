@@ -44,7 +44,7 @@ android {
         minSdk = 31
         targetSdk = 37
         versionCode = 16
-        versionName = "2.4.1"
+        versionName = "3.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         missingDimensionStrategy("distribution", "arm64")
